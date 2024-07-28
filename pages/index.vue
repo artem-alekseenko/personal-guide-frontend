@@ -1,3 +1,3 @@
 <template>
-  <h1>Init</h1>
+  <NuxtLink to="/guides">Go to guides pages</NuxtLink>
 </template>
