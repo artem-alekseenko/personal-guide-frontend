@@ -1,0 +1,23 @@
+{
+  "name": "personal-guide-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "devDependencies": {
+    "@vueuse/core": "10.11.0",
+    "@vueuse/nuxt": "10.11.0",
+    "nuxt": "3.12.4",
+    "typescript": "5.5.4",
+    "vue-tsc": "2.0.29"
+  },
+  "packageManager": "yarn@4.3.1",
+  "engines": {
+    "node": "22.x"
+  }
+}
