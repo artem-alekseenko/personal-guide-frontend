@@ -1,8 +1,8 @@
-version: '3'
+version: "3"
 services:
   proto:
-   build: .
-   container_name: proto
-   restart: always
-   ports: 
-     - "3000:3000"
+    build: .
+    container_name: proto
+    restart: always
+    ports:
+      - "3000:3000"

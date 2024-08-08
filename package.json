@@ -11,16 +11,20 @@
     "postinstall": "nuxt prepare"
   },
   "devDependencies": {
+    "@nuxtjs/tailwindcss": "6.12.1",
+    "@pinia/nuxt": "0.5.3",
+    "@tailwindcss/typography": "0.5.14",
+    "@types/node": "22.1.0",
     "@vueuse/core": "10.11.0",
     "@vueuse/nuxt": "10.11.0",
-    "@nuxtjs/tailwindcss": "6.12.1",
-    "@tailwindcss/typography": "0.5.13",
     "nuxt": "3.12.4",
+    "pinia": "2.2.1",
     "prettier": "3.3.3",
+    "prettier-plugin-tailwindcss": "0.6.5",
     "typescript": "5.5.4",
     "vue-tsc": "2.0.29"
   },
-  "packageManager": "pnpm@9.6.0",
+  "packageManager": "pnpm@9.7.0",
   "engines": {
     "node": "22.x"
   }

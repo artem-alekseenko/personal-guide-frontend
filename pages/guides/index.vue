@@ -1,15 +1,23 @@
 <template>
-  <h1>Guides</h1>
-  <h2 v-if="!guides.data.length">
-    {{ guides.message }}
-  </h2>
-  <PGGuide />
+  <h1 class="prose p-4 md:p-12 font-extrabold text-2xl">Guides</h1>
+  <div class="flex flex-col justify-center gap-4 p-4 md:p-12">
+    <PGGuide
+        v-for="guide in guides"
+        :key="guide.id"
+        :guide="guide"
+        class="flex-1"
+    />
+  </div>
 </template>
 
-<script setup lang="ts">
-import { useGuides, useHead } from "#imports";
+<script lang="ts" setup>
+import {useGuidesStore, useHead} from "#imports";
 
-const guides = await useGuides();
+const {initialize, guides} = useGuidesStore();
+
+await callOnce(async () => {
+  initialize();
+})
 
 const title = "Guides";
 useHead({
