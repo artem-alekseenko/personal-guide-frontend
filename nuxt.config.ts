@@ -1,12 +1,32 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-    ssr: true,
-    devtools: {enabled: true},
-    modules: ["@vueuse/nuxt", "@nuxtjs/tailwindcss", "@pinia/nuxt"],
-
-    future: {
-        compatibilityVersion: 4,
+  compatibilityDate: "2024-04-03",
+  ssr: true,
+  modules: ["@vueuse/nuxt", "@pinia/nuxt", "@nuxt/ui", "nuxt-vuefire"],
+  future: {
+    compatibilityVersion: 4,
+  },
+  devtools: { enabled: true },
+  typescript: {
+    typeCheck: true,
+  },
+  vuefire: {
+    auth: {
+      enabled: true,
     },
-
-    compatibilityDate: "2024-07-28",
+    config: {
+      apiKey: process.env.VUEFIRE_API_KEY,
+      authDomain: process.env.VUEFIRE_AUTH_DOMAIN,
+      projectId: process.env.VUEFIRE_PROJECT_ID,
+      storageBucket: process.env.VUEFIRE_STORAGE_BUCKET,
+      messagingSenderId: process.env.VUEFIRE_MESSAGING_SENDER_ID,
+      appId: process.env.VUEFIRE_APP_ID,
+    },
+    appCheck: {
+      debug: process.env.NODE_ENV !== "production",
+      isTokenAutoRefreshEnabled: true,
+      provider: "ReCaptchaV3",
+      key: process.env.RECAPTCHA_KEY,
+    },
+  },
 });

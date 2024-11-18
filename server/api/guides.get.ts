@@ -1,13 +1,15 @@
+import type { Guide } from "~/types/guides.ts";
 import { useExternalApi } from "~/composables/server/useExternalApi";
-import { Guide } from "~/types/guides";
+import { defineEventHandler } from "h3";
 
-export default defineEventHandler(async (event): Promise<Guide[]> => {
+export default defineEventHandler(async (): Promise<Guide[]> => {
   const externalApiUrl = "https://api.personal-guide.ai/guides/";
 
   let guides = [] as Guide[];
 
   try {
     const response = await useExternalApi<Guide[]>(externalApiUrl);
+
     guides = response.guides;
   } catch (error) {
     console.error("Failed to fetch data from external API", error);
