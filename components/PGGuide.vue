@@ -12,8 +12,8 @@
       <span class="font-bold">Skills:</span>
       {{ guide.skills }}
     </div>
-    <UButton @click="selectGuide"
-      >Select {{ guide.name }} and create tour</UButton
+    <PGButton @click="selectGuide"
+      >Select {{ guide.name }} and create tour</PGButton
     >
     <div class="col-span-full justify-self-start pb-2 text-lg font-bold">
       Past tours:
@@ -40,6 +40,7 @@
 </template>
 
 <script lang="ts" setup>
+import PGButton from "~/components/ui/PGButton.vue";
 import type { Guide } from "~/types/guides";
 import { useSelectedGuide } from "~/stores/selectedGuideStore";
 

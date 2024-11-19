@@ -40,13 +40,12 @@
         <div class="max-duration">{{ MAX_DURATION_TOUR_MINUTES }} min</div>
       </div>
     </div>
-    <UButton
+    <PGButton
       :disabled="isMainButtonDisabled"
       class="mx-auto mt-6 block"
       @click="handleMainButtonClick"
+      >{{ mainButtonText }}</PGButton
     >
-      {{ mainButtonText }}
-    </UButton>
     <div class="my-6 flex justify-center gap-8">
       <p class="flex flex-col">
         <span>Your Guide:</span><span> {{ guide?.name }}</span>
@@ -58,6 +57,7 @@
 </template>
 
 <script lang="ts" setup>
+import PGButton from "~/components/ui/PGButton.vue";
 import formatMinToHours from "~/utils/formatMinToHours";
 import { useTourSuggestions } from "~/composables/useTourSuggestions";
 import type { IRouteSuggestionsResponseExtended } from "~/types/route-suggestions";

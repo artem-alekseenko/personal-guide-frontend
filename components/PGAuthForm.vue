@@ -14,18 +14,19 @@
       type="password"
       variant="outline"
     />
-    <UButton
+    <PGButton
       :loading="state === STATE.REQUESTING_USER"
       block
       variant="outline"
       @click="login"
-      >Login</UButton
+      >Login</PGButton
     >
   </div>
 </template>
 
 <script lang="ts" setup>
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import PGButton from "~/components/ui/PGButton.vue";
 
 enum STATE {
   INITIAL = "INITIAL",

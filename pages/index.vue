@@ -2,7 +2,7 @@
   <template v-if="state === STATE.USER_ENTERED">
     <div class="flex items-center justify-center gap-8 p-4">
       <p>{{ user?.email }}</p>
-      <UButton variant="ghost" @click="logout">Logout</UButton>
+      <PGButton variant="ghost" @click="logout">Logout</PGButton>
     </div>
   </template>
   <template v-if="state === STATE.USER_NOT_ENTERED">
@@ -22,6 +22,7 @@
 <script lang="ts" setup>
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { definePageMeta } from "#imports";
+import PGButton from "~/components/ui/PGButton.vue";
 
 definePageMeta({
   title: "Personal Guide Main Page",
