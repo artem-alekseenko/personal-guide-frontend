@@ -40,7 +40,6 @@
 </template>
 
 <script lang="ts" setup>
-import PGButton from "~/components/ui/PGButton.vue";
 import type { Guide } from "~/types/guides";
 import { useSelectedGuide } from "~/stores/selectedGuideStore";
 

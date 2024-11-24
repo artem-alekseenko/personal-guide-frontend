@@ -26,7 +26,6 @@
 
 <script lang="ts" setup>
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import PGButton from "~/components/ui/PGButton.vue";
 
 enum STATE {
   INITIAL = "INITIAL",

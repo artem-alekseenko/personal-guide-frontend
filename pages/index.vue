@@ -22,7 +22,6 @@
 <script lang="ts" setup>
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { definePageMeta } from "#imports";
-import PGButton from "~/components/ui/PGButton.vue";
 
 definePageMeta({
   title: "Personal Guide Main Page",

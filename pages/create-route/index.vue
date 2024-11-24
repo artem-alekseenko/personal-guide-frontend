@@ -57,7 +57,6 @@
 </template>
 
 <script lang="ts" setup>
-import PGButton from "~/components/ui/PGButton.vue";
 import formatMinToHours from "~/utils/formatMinToHours";
 import { useTourSuggestions } from "~/composables/useTourSuggestions";
 import type { IRouteSuggestionsResponseExtended } from "~/types/route-suggestions";
