@@ -22,18 +22,21 @@
 <script lang="ts" setup>
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { definePageMeta } from "#imports";
+import type { TypeFrom } from "~/types";
 
 definePageMeta({
   title: "Personal Guide Main Page",
 });
 
-enum STATE {
-  INITIAL = "INITIAL",
-  USER_ENTERED = "USER_ENTERED",
-  USER_NOT_ENTERED = "USER_NOT_ENTERED",
-}
+const STATE = {
+  INITIAL: "INITIAL",
+  USER_ENTERED: "USER_ENTERED",
+  USER_NOT_ENTERED: "USER_NOT_ENTERED",
+} as const;
 
-const state = ref(STATE.INITIAL);
+type TState = TypeFrom<typeof STATE>;
+
+const state = ref<TState>(STATE.INITIAL);
 
 const user = useCurrentUser();
 const auth = getAuth();

@@ -26,15 +26,18 @@
 
 <script lang="ts" setup>
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import type { TypeFrom } from "~/types";
 
-enum STATE {
-  INITIAL = "INITIAL",
-  REQUESTING_USER = "REQUESTING_USER",
-  USER_FOUND = "USER_FOUND",
-  ERROR_REQUEST = "ERROR_REQUEST",
-}
+const STATE = {
+  INITIAL: "INITIAL",
+  REQUESTING_USER: "REQUESTING_USER",
+  USER_FOUND: "USER_FOUND",
+  ERROR_REQUEST: "ERROR_REQUEST",
+} as const;
 
-const state = ref(STATE.INITIAL);
+type TState = TypeFrom<typeof STATE>;
+
+const state = ref<TState>(STATE.INITIAL);
 const email = ref("");
 const password = ref("");
 

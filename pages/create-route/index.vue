@@ -63,6 +63,7 @@ import type { IRouteSuggestionsResponseExtended } from "~/types/route-suggestion
 import PGMap from "~/components/PGMap.vue";
 import { useSelectedGuide } from "~/stores/selectedGuideStore";
 import { definePageMeta } from "#imports";
+import type { TypeFrom } from "~/types";
 
 definePageMeta({
   title: "Create route",
@@ -73,14 +74,16 @@ const MIN_DURATION_TOUR_MINUTES = 5;
 const MAX_DURATION_TOUR_MINUTES = 60;
 const DEFAULT_GUIDE_ID = "66ddd98bf124c17bff59e1b2";
 
-enum STATE {
-  INITIAL = "initial",
-  DATA_ENTRY_COMPLETED = "data_entry_completed",
-  ROUTE_REQUESTING = "route_requesting",
-  ROUTE_RECEIVED = "route_received",
-}
+const STATE = {
+  INITIAL: "INITIAL",
+  DATA_ENTRY_COMPLETED: "DATA_ENTRY_COMPLETED",
+  ROUTE_REQUESTING: "ROUTE_REQUESTING",
+  ROUTE_RECEIVED: "ROUTE_RECEIVED",
+} as const;
 
-const state = ref(STATE.INITIAL);
+type TState = TypeFrom<typeof STATE>;
+
+const state = ref<TState>(STATE.INITIAL);
 
 const { guide } = useSelectedGuide();
 
@@ -98,8 +101,8 @@ const BUTTON_TEXT = {
 
 const getButtonDefaultText = (): string => BUTTON_TEXT.GET_TOUR_ROUTE;
 
-const getButtonText = (currentState: STATE): string => {
-  const stateTextMap: Record<STATE, string> = {
+const getButtonText = (currentState: TState): string => {
+  const stateTextMap: Record<TState, string> = {
     [STATE.INITIAL]: BUTTON_TEXT.GET_TOUR_ROUTE,
     [STATE.DATA_ENTRY_COMPLETED]: BUTTON_TEXT.GET_TOUR_ROUTE,
     [STATE.ROUTE_REQUESTING]: BUTTON_TEXT.GETTING_ROUTE,
