@@ -3,16 +3,19 @@ interface TokenResponse {
 }
 
 export const useAccessToken = async (): Promise<string> => {
-  if (
-    !process.env.PG_API_GET_TOKEN_USERNAME ||
-    !process.env.PG_API_GET_TOKEN_PASSWORD
-  ) {
-    throw new Error("You must provide a valid username and password");
+  const accessTokenUrl = process.env.PG_API_ACCESS_TOKEN_URL;
+  const username = process.env.PG_API_GET_TOKEN_USERNAME;
+  const password = process.env.PG_API_GET_TOKEN_PASSWORD;
+
+  if (!(accessTokenUrl && username && password)) {
+    throw new Error(
+      "You must provide a valid username and password and access token url",
+    );
   }
-  const accessTokenUrl = "https://api.personal-guide.ai/token";
+
   const paramsForGettingToken = {
-    username: process.env.PG_API_GET_TOKEN_USERNAME,
-    password: process.env.PG_API_GET_TOKEN_PASSWORD,
+    username,
+    password,
     grant_type: "password",
   };
   const urlEncodedParams = new URLSearchParams(

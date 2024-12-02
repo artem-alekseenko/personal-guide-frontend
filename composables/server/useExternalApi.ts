@@ -1,43 +1,42 @@
-// import buildCurlCommand from "~/utils/buildCurlCommand";
+import type { TRequestMethod } from "~/types";
 
 export const useExternalApi = async <T>(
   url: string,
   params: Record<string, string> = {},
-  method: string = "GET",
-) => {
+  method: TRequestMethod = "GET",
+): Promise<T> => {
   const accessToken = process.env.PG_API_AUTHORIZATION_TOKEN;
   const hasParams = Object.keys(params).length > 0;
   const urlEncodedParams = hasParams
     ? new URLSearchParams(params).toString()
     : "";
 
-  let response: any = {};
+  let response: Promise<T>;
 
-  try {
-    const requestOptions: any = {
-      method: method,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    };
+  const headers = new Headers({
+    Authorization: `Bearer ${accessToken}`,
+  });
 
-    if (hasParams) {
-      if (method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD") {
-        url += `?${urlEncodedParams}`;
-      } else {
-        requestOptions.body = urlEncodedParams;
-        requestOptions.headers["Content-Type"] =
-          "application/x-www-form-urlencoded";
-      }
+  const requestOptions: RequestInit = {
+    method: method as TRequestMethod,
+    headers: headers,
+  };
+
+  if (hasParams) {
+    if (method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD") {
+      url += `?${urlEncodedParams}`;
+    } else {
+      requestOptions.body = urlEncodedParams;
+      headers.append("Content-Type", "application/x-www-form-urlencoded");
     }
-
-    // const curlCommand = buildCurlCommand(url, requestOptions);
-
-    response = await $fetch<T>(url, requestOptions);
-  } catch (error) {
-    console.log("error", error);
-    console.error("Inside useExternalApi error", error);
   }
 
+  try {
+    // @ts-ignore
+    response = await $fetch<T>(url, requestOptions);
+  } catch (error) {
+    console.error("Inside useExternalApi error", error);
+    throw error;
+  }
   return response;
 };

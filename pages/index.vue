@@ -42,11 +42,7 @@ const user = useCurrentUser();
 const auth = getAuth();
 
 const logout = async () => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error("Error when exiting", error);
-  }
+  await signOut(auth).catch((e) => console.error("Error when exiting", e));
 };
 
 onMounted(() => {

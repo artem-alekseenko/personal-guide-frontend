@@ -29,12 +29,13 @@ const convertRouteToCoordinates = (route: IRoute): [number, number][] => {
 export default defineEventHandler(
   async (event: H3Event): Promise<IRouteSuggestionsResponseExtended> => {
     const params = getQuery(event) as IRouteSuggestionsParams;
+    const routeSuggestionApiUrl = process.env.PG_API_ROUTE_SUGGESTION_URL;
 
     validateRouteSuggestionsParams(params);
 
     const { guideId, ...restParams } = params;
 
-    const externalApiUrl = `https://api.personal-guide.ai/guides/route_suggestions/${guideId}`;
+    const externalApiUrl = `${routeSuggestionApiUrl}${guideId}`;
 
     try {
       const response = await useExternalApi<IRouteSuggestionsResponse>(
@@ -46,9 +47,18 @@ export default defineEventHandler(
         },
       );
 
-      response.coordinates = convertRouteToCoordinates(response.routes[0]);
+      const firstRoute = response.routes[0];
+      if (!firstRoute) {
+        throw createError({
+          statusCode: 500,
+          statusMessage: "No route found in the response",
+        });
+      }
 
-      return response;
+      return {
+        ...response,
+        coordinates: convertRouteToCoordinates(firstRoute),
+      };
     } catch (error) {
       console.error(
         "Failed to fetch data about tour suggestions from external API",

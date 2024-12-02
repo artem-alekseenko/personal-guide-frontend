@@ -8,6 +8,10 @@ export interface Guide {
   tours: Tour[];
 }
 
+export interface IGuidesResponse {
+  guides: Guide[];
+}
+
 export interface Tour {
   id: number;
   image: string;

@@ -1,19 +1,26 @@
-import type { Guide } from "~/types/guides.ts";
+import type { Guide, IGuidesResponse } from "~/types/guides.ts";
 import { useExternalApi } from "~/composables/server/useExternalApi";
 import { defineEventHandler } from "h3";
 
 export default defineEventHandler(async (): Promise<Guide[]> => {
-  const externalApiUrl = "https://api.personal-guide.ai/guides/";
+  const apiUrlForGettingGuides = process.env.PG_API_GUIDES_URL;
 
-  let guides = [] as Guide[];
-
-  try {
-    const response = await useExternalApi<Guide[]>(externalApiUrl);
-
-    guides = response.guides;
-  } catch (error) {
-    console.error("Failed to fetch data from external API", error);
+  if (!apiUrlForGettingGuides) {
+    console.error("External API URL for getting guides is not defined");
+    return [];
   }
+
+  const response = await useExternalApi<IGuidesResponse | Error>(
+    apiUrlForGettingGuides,
+  ).catch((e) => e as Error);
+
+  if (response instanceof Error) {
+    console.error("Failed to fetch data from external API", response.message);
+
+    return [];
+  }
+
+  const { guides } = response;
 
   if (!guides.length) return [];
 

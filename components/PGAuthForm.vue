@@ -46,17 +46,19 @@ const auth = getAuth();
 const login = async () => {
   state.value = STATE.REQUESTING_USER;
 
-  try {
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email.value,
-      password.value,
-    );
-    console.log("userCredential", userCredential);
-    state.value = STATE.USER_FOUND;
-  } catch (error: any) {
-    console.log(error);
+  const authResponse = await signInWithEmailAndPassword(
+    auth,
+    email.value,
+    password.value,
+  ).catch((e) => e as Error);
+
+  if (authResponse instanceof Error) {
+    console.error(authResponse.message);
     state.value = STATE.ERROR_REQUEST;
+
+    return;
   }
+
+  state.value = STATE.USER_FOUND;
 };
 </script>
