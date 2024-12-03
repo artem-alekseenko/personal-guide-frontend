@@ -1,8 +1,8 @@
-import type { Guide, IGuidesResponse } from "~/types/guides.ts";
+import type { IGuide, IGuidesResponse } from "~/types/guides";
 import { useExternalApi } from "~/composables/server/useExternalApi";
 import { defineEventHandler } from "h3";
 
-export default defineEventHandler(async (): Promise<Guide[]> => {
+export default defineEventHandler(async (): Promise<IGuide[]> => {
   const apiUrlForGettingGuides = process.env.PG_API_GUIDES_URL;
 
   if (!apiUrlForGettingGuides) {
@@ -10,27 +10,20 @@ export default defineEventHandler(async (): Promise<Guide[]> => {
     return [];
   }
 
-  const response = await useExternalApi<IGuidesResponse | Error>(
-    apiUrlForGettingGuides,
-  ).catch((e) => e as Error);
+  try {
+    const response = await useExternalApi<IGuidesResponse>(
+      apiUrlForGettingGuides,
+    );
 
-  if (response instanceof Error) {
-    console.error("Failed to fetch data from external API", response.message);
+    const { guides } = response;
 
+    if (!guides || guides.length === 0) {
+      return [];
+    }
+
+    return guides;
+  } catch (error) {
+    console.error("Failed to fetch data from external API", error);
     return [];
   }
-
-  const { guides } = response;
-
-  if (!guides.length) return [];
-
-  return guides.map((guide: Guide) => ({
-    id: guide.id,
-    context: guide.context,
-    name: guide.name,
-    tags: guide.tags,
-    skills: guide.skills,
-    avatar: guide.avatar,
-    tours: guide.tours,
-  }));
 });

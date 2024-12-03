@@ -1,5 +1,16 @@
 import type { TRequestMethod } from "~/types";
 
+/**
+ * Makes an HTTP request to an external API with optional parameters and method.
+ * Automatically includes an authorization token from environment variables.
+ *
+ * @template T The expected response type.
+ * @param {string} url - The endpoint URL to send the request to.
+ * @param {Record<string, string>} [params={}] - An object containing query parameters or body parameters.
+ * @param {TRequestMethod} [method='GET'] - The HTTP method to use for the request.
+ * @returns {Promise<T>} A promise that resolves to the response of type T.
+ * @throws Will throw an error if the HTTP request fails.
+ */
 export const useExternalApi = async <T>(
   url: string,
   params: Record<string, string> = {},
@@ -11,15 +22,12 @@ export const useExternalApi = async <T>(
     ? new URLSearchParams(params).toString()
     : "";
 
-  let response: Promise<T>;
-
-  const headers = new Headers({
-    Authorization: `Bearer ${accessToken}`,
-  });
+  const headers = new Headers();
+  headers.append("Authorization", `Bearer ${accessToken}`);
 
   const requestOptions: RequestInit = {
-    method: method as TRequestMethod,
-    headers: headers,
+    method,
+    headers,
   };
 
   if (hasParams) {
@@ -33,10 +41,9 @@ export const useExternalApi = async <T>(
 
   try {
     // @ts-ignore
-    response = await $fetch<T>(url, requestOptions);
+    return await $fetch<T>(url, requestOptions);
   } catch (error) {
     console.error("Inside useExternalApi error", error);
     throw error;
   }
-  return response;
 };

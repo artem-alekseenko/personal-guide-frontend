@@ -21,8 +21,8 @@
 
 <script lang="ts" setup>
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
-import { definePageMeta } from "#imports";
 import type { TypeFrom } from "~/types";
+import { definePageMeta } from "#imports";
 
 definePageMeta({
   title: "Personal Guide Main Page",

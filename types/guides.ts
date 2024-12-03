@@ -1,4 +1,4 @@
-export interface Guide {
+export interface IGuide {
   id: number;
   name: string;
   skills: string;
@@ -9,7 +9,7 @@ export interface Guide {
 }
 
 export interface IGuidesResponse {
-  guides: Guide[];
+  guides: IGuide[];
 }
 
 export interface Tour {

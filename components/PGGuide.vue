@@ -40,11 +40,11 @@
 </template>
 
 <script lang="ts" setup>
-import type { Guide } from "~/types/guides";
+import type { IGuide } from "~/types/guides";
 import { useSelectedGuide } from "~/stores/selectedGuideStore";
 
 interface Props {
-  guide: Guide;
+  guide: IGuide;
 }
 
 const props = defineProps<Props>();
