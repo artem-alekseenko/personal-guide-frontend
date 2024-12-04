@@ -4,17 +4,16 @@
       <p>{{ user?.email }}</p>
       <PGButton variant="ghost" @click="logout">Logout</PGButton>
     </div>
-  </template>
-  <template v-if="state === STATE.USER_NOT_ENTERED">
-    <div class="flex h-dvh w-full justify-center align-middle">
-      <PGAuthForm />
-    </div>
-  </template>
-  <template v-if="state === STATE.USER_ENTERED">
     <div class="flex flex-1 items-center justify-center">
       <NuxtLink class="block text-center underline" to="/guides"
         >Go to guides pages
       </NuxtLink>
+    </div>
+  </template>
+
+  <template v-else-if="state === STATE.USER_NOT_ENTERED">
+    <div class="flex h-dvh w-full justify-center align-middle">
+      <PGAuthForm />
     </div>
   </template>
 </template>
@@ -41,14 +40,23 @@ const state = ref<TState>(STATE.INITIAL);
 const user = useCurrentUser();
 const auth = getAuth();
 
+const guidesStore = useGuidesStore();
+const { guidesList: guidesInStore } = storeToRefs(guidesStore);
+const { fetchGuidesList } = guidesStore;
+
 const logout = async () => {
   await signOut(auth).catch((e) => console.error("Error when exiting", e));
+};
+
+const handleUserLogin = async () => {
+  await fetchGuidesList();
 };
 
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
       state.value = STATE.USER_ENTERED;
+      handleUserLogin();
     } else {
       state.value = STATE.USER_NOT_ENTERED;
     }

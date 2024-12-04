@@ -199,7 +199,7 @@ watch(
 
     mapInstance.setPitch(MAP_PITCH);
 
-    addWaypointMarkers(waypoints);
+    // addWaypointMarkers(waypoints);
 
     mapInstance.off("click", selectPoint);
   },
