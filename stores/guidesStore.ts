@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import type { IGuide } from "~/types/guides.ts";
 import { ref } from "vue";
+import { useGuides } from "~/composables/useGuides";
 
 export const useGuidesStore = defineStore("guidesStore", () => {
   const guidesList = ref<IGuide[]>([]);

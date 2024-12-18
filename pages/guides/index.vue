@@ -19,7 +19,7 @@
 
 <script lang="ts" setup>
 import PGGuide from "~/components/PGGuide.vue";
-import { definePageMeta } from "#imports";
+import { definePageMeta, useGuidesStore } from "#imports";
 
 definePageMeta({
   title: "Guides",
