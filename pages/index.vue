@@ -41,7 +41,6 @@ const user = useCurrentUser();
 const auth = getAuth();
 
 const guidesStore = useGuidesStore();
-const { guidesList: guidesInStore } = storeToRefs(guidesStore);
 const { fetchGuidesList } = guidesStore;
 
 const logout = async () => {
