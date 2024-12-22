@@ -1,4 +1,4 @@
-import type { IGuide, IGuidesResponse } from "~/types/guides";
+import type { IGuide, IGuidesResponse } from "~/types";
 import { useExternalApi } from "~/composables/server/useExternalApi";
 import { defineEventHandler } from "h3";
 

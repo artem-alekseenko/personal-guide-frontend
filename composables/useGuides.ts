@@ -1,4 +1,4 @@
-import type { IGuide } from "~/types/guides";
+import type { IGuide } from "~/types";
 
 export const useGuides = async (): Promise<IGuide[]> => {
   const { data, error } = await useFetch<IGuide[]>("/api/guides");

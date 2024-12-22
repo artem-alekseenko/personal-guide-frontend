@@ -1,19 +1,19 @@
 <template>
-  <!-- <CreateRoute> -->
+  <!-- Create Tour Page -->
   <section class="container mx-auto pb-8">
     <h1 class="prose p-4 text-2xl font-extrabold md:p-12">Create Route</h1>
-    <div v-if="!routes" class="prose px-4 pb-2">
+    <!-- Instructions -->
+    <div v-if="!routeStore.routeSuggestion" class="prose px-4 pb-2">
       Please indicate the area you wish to explore
     </div>
     <div v-else class="prose px-4 pb-2">
       The excursion route has been built:
     </div>
+
+    <!-- Map -->
     <div class="relative">
       <client-only>
-        <PGMap
-          v-model:selected-area="selectedArea"
-          :coordinates="routes?.coordinates"
-        />
+        <PGMap v-model:selected-area="selectedArea" />
       </client-only>
       <div
         v-if="state === STATE.ROUTE_REQUESTING"
@@ -22,8 +22,12 @@
         <UIcon class="size-48 text-gray-50" name="svg-spinners:6-dots-scale" />
       </div>
     </div>
+
+    <!-- Description -->
     <div v-if="isShowDescription" class="prose p-4"></div>
-    <div v-if="!routes" class="my-4">
+
+    <!-- Duration Selector -->
+    <div v-if="!routeStore.routeSuggestion" class="my-4">
       <div class="prose p-4">
         Please indicate the desired duration of the excursion
       </div>
@@ -40,40 +44,46 @@
         <div class="max-duration">{{ MAX_DURATION_TOUR_MINUTES }} min</div>
       </div>
     </div>
+
+    <!-- Main Button -->
     <PGButton
       :disabled="isMainButtonDisabled"
       class="mx-auto mt-6 block"
       @click="handleMainButtonClick"
-      >{{ mainButtonText }}</PGButton
     >
+      {{ mainButtonText }}
+    </PGButton>
+
+    <!-- Guide Information -->
     <div class="my-6 flex justify-center gap-8">
       <p class="flex flex-col">
-        <span>Your Guide:</span><span> {{ guide?.name }}</span>
+        <span>Your Guide:</span
+        ><span>{{ guidesStore.selectedGuide?.name }}</span>
       </p>
-      <UAvatar :alt="guide?.name" :src="guide?.avatar" size="3xl" />
+      <UAvatar
+        :alt="guidesStore.selectedGuide?.name"
+        :src="guidesStore.selectedGuide?.avatar"
+        size="3xl"
+      />
     </div>
   </section>
-  <!-- </CreateRoute> -->
 </template>
 
 <script lang="ts" setup>
 import formatMinToHours from "~/utils/formatMinToHours";
-import { useTourSuggestions } from "~/composables/useTourSuggestions";
-import type { IRouteSuggestionsResponseExtended } from "~/types/route-suggestions";
+import type { ICoordinate, TypeFrom } from "~/types";
 import PGMap from "~/components/PGMap.vue";
-import { useSelectedGuide } from "~/stores/selectedGuideStore";
-import { definePageMeta } from "#imports";
-import type { TypeFrom } from "~/types";
+import { definePageMeta, useGuidesStore } from "#imports";
+import { getMainButtonText } from "~/utils/pages/create-route/mainButtonText";
 
 definePageMeta({
   title: "Create route",
   middleware: ["auth"],
 });
 
+// Constants
 const MIN_DURATION_TOUR_MINUTES = 5;
 const MAX_DURATION_TOUR_MINUTES = 60;
-const DEFAULT_GUIDE_ID = "66ddd98bf124c17bff59e1b2";
-
 const STATE = {
   INITIAL: "INITIAL",
   DATA_ENTRY_COMPLETED: "DATA_ENTRY_COMPLETED",
@@ -83,63 +93,38 @@ const STATE = {
 
 type TState = TypeFrom<typeof STATE>;
 
+// State
 const state = ref<TState>(STATE.INITIAL);
-
-const { guide } = useSelectedGuide();
-
-const routes = ref<IRouteSuggestionsResponseExtended | null>(null);
-const selectedArea = ref<{ lat: number; lng: number } | null>(null);
+const selectedArea = ref<ICoordinate | null>(null);
 const duration = ref(MIN_DURATION_TOUR_MINUTES);
 
+// Stores
+const guidesStore = useGuidesStore();
+const routeStore = useRouteStore();
+
+// Computed
 const formattedTime = computed(() => formatMinToHours(duration.value));
+const mainButtonText = computed<string>(() => getMainButtonText(state.value));
+const isMainButtonDisabled = computed(
+  () => state.value === STATE.INITIAL || state.value === STATE.ROUTE_REQUESTING,
+);
+const isShowDescription = computed(
+  () =>
+    state.value === STATE.ROUTE_RECEIVED &&
+    routeStore.routeSuggestion?.description,
+);
 
-const BUTTON_TEXT = {
-  GET_TOUR_ROUTE: "Get the tour route",
-  GETTING_ROUTE: "Getting the route...",
-  APPROVE_ROUTE: "Approve route",
-};
-
-const getButtonDefaultText = (): string => BUTTON_TEXT.GET_TOUR_ROUTE;
-
-const getButtonText = (currentState: TState): string => {
-  const stateTextMap: Record<TState, string> = {
-    [STATE.INITIAL]: BUTTON_TEXT.GET_TOUR_ROUTE,
-    [STATE.DATA_ENTRY_COMPLETED]: BUTTON_TEXT.GET_TOUR_ROUTE,
-    [STATE.ROUTE_REQUESTING]: BUTTON_TEXT.GETTING_ROUTE,
-    [STATE.ROUTE_RECEIVED]: BUTTON_TEXT.APPROVE_ROUTE,
-  };
-  return stateTextMap[currentState] || getButtonDefaultText();
-};
-
-const mainButtonText = computed<string>(() => getButtonText(state.value));
-
-const isMainButtonDisabled = computed(() => {
-  return (
-    state.value === STATE.INITIAL || state.value === STATE.ROUTE_REQUESTING
-  );
-});
-
-const getPreparedParams = () => {
-  return {
-    lng: selectedArea.value ? selectedArea.value.lng.toString() : "0",
-    lat: selectedArea.value ? selectedArea.value.lat.toString() : "0",
-    duration: duration.value.toString(),
-    guideId: guide?.id.toString() || DEFAULT_GUIDE_ID,
-  };
-};
-
+// Methods
 const getRouteSuggestions = async () => {
   state.value = STATE.ROUTE_REQUESTING;
 
-  const params = getPreparedParams();
-
-  routes.value = await useTourSuggestions(params);
+  await routeStore.fetchRoutesSuggestions();
 
   state.value = STATE.ROUTE_RECEIVED;
 };
 
 const approveRoute = async () => {
-  console.log("I'd like this route))");
+  await routeStore.fetchCreateRoute();
 };
 
 const handleMainButtonClick = async () => {
@@ -153,15 +138,25 @@ const handleMainButtonClick = async () => {
   }
 };
 
-const isShowDescription = computed(
-  () => state.value === STATE.ROUTE_RECEIVED && routes.value?.description,
-);
-
-watch([selectedArea, duration], ([newSelectedArea, newDuration]) => {
-  if (newSelectedArea?.lng && newSelectedArea?.lat && newDuration) {
-    state.value = STATE.DATA_ENTRY_COMPLETED;
+// Watchers
+watchEffect(() => {
+  if (selectedArea.value) {
+    routeStore.setStartPoint(selectedArea.value);
   }
 });
+
+watchEffect(() => {
+  routeStore.setDuration(String(duration.value));
+});
+
+watch(
+  [() => routeStore.startPoint, () => routeStore.duration],
+  ([newStartPoint, newDuration]: [ICoordinate | null, string]) => {
+    if (newStartPoint?.lng && newStartPoint?.lat && newDuration) {
+      state.value = STATE.DATA_ENTRY_COMPLETED;
+    }
+  },
+);
 </script>
 
 <style scoped>

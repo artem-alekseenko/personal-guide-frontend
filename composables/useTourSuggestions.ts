@@ -2,7 +2,7 @@ import { useFetch } from "#imports";
 import type {
   IRouteSuggestionsParams,
   IRouteSuggestionsResponseExtended,
-} from "~/types/route-suggestions";
+} from "~/types";
 
 export const useTourSuggestions = async (
   params: IRouteSuggestionsParams,

@@ -40,8 +40,8 @@
 </template>
 
 <script lang="ts" setup>
-import type { IGuide } from "~/types/guides";
-import { useSelectedGuide } from "~/stores/selectedGuideStore";
+import type { IGuide } from "~/types";
+import { useGuidesStore } from "~/stores/guidesStore";
 
 interface Props {
   guide: IGuide;
@@ -53,11 +53,10 @@ const router = useRouter();
 
 let guide = ref(props.guide);
 
-const selectedGuideStore = useSelectedGuide();
+const guidesStore = useGuidesStore();
 
 const selectGuide = () => {
-  const { setGuide } = selectedGuideStore;
-  setGuide(guide.value);
+  guidesStore.setSelectedGuideId(guide.value.id);
 
   router.push({ name: "create-route" });
 };

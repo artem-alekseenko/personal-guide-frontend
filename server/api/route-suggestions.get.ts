@@ -6,7 +6,7 @@ import type {
   IRouteSuggestionsParams,
   IRouteSuggestionsResponse,
   IRouteSuggestionsResponseExtended,
-} from "~/types/route-suggestions";
+} from "~/types";
 
 const validateRouteSuggestionsParams = (params: IRouteSuggestionsParams) => {
   if (!params.lng || !params.lat || !params.duration || !params.guideId) {

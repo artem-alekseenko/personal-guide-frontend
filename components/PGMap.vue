@@ -13,18 +13,12 @@ import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 
 const MAP_PITCH = 45;
 const WAYPOINTS_MAX_COUNT = 25;
-
-mapboxgl.accessToken =
+const mabboxglAccessToken =
   "pk.eyJ1IjoiYXJ0ZW1zZW9zbW0iLCJhIjoiY20xcWt4Z3NlMDE0djJqcXpwNzIwaXVidiJ9.I2F3EIiTKyvuuR-pM1ZG_Q";
 
-const props = defineProps({
-  coordinates: {
-    type: Array as PropType<[number, number][]>,
-    required: false,
-  },
-});
+mapboxgl.accessToken = mabboxglAccessToken;
 
-// const {coordinates} = defineProps<[number, number][]>(['coordinates']);
+const routeStore = useRouteStore();
 
 const selectedInitialArea = defineModel("selectedArea", {});
 
@@ -112,8 +106,7 @@ const initializeDirections = () => {
   }
 
   directions = new MapboxDirections({
-    accessToken:
-      "pk.eyJ1IjoiYXJ0ZW1zZW9zbW0iLCJhIjoiY20xcWt4Z3NlMDE0djJqcXpwNzIwaXVidiJ9.I2F3EIiTKyvuuR-pM1ZG_Q",
+    accessToken: mabboxglAccessToken,
     unit: "metric",
     profile: "mapbox/walking",
     controls: {
@@ -163,7 +156,7 @@ const addWaypointMarkers = (coordinates: [number, number][]) => {
 };
 
 watch(
-  () => props.coordinates,
+  () => routeStore.routeSuggestion?.coordinates,
   async (newCoords) => {
     if (!newCoords?.length || !mapInstance) return;
 

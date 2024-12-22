@@ -34,8 +34,8 @@ export const useExternalApi = async <T>(
     if (method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD") {
       url += `?${urlEncodedParams}`;
     } else {
-      requestOptions.body = urlEncodedParams;
-      headers.append("Content-Type", "application/x-www-form-urlencoded");
+      requestOptions.body = JSON.stringify(params);
+      headers.append("Content-Type", "application/json");
     }
   }
 

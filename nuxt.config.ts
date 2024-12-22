@@ -3,7 +3,13 @@ export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   components: [{ path: "~/components/ui", pathPrefix: false }, "~/components"],
   ssr: true,
-  modules: ["@vueuse/nuxt", "@pinia/nuxt", "@nuxt/ui", "nuxt-vuefire"],
+  modules: [
+    "@vueuse/nuxt",
+    "@pinia/nuxt",
+    "@nuxt/ui",
+    "nuxt-vuefire",
+    "pinia-plugin-persistedstate/nuxt",
+  ],
   future: {
     compatibilityVersion: 4,
   },
