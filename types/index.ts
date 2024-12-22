@@ -112,6 +112,10 @@ export interface ICreatedTour {
   generating_string: string;
 }
 
+export interface IListOfTours {
+  tours: ICreatedTour[];
+}
+
 export type TypeFrom<T> = T[keyof T];
 
 export type TRequestMethod =

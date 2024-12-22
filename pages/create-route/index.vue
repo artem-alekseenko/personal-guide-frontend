@@ -150,6 +150,16 @@ watchEffect(() => {
 });
 
 watch(
+  () => routeStore.actualTour,
+  (newTour) => {
+    if (newTour) {
+      const router = useRouter();
+      router.push({ name: "routes" });
+    }
+  },
+);
+
+watch(
   [() => routeStore.startPoint, () => routeStore.duration],
   ([newStartPoint, newDuration]: [ICoordinate | null, string]) => {
     if (newStartPoint?.lng && newStartPoint?.lat && newDuration) {

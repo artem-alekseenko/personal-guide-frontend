@@ -11,6 +11,8 @@ export const useRouteStore = defineStore("routeStore", () => {
   const _duration = ref<string>("5");
   const _routeSuggestion = ref<IRouteSuggestionsResponseExtended | null>(null);
   const currentRoute = ref<ICreatedTour | null>(null);
+  const _actualTour = ref<ICreatedTour | null>(null);
+  const _allTours = ref<ICreatedTour[]>([]);
 
   // Getters
   const startPoint = computed((): ICoordinate | null => _startPoint.value);
@@ -18,6 +20,8 @@ export const useRouteStore = defineStore("routeStore", () => {
   const routeSuggestion = computed(
     (): IRouteSuggestionsResponseExtended | null => _routeSuggestion.value,
   );
+  const actualTour = computed((): ICreatedTour | null => _actualTour.value);
+  const allTours = computed((): ICreatedTour[] => _allTours.value);
 
   // Actions
   const fetchRoutesSuggestions = async (): Promise<void> => {
@@ -52,10 +56,20 @@ export const useRouteStore = defineStore("routeStore", () => {
     };
 
     try {
-      const res = await useCreateTour(payload);
+      const tour = await useCreateTour(payload);
+      setActualTour(tour);
     } catch (error) {
       console.error("Error creating route", error);
     }
+  };
+
+  const fetchListTours = async (): Promise<void> => {
+    const tours = await useListTours();
+    if (!tours || !tours.length) {
+      return;
+    }
+    setAllTours(tours);
+    setActualTour(tours[0] as ICreatedTour);
   };
 
   const setStartPoint = (newPoint: ICoordinate): void => {
@@ -72,8 +86,16 @@ export const useRouteStore = defineStore("routeStore", () => {
     _routeSuggestion.value = newRoutes;
   };
 
-  const setRoute = (newRoute: ICreatedTour): void => {
+  const setCurrentRoute = (newRoute: ICreatedTour): void => {
     currentRoute.value = newRoute;
+  };
+
+  const setActualTour = (newRoute: ICreatedTour): void => {
+    _actualTour.value = newRoute;
+  };
+
+  const setAllTours = (newTours: ICreatedTour[]): void => {
+    _allTours.value = newTours;
   };
 
   return {
@@ -81,12 +103,15 @@ export const useRouteStore = defineStore("routeStore", () => {
     startPoint,
     duration,
     routeSuggestion,
+    actualTour,
+    _actualTour,
     // Actions
     setStartPoint,
     setDuration,
     setRouteSuggestion,
-    setRoute,
     fetchRoutesSuggestions,
     fetchCreateRoute,
+    fetchListTours,
+    allTours,
   };
 });
