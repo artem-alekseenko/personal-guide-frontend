@@ -5,15 +5,12 @@
 </template>
 
 <script lang="ts" setup>
-import type { PropType } from "vue";
-import type { ButtonVariant } from "#ui/types";
-
 const props = defineProps({
   loading: Boolean,
   block: Boolean,
   disabled: Boolean,
   variant: {
-    type: String as PropType<ButtonVariant>,
+    type: String,
     default: "solid",
   },
 });
