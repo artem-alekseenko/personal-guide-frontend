@@ -12,6 +12,13 @@
           Generated percent: {{ tour.generating_percent }}
         </p>
         <p v-else class="prose text-green-800">The tour has been generated!</p>
+        <NuxtLink
+          v-if="tour.generating_percent === 100"
+          :to="`/routes/${tour.id}`"
+          class="prose text-blue-800 underline"
+        >
+          Go to the tour
+        </NuxtLink>
       </div>
     </div>
   </section>

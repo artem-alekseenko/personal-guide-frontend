@@ -1,18 +1,4 @@
-export interface IGuide {
-  id: string;
-  name: string;
-  skills: string;
-  avatar: string;
-  context: string;
-  tags: string[];
-  tours: Tour[];
-}
-
-export interface IGuidesResponse {
-  guides: IGuide[];
-}
-
-export interface Tour {
+export interface ITour {
   id: number;
   image: string;
   name: string;
@@ -23,6 +9,20 @@ export interface Tour {
   status: string;
   settings: string[];
   tags: string[];
+}
+
+export interface IGuide {
+  id: string;
+  name: string;
+  skills: string;
+  avatar: string;
+  context: string;
+  tags: string[];
+  tours: ITour[];
+}
+
+export interface IGuidesResponse {
+  guides: IGuide[];
 }
 
 export interface ICoordinate {
@@ -53,11 +53,7 @@ interface ISetting {
 
 interface IHighPlace {
   name: string;
-  point: {
-    name: string | null;
-    lat: string;
-    lng: string;
-  };
+  point: IPoint;
 }
 
 export interface IRouteSuggestionsResponse {
@@ -114,6 +110,32 @@ export interface ICreatedTour {
 
 export interface IListOfTours {
   tours: ICreatedTour[];
+}
+
+interface IPoint {
+  name: string | null;
+  lat: string;
+  lng: string;
+}
+
+export interface ITourRecord {
+  id: string;
+  point: IPoint;
+  type: string;
+  message: string;
+  created_at: string;
+}
+
+export interface ITourRecordResponse {
+  record: ITourRecord;
+}
+
+export interface ITourRecordRequest {
+  duration: string;
+  point: ICoordinate;
+  user_text: string;
+  pace: string;
+  type_llm: string;
 }
 
 export type TypeFrom<T> = T[keyof T];

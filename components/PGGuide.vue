@@ -12,9 +12,9 @@
       <span class="font-bold">Skills:</span>
       {{ guide.skills }}
     </div>
-    <PGButton @click="selectGuide"
-      >Select {{ guide.name }} and create tour</PGButton
-    >
+    <PGButton @click="selectGuide">
+      Select {{ guide.name }} and create tour
+    </PGButton>
     <div class="col-span-full justify-self-start pb-2 text-lg font-bold">
       Past tours:
     </div>

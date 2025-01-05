@@ -203,8 +203,6 @@ onMounted(() => {
 });
 </script>
 
-<style scoped></style>
-
 <style>
 .waypoint-marker {
   background-color: oklch(0.8 0.1 19);
