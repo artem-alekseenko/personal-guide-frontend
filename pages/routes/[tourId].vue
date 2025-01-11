@@ -12,24 +12,26 @@
           state === STATE.RECORD_LOADING || state === STATE.RECORD_FINISHED
         "
         :loading="state === STATE.RECORD_LOADING"
-        class="mx-auto mt-6 block"
+        class="mx-auto mb-6 mt-6 block"
         @click="handleTourButtonClick"
       >
         {{ mainButtonText }}
       </PGButton>
-      <PGButton
-        v-if="isShowForceStopButton"
-        class="mx-auto mt-6 block"
-        @click="forceStopPlayback"
-      >
-        Force stop playback
-      </PGButton>
+      <!--      <PGButton-->
+      <!--        v-if="isShowForceStopButton"-->
+      <!--        class="mx-auto mt-6 block"-->
+      <!--        @click="forceStopPlayback"-->
+      <!--      >-->
+      <!--        Force stop playback-->
+      <!--      </PGButton>-->
     </div>
-    <div>
-      <p v-if="isShowRecordText" ref="textRef">
-        {{ tourStore.currentTourRecord?.message || "" }}
-      </p>
-    </div>
+    <p
+      v-if="isShowRecordText"
+      ref="textRef"
+      class="border-primary-500 h-60 overflow-y-auto border-2 border-solid p-4"
+    >
+      {{ tourStore.allTourRecord || "" }}
+    </p>
   </main>
 </template>
 
@@ -37,7 +39,7 @@
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
-import { onMounted } from "#imports";
+import { onMounted, useRoute, useTourSpeech, useTourStore } from "#imports";
 import type { ICreatedTour, ITourRecordRequest, TypeFrom } from "~/types";
 
 const MAP_PITCH = 45;
@@ -59,71 +61,16 @@ type TState = TypeFrom<typeof STATE>;
 
 const state = ref<TState>(STATE.INITIAL);
 const textRef = ref<HTMLElement | null>(null);
-let currentUtterance: SpeechSynthesisUtterance | null = null;
+
+const { speakMessage, pauseSpeech, resumeSpeech, stopSpeech } = useTourSpeech();
+const lastSpokenIndex = ref(0);
 
 const formattedText = computed(() => {
-  if (!tourStore.currentTourRecord || !tourStore.currentTourRecord.message) {
+  if (!tourStore.allTourRecord) {
     return "";
   }
-  return tourStore.currentTourRecord.message; // Текст для озвучивания
+  return tourStore.allTourRecord;
 });
-
-// Функция для озвучивания текста
-const speakMessage = () => {
-  const text = formattedText.value;
-  if (!text || !textRef.value) {
-    console.error("No text to speak");
-    return;
-  }
-
-  if (currentUtterance) {
-    // Если озвучивание уже началось, не начинать заново
-    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-      console.warn("Speech already in progress");
-      return;
-    }
-  }
-
-  currentUtterance = new SpeechSynthesisUtterance(text);
-
-  currentUtterance.onboundary = (event) => {
-    highlightSentence(event.charIndex);
-  };
-
-  currentUtterance.onend = () => {
-    clearHighlights();
-    state.value = STATE.RECORD_FINISHED;
-    stopSpeech();
-  };
-
-  currentUtterance.onerror = (event) => {
-    console.error("Speech synthesis error", event);
-  };
-
-  if ("speechSynthesis" in window) {
-    window.speechSynthesis.speak(currentUtterance);
-  } else {
-    console.error("Web Speech API is not supported in this browser");
-  }
-};
-
-const pauseSpeech = () => {
-  if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-    window.speechSynthesis.pause();
-  }
-};
-
-const resumeSpeech = () => {
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume();
-  }
-};
-
-const stopSpeech = () => {
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-  }
-};
 
 // Подсветка текущего предложения
 const highlightSentence = (charIndex: number) => {
@@ -146,12 +93,14 @@ const highlightSentence = (charIndex: number) => {
   const highlightedText = sentences
     .map((sentence) =>
       sentence === currentSentence
-        ? `<span class="bg-yellow-200">${sentence}</span>`
+        ? `<span class="bg-yellow-200 active-sentence">${sentence}</span>`
         : sentence,
     )
     .join("");
 
   textRef.value.innerHTML = highlightedText;
+
+  scrollToHighlightedSentence();
 };
 
 // Очистка подсветки
@@ -309,11 +258,33 @@ const getRecord = async () => {
     type_llm: "SIMPLE",
   };
 
-  tourStore.fetchTourRecord(params);
+  await tourStore.fetchTourRecord(params);
+};
+
+const scrollToHighlightedSentence = () => {
+  const highlightedEl = textRef.value?.querySelector(".active-sentence");
+  if (!highlightedEl) return;
+
+  highlightedEl.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+    inline: "nearest",
+  });
 };
 
 const playTour = () => {
-  speakMessage();
+  const newText = formattedText.value.slice(lastSpokenIndex.value);
+
+  speakMessage({
+    text: newText,
+    offset: lastSpokenIndex.value,
+    onBoundary: (globalCharIndex) => highlightSentence(globalCharIndex),
+    onEnd: () => {
+      lastSpokenIndex.value = formattedText.value.length;
+      clearHighlights();
+      state.value = STATE.RECORD_FINISHED;
+    },
+  });
   state.value = STATE.RECORD_ACTIVE;
 };
 
@@ -325,6 +296,11 @@ const pauseTour = () => {
 const resumeTour = () => {
   state.value = STATE.RECORD_ACTIVE;
   resumeSpeech();
+};
+
+const forceStopPlayback = () => {
+  stopSpeech();
+  state.value = STATE.RECORD_FINISHED;
 };
 
 const handleTourButtonClick = () => {
@@ -367,19 +343,7 @@ const isShowForceStopButton = computed(
     state.value === STATE.RECORD_ACTIVE || state.value === STATE.RECORD_PAUSED,
 );
 
-const forceStopPlayback = () => {
-  stopSpeech();
-  state.value = STATE.RECORD_FINISHED;
-};
-
-const isShowRecordText = computed(
-  () =>
-    (state.value === STATE.RECORD_RECEIVED ||
-      state.value === STATE.RECORD_ACTIVE ||
-      state.value === STATE.RECORD_PAUSED) &&
-    tourStore.currentTourRecord &&
-    tourStore.currentTourRecord.message,
-);
+const isShowRecordText = computed(() => tourStore.allTourRecord);
 
 watch(
   () => tourStore.currentTourRecord,
@@ -408,10 +372,7 @@ onMounted(async () => {
   } else {
     console.error("No tour found");
   }
-});
 
-// Очистка синтеза речи при перезагрузке или удалении компонента
-onMounted(() => {
   window.addEventListener("beforeunload", stopSpeech);
 });
 

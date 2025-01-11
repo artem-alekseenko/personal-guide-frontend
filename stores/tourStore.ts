@@ -5,9 +5,11 @@ export const useTourStore = defineStore("tourStore", () => {
   // State
   const _tour = ref<ICreatedTour | null>(null);
   const _currentTourRecord = ref<ITourRecord | null>(null);
+  const _allTourRecord = ref<string>("");
 
   // Getters
   const tour = computed((): ICreatedTour | null => _tour.value);
+  const allTourRecord = computed((): string => _allTourRecord.value);
 
   const currentTourRecord = computed(
     (): ITourRecord | null => _currentTourRecord.value,
@@ -20,6 +22,10 @@ export const useTourStore = defineStore("tourStore", () => {
 
   const setCurrentTourRecord = (tourRecord: ITourRecord): void => {
     _currentTourRecord.value = tourRecord;
+  };
+
+  const setAllTourRecord = (text: string): void => {
+    _allTourRecord.value = `${_allTourRecord.value} ${text}`;
   };
 
   // Actions
@@ -45,14 +51,14 @@ export const useTourStore = defineStore("tourStore", () => {
       return;
     }
 
-    console.log("store tourRecord", tourRecord);
-
     setCurrentTourRecord(tourRecord);
+    setAllTourRecord(tourRecord.message);
   };
 
   return {
     tour,
     currentTourRecord,
+    allTourRecord,
     fetchGetTour,
     fetchTourRecord,
     setTour,
