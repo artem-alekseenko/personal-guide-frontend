@@ -26,6 +26,20 @@
     <!-- Description -->
     <div v-if="isShowDescription" class="prose p-4"></div>
 
+    <!-- Chips -->
+    <div v-if="state === STATE.ROUTE_RECEIVED" class="px-4 py-4">
+      <p class="mb-4">Choose the topics you are interested in:</p>
+      <PGChip
+        v-for="chip in chips"
+        :key="chip.name"
+        :isSelected="chip.is_selected"
+        class="mb-2 mr-2"
+        @click="() => toggleChip(chip.name)"
+      >
+        {{ chip.name }}
+      </PGChip>
+    </div>
+
     <!-- Duration Selector -->
     <div v-if="!routeStore.routeSuggestion" class="m-4">
       <div class="mb-4">
@@ -44,18 +58,6 @@
           <div class="current-duration">{{ formattedTime }}</div>
           <div class="max-duration">{{ MAX_DURATION_TOUR_MINUTES }} min</div>
         </div>
-      </div>
-      <div class="px-4 py-4">
-        <p class="mb-4">Choose the topics you are interested in:</p>
-        <PGChip
-          v-for="chip in chips"
-          :key="chip.name"
-          :isSelected="chip.is_selected"
-          class="mb-2 mr-2"
-          @click="() => toggleChip(chip.name)"
-        >
-          {{ chip.name }}
-        </PGChip>
       </div>
     </div>
 

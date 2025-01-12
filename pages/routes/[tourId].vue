@@ -25,10 +25,20 @@
       <!--        Force stop playback-->
       <!--      </PGButton>-->
     </div>
+    <div v-if="state === STATE.RECORD_PAUSED" class="mx-4 mb-5">
+      <UInput
+        v-model="userText"
+        class="w-full"
+        placeholder="Enter your question..."
+      />
+      <PGButton class="mx-auto mt-3 block" @click="addQuestion">
+        Send question
+      </PGButton>
+    </div>
     <p
       v-if="isShowRecordText"
       ref="textRef"
-      class="border-primary-500 h-60 overflow-y-auto border-2 border-solid p-4"
+      class="border-primary-500 mx-4 h-60 overflow-y-auto rounded-md border-2 border-solid p-4"
     >
       {{ tourStore.allTourRecord || "" }}
     </p>
@@ -40,7 +50,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import { onMounted, useRoute, useTourSpeech, useTourStore } from "#imports";
-import type { ICreatedTour, ITourRecordRequest, TypeFrom } from "~/types";
+import type { ICoordinate, ICreatedTour, TypeFrom } from "~/types";
 
 const MAP_PITCH = 45;
 const { map } = useAppConfig();
@@ -61,6 +71,7 @@ type TState = TypeFrom<typeof STATE>;
 
 const state = ref<TState>(STATE.INITIAL);
 const textRef = ref<HTMLElement | null>(null);
+const userText = ref("");
 
 const { speakMessage, pauseSpeech, resumeSpeech, stopSpeech } = useTourSpeech();
 const lastSpokenIndex = ref(0);
@@ -247,18 +258,12 @@ const getRecord = async () => {
   state.value = STATE.RECORD_LOADING;
   const lngLat = marker.value.getLngLat();
 
-  const params: ITourRecordRequest = {
-    duration: "100",
-    point: {
-      lat: String(lngLat.lat),
-      lng: String(lngLat.lng),
-    },
-    user_text: "What are you see now?",
-    pace: "1",
-    type_llm: "SIMPLE",
+  const currentCoord: ICoordinate = {
+    lat: String(lngLat.lat),
+    lng: String(lngLat.lng),
   };
 
-  await tourStore.fetchTourRecord(params);
+  await tourStore.fetchTourRecord(currentCoord);
 };
 
 const scrollToHighlightedSentence = () => {
@@ -345,6 +350,15 @@ const isShowForceStopButton = computed(
 );
 
 const isShowRecordText = computed(() => tourStore.allTourRecord);
+
+const addQuestion = () => {
+  tourStore.setUserText(userText.value);
+
+  userText.value = "";
+
+  resumeSpeech();
+  state.value = STATE.RECORD_ACTIVE;
+};
 
 watch(
   () => tourStore.currentTourRecord,
