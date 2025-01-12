@@ -13,9 +13,8 @@ import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 
 const MAP_PITCH = 45;
 const WAYPOINTS_MAX_COUNT = 25;
-const mabboxglAccessToken =
-  "pk.eyJ1IjoiYXJ0ZW1zZW9zbW0iLCJhIjoiY20xcWt4Z3NlMDE0djJqcXpwNzIwaXVidiJ9.I2F3EIiTKyvuuR-pM1ZG_Q";
-
+const { map } = useAppConfig();
+const mabboxglAccessToken = unref(map.mapbox_gl_access_token);
 mapboxgl.accessToken = mabboxglAccessToken;
 
 const routeStore = useRouteStore();
