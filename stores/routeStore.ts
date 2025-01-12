@@ -3,6 +3,7 @@ import type {
   ICreatedTour,
   ICreateTourRequest,
   IRouteSuggestionsResponseExtended,
+  ITourTag,
 } from "~/types";
 
 export const useRouteStore = defineStore("routeStore", () => {
@@ -13,6 +14,15 @@ export const useRouteStore = defineStore("routeStore", () => {
   const currentRoute = ref<ICreatedTour | null>(null);
   const _actualTour = ref<ICreatedTour | null>(null);
   const _allTours = ref<ICreatedTour[]>([]);
+  const _tags = ref<ITourTag[]>([
+    { name: "Nature", is_selected: false },
+    { name: "Movies", is_selected: false },
+    { name: "IT", is_selected: false },
+    { name: "Politics", is_selected: false },
+    { name: "For child", is_selected: false },
+    { name: "Science", is_selected: false },
+    { name: "Art", is_selected: false },
+  ]);
 
   // Getters
   const startPoint = computed((): ICoordinate | null => _startPoint.value);
@@ -22,6 +32,12 @@ export const useRouteStore = defineStore("routeStore", () => {
   );
   const actualTour = computed((): ICreatedTour | null => _actualTour.value);
   const allTours = computed((): ICreatedTour[] => _allTours.value);
+  const tags = computed((): ITourTag[] => _tags.value);
+
+  // Setters
+  const setTags = (newTags: ITourTag[]): void => {
+    _tags.value = newTags;
+  };
 
   // Actions
   const fetchRoutesSuggestions = async (): Promise<void> => {
@@ -49,10 +65,17 @@ export const useRouteStore = defineStore("routeStore", () => {
 
     const guidesStore = useGuidesStore();
 
+    const preparedSettings = _tags.value
+      .filter((tag) => tag.is_selected)
+      .map((tag) => ({
+        name: tag.name,
+        value: tag.name,
+      }));
+
     const payload: ICreateTourRequest = {
       guide_id: guidesStore.selectedGuide?.id || "",
       route,
-      settings: [],
+      settings: preparedSettings,
     };
 
     try {
@@ -105,10 +128,13 @@ export const useRouteStore = defineStore("routeStore", () => {
     routeSuggestion,
     actualTour,
     _actualTour,
-    // Actions
+    tags,
+    // Setters
     setStartPoint,
     setDuration,
     setRouteSuggestion,
+    setTags,
+    // Actions
     fetchRoutesSuggestions,
     fetchCreateRoute,
     fetchListTours,

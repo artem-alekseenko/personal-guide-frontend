@@ -27,21 +27,35 @@
     <div v-if="isShowDescription" class="prose p-4"></div>
 
     <!-- Duration Selector -->
-    <div v-if="!routeStore.routeSuggestion" class="my-4">
-      <div class="prose p-4">
-        Please indicate the desired duration of the excursion
+    <div v-if="!routeStore.routeSuggestion" class="m-4">
+      <div class="mb-4">
+        <div class="prose p-4">
+          Please indicate the desired duration of the excursion
+        </div>
+        <div class="duration gap-2 px-4">
+          <input
+            v-model="duration"
+            :max="MAX_DURATION_TOUR_MINUTES"
+            :min="MIN_DURATION_TOUR_MINUTES"
+            class="range-line w-full cursor-pointer appearance-none rounded-lg"
+            type="range"
+          />
+          <div class="initial-duration">5 min</div>
+          <div class="current-duration">{{ formattedTime }}</div>
+          <div class="max-duration">{{ MAX_DURATION_TOUR_MINUTES }} min</div>
+        </div>
       </div>
-      <div class="duration gap-2 px-4">
-        <input
-          v-model="duration"
-          :max="MAX_DURATION_TOUR_MINUTES"
-          :min="MIN_DURATION_TOUR_MINUTES"
-          class="range-line w-full cursor-pointer appearance-none rounded-lg"
-          type="range"
-        />
-        <div class="initial-duration">5 min</div>
-        <div class="current-duration">{{ formattedTime }}</div>
-        <div class="max-duration">{{ MAX_DURATION_TOUR_MINUTES }} min</div>
+      <div class="px-4 py-4">
+        <p class="mb-4">Choose the topics you are interested in:</p>
+        <PGChip
+          v-for="chip in chips"
+          :key="chip.name"
+          :isSelected="chip.is_selected"
+          class="mb-2 mr-2"
+          @click="() => toggleChip(chip.name)"
+        >
+          {{ chip.name }}
+        </PGChip>
       </div>
     </div>
 
@@ -113,6 +127,7 @@ const isShowDescription = computed(
     state.value === STATE.ROUTE_RECEIVED &&
     routeStore.routeSuggestion?.description,
 );
+const chips = computed(() => routeStore.tags || []);
 
 // Methods
 const getRouteSuggestions = async () => {
@@ -136,6 +151,13 @@ const handleMainButtonClick = async () => {
     await approveRoute();
     return;
   }
+};
+
+const toggleChip = (chip: string) => {
+  const newTags = unref(chips).map((tag) =>
+    tag.name == chip ? { ...tag, is_selected: !tag.is_selected } : tag,
+  );
+  routeStore.setTags(newTags);
 };
 
 // Watchers

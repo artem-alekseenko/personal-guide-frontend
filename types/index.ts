@@ -138,6 +138,11 @@ export interface ITourRecordRequest {
   type_llm: string;
 }
 
+export interface ITourTag {
+  name: string;
+  is_selected: boolean;
+}
+
 export type TypeFrom<T> = T[keyof T];
 
 export type TRequestMethod =
