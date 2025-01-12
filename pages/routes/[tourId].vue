@@ -12,7 +12,7 @@
           state === STATE.RECORD_LOADING || state === STATE.RECORD_FINISHED
         "
         :loading="state === STATE.RECORD_LOADING"
-        class="mx-auto mb-6 mt-6 block"
+        class="mx-auto mb-6 mt-6 flex"
         @click="handleTourButtonClick"
       >
         {{ mainButtonText }}
@@ -50,8 +50,8 @@ mapboxgl.accessToken = mabboxglAccessToken;
 const STATE = {
   INITIAL: "INITIAL",
   RECORD_LOADING: "LOADING_RECORD",
-  RECORD_ACTIVE: "RECORD_ACTIVE",
   RECORD_RECEIVED: "RECORD_RECEIVED",
+  RECORD_ACTIVE: "RECORD_ACTIVE",
   RECORD_PAUSED: "RECORD_PAUSED",
   RECORD_FINISHED: "RECORD_FINISHED",
   TOUR_FINISHED: "TOUR_FINISHED",
@@ -235,7 +235,7 @@ const addMarker = (coords: [number, number]) => {
     .addTo(mapInstance!);
 
   // @ts-ignore
-  (marker.value as mapboxgl.Marker).on("dragend", getRecord);
+  // (marker.value as mapboxgl.Marker).on("dragend", getRecord);
 };
 
 const getRecord = async () => {
@@ -281,8 +281,9 @@ const playTour = () => {
     onBoundary: (globalCharIndex) => highlightSentence(globalCharIndex),
     onEnd: () => {
       lastSpokenIndex.value = formattedText.value.length;
-      clearHighlights();
-      state.value = STATE.RECORD_FINISHED;
+      // clearHighlights();
+      getRecord();
+      state.value = STATE.RECORD_LOADING;
     },
   });
   state.value = STATE.RECORD_ACTIVE;
@@ -350,6 +351,7 @@ watch(
   (newRecord) => {
     if (newRecord) {
       state.value = STATE.RECORD_RECEIVED;
+      playTour();
     }
   },
 );
