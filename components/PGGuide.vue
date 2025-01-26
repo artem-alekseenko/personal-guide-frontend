@@ -15,9 +15,6 @@
     <PGButton @click="selectGuide">
       Select {{ guide.name }} and create tour
     </PGButton>
-    <div class="col-span-full justify-self-start pb-2 text-lg font-bold">
-      Past tours:
-    </div>
     <div class="col-span-full w-full gap-8 lg:flex">
       <div
         v-for="tour in guide.tours"
