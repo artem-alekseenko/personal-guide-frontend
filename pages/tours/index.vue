@@ -1,6 +1,9 @@
 <template>
   <section class="container mx-auto pb-8">
     <h1 class="prose p-4 text-2xl font-extrabold md:p-12">List of tours</h1>
+    <PGButton class="mx-auto block" @click="handleCreateTour">
+      Create new tour
+    </PGButton>
     <div class="flex flex-col justify-center gap-4 p-4 md:p-12">
       <div
         v-for="tour in routeStore.allTours"
@@ -14,7 +17,7 @@
         <p v-else class="prose text-green-800">The tour has been generated!</p>
         <NuxtLink
           v-if="tour.generating_percent === 100"
-          :to="`/routes/${tour.id}`"
+          :to="`/tours/${tour.id}`"
           class="prose text-blue-800 underline"
         >
           Go to the tour
@@ -34,4 +37,10 @@ definePageMeta({
 
 const routeStore = useRouteStore();
 routeStore.fetchListTours();
+
+const router = useRouter();
+
+const handleCreateTour = () => {
+  router.push({ name: "guides" });
+};
 </script>

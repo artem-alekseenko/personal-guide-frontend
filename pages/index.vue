@@ -39,23 +39,17 @@ const state = ref<TState>(STATE.INITIAL);
 
 const user = useCurrentUser();
 const auth = getAuth();
-
-const guidesStore = useGuidesStore();
-const { fetchGuidesList } = guidesStore;
+const router = useRouter();
 
 const logout = async () => {
   await signOut(auth).catch((e) => console.error("Error when exiting", e));
-};
-
-const handleUserLogin = async () => {
-  await fetchGuidesList();
 };
 
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
       state.value = STATE.USER_ENTERED;
-      handleUserLogin();
+      router.push({ name: "tours" });
     } else {
       state.value = STATE.USER_NOT_ENTERED;
     }

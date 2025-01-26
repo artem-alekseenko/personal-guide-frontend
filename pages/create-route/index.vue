@@ -178,7 +178,7 @@ watch(
   (newTour) => {
     if (newTour) {
       const router = useRouter();
-      router.push({ name: "routes" });
+      router.push({ name: "tours" });
     }
   },
 );
