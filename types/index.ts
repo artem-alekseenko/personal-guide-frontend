@@ -112,7 +112,7 @@ export interface IListOfTours {
   tours: ICreatedTour[];
 }
 
-interface IPoint {
+export interface IPoint {
   name: string | null;
   lat: string;
   lng: string;
@@ -124,10 +124,24 @@ export interface ITourRecord {
   type: string;
   message: string;
   created_at: string;
+  places?: IPoint[];
 }
 
-export interface ITourRecordResponse {
-  record: ITourRecord;
+export interface IGeoJSONFeature {
+  type: string;
+  properties: {
+    title: string;
+    description?: string;
+  };
+  geometry: {
+    type: string;
+    coordinates: [number, number];
+  };
+}
+
+export interface IGeoJSON {
+  type: string;
+  features: IGeoJSONFeature[] | null;
 }
 
 export interface ITourRecordRequest {
@@ -136,6 +150,11 @@ export interface ITourRecordRequest {
   user_text: string;
   pace: string;
   type_llm: string;
+}
+
+export interface ITourRecordResponse {
+  places: IPoint[];
+  record: ITourRecord;
 }
 
 export interface ITourTag {

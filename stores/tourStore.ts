@@ -1,6 +1,7 @@
 import type {
   ICoordinate,
   ICreatedTour,
+  IGeoJSON,
   ITourRecord,
   ITourRecordRequest,
 } from "~/types";
@@ -20,6 +21,27 @@ export const useTourStore = defineStore("tourStore", () => {
     (): ITourRecord | null => _currentTourRecord.value,
   );
   const userText = computed((): string => _userText.value);
+  const currentPlacesGeoJSON = computed((): IGeoJSON | null => {
+    const features = _currentTourRecord.value?.places?.map((place) => ({
+      type: "Feature",
+      properties: {
+        title: place.name ?? "Empty place name",
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [Number(place.lng), Number(place.lat)] as [number, number],
+      },
+    }));
+
+    if (!features || !features.length) {
+      return null;
+    }
+
+    return {
+      type: "FeatureCollection",
+      features,
+    };
+  });
 
   // Setters
   const setTour = (tour: ICreatedTour): void => {
@@ -49,7 +71,7 @@ export const useTourStore = defineStore("tourStore", () => {
     setTour(tour);
   };
 
-  const fetchTourRecord = async ({ lat, lng }: ICoordinate): Promise<void> => {
+  const fetchTourStep = async ({ lat, lng }: ICoordinate): Promise<void> => {
     if (!tour.value) {
       return;
     }
@@ -87,8 +109,9 @@ export const useTourStore = defineStore("tourStore", () => {
     tour,
     currentTourRecord,
     allTourRecord,
+    currentPlacesGeoJSON,
     fetchGetTour,
-    fetchTourRecord,
+    fetchTourStep,
     setTour,
     setUserText,
   };

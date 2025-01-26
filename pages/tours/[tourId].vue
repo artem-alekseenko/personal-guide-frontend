@@ -50,7 +50,13 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import { onMounted, useRoute, useTourSpeech, useTourStore } from "#imports";
-import type { ICoordinate, ICreatedTour, TypeFrom } from "~/types";
+import type {
+  ICoordinate,
+  ICreatedTour,
+  IGeoJSONFeature,
+  TypeFrom,
+} from "~/types";
+import createPlacesMarkerElem from "~/utils/pages/createPlacesMarkerElem";
 
 const MAP_PITCH = 45;
 const { map } = useAppConfig();
@@ -131,6 +137,7 @@ await tourStore.fetchGetTour(route.params.tourId as string);
 const mapContainerRef = ref(null);
 let mapInstance: mapboxgl.Map | null = null;
 const marker = ref<mapboxgl.Marker | null>(null);
+const placesMarkerElems: mapboxgl.Marker[] = [] as mapboxgl.Marker[];
 
 const initializeMap = async () => {
   if (!mapContainerRef.value) return;
@@ -249,6 +256,47 @@ const addMarker = (coords: [number, number]) => {
   // (marker.value as mapboxgl.Marker).on("dragend", getRecord);
 };
 
+const addMarkerElemToMap = (
+  markerElem: HTMLElement,
+  feature: IGeoJSONFeature,
+): mapboxgl.Marker | undefined => {
+  if (!mapInstance) return;
+
+  const popupHTML = `<h3>${feature.properties.title}</h3><p>Description here!</p>`;
+
+  const marker = new mapboxgl.Marker(markerElem)
+    .setLngLat(feature.geometry.coordinates)
+    .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(popupHTML))
+    .addTo(mapInstance);
+
+  return marker as mapboxgl.Marker;
+};
+
+const addPlaces = () => {
+  if (
+    !mapInstance ||
+    !tourStore.currentPlacesGeoJSON ||
+    !tourStore.currentPlacesGeoJSON.features
+  )
+    return;
+
+  for (const feature of tourStore.currentPlacesGeoJSON.features) {
+    const markerElem = createPlacesMarkerElem();
+
+    const addedMarker = addMarkerElemToMap(markerElem, feature);
+
+    if (!addedMarker) {
+      return;
+    }
+
+    placesMarkerElems.push(addedMarker);
+  }
+};
+
+const removePlaces = () => {
+  placesMarkerElems.forEach((marker: mapboxgl.Marker) => marker.remove());
+};
+
 const getRecord = async () => {
   if (!marker.value) {
     console.error("No marker found");
@@ -263,7 +311,7 @@ const getRecord = async () => {
     lng: String(lngLat.lng),
   };
 
-  await tourStore.fetchTourRecord(currentCoord);
+  await tourStore.fetchTourStep(currentCoord);
 };
 
 const scrollToHighlightedSentence = () => {
@@ -365,6 +413,8 @@ watch(
   (newRecord) => {
     if (newRecord) {
       state.value = STATE.RECORD_RECEIVED;
+      removePlaces();
+      addPlaces();
       playTour();
     }
   },

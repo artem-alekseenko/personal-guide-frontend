@@ -23,7 +23,10 @@ export const useGetTourRecord = async (
       );
     }
 
-    return data.record as ITourRecord;
+    return {
+      ...data.record,
+      places: data.places,
+    };
   } catch (error) {
     if (error instanceof Error) {
       throw createError({
