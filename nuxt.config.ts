@@ -18,7 +18,7 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   typescript: {
     typeCheck: true,
   },
