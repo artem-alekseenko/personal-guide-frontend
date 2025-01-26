@@ -72,14 +72,14 @@ export const useTourStore = defineStore("tourStore", () => {
       return;
     }
 
-    const message = tourRecord.message;
-    const sentences = message.match(/[^.!?]*[.!?]/g) || [];
-    const firstTwoSentences = sentences.slice(0, 2).join(" ");
-    setCurrentTourRecord({ ...tourRecord, message: firstTwoSentences });
-    setAllTourRecord(firstTwoSentences);
+    // const message = tourRecord.message;
+    // const sentences = message.match(/[^.!?]*[.!?]/g) || [];
+    // const firstTwoSentences = sentences.slice(0, 2).join(" ");
+    // setCurrentTourRecord({ ...tourRecord, message: firstTwoSentences });
+    // setAllTourRecord(firstTwoSentences);
 
-    // setCurrentTourRecord(tourRecord);
-    // setAllTourRecord(tourRecord.message);
+    setCurrentTourRecord(tourRecord);
+    setAllTourRecord(tourRecord.message);
     setUserText("");
   };
 
