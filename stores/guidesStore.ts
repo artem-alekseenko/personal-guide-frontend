@@ -34,7 +34,7 @@ export const useGuidesStore = defineStore(
       isGuidesListLoading.value = false;
     };
     const fetchGuidesList = async () => {
-      if (isGuidesListLoading.value || guidesList.value.length) {
+      if (isGuidesListLoading.value) {
         return;
       }
       isGuidesListLoading.value = true;
@@ -61,7 +61,7 @@ export const useGuidesStore = defineStore(
   {
     persist: {
       storage: piniaPluginPersistedstate.localStorage(),
-      pick: ["_selectedGuideId", "_guidesList"],
+      pick: ["_selectedGuideId"],
     },
   },
 );

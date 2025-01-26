@@ -30,7 +30,7 @@ const guidesStore = useGuidesStore();
 const { guidesList, isGuidesListLoading } = storeToRefs(guidesStore);
 const { fetchGuidesList } = guidesStore;
 
-if (!guidesList.value.length && !isGuidesListLoading.value) {
+if (!isGuidesListLoading.value) {
   fetchGuidesList();
 }
 
