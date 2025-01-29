@@ -27,7 +27,7 @@
     <div v-if="isShowDescription" class="prose p-4"></div>
 
     <!-- Chips -->
-    <div v-if="state === STATE.ROUTE_RECEIVED" class="px-4 py-4">
+    <div v-if="isShowChips" class="px-4 py-4">
       <p class="mb-4">Choose the topics you are interested in:</p>
       <PGChip
         v-for="chip in chips"
@@ -130,14 +130,13 @@ const isShowDescription = computed(
     routeStore.routeSuggestion?.description,
 );
 const chips = computed(() => routeStore.tags || []);
+const isShowChips = computed(() => state.value === STATE.ROUTE_RECEIVED);
 
 // Methods
 const getRouteSuggestions = async () => {
   state.value = STATE.ROUTE_REQUESTING;
 
   await routeStore.fetchRoutesSuggestions();
-
-  state.value = STATE.ROUTE_RECEIVED;
 };
 
 const approveRoute = async () => {
@@ -172,6 +171,15 @@ watchEffect(() => {
 watchEffect(() => {
   routeStore.setDuration(String(duration.value));
 });
+
+watch(
+  () => routeStore.routeSuggestion,
+  (newRouteSuggestion) => {
+    if (newRouteSuggestion) {
+      state.value = STATE.ROUTE_RECEIVED;
+    }
+  },
+);
 
 watch(
   () => routeStore.actualTour,

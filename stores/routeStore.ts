@@ -42,11 +42,16 @@ export const useRouteStore = defineStore("routeStore", () => {
   // Actions
   const fetchRoutesSuggestions = async (): Promise<void> => {
     const guidesStore = useGuidesStore();
+
+    if (!guidesStore.selectedGuide || _duration.value || !_startPoint.value) {
+      return;
+    }
+
     const params = {
-      lng: _startPoint.value ? _startPoint.value.lng.toString() : "0",
-      lat: _startPoint.value ? _startPoint.value.lat.toString() : "0",
+      lng: _startPoint.value.lng.toString(),
+      lat: _startPoint.value.lat.toString(),
       duration: _duration.value,
-      guideId: guidesStore.selectedGuide?.id || "",
+      guideId: guidesStore.selectedGuide.id,
     };
 
     const routeSuggestions = await useTourSuggestions(params);

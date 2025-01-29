@@ -53,7 +53,7 @@ let guide = ref(props.guide);
 const guidesStore = useGuidesStore();
 
 const selectGuide = () => {
-  guidesStore.setSelectedGuideId(guide.value.id);
+  guidesStore.setSelectedGuide(guide.value);
 
   router.push({ name: "create-route" });
 };
