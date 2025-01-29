@@ -23,6 +23,7 @@ export const useRouteStore = defineStore("routeStore", () => {
     { name: "Science", is_selected: false },
     { name: "Art", is_selected: false },
   ]);
+  const _interval = ref<NodeJS.Timeout | null>(null);
 
   // Getters
   const startPoint = computed((): ICoordinate | null => _startPoint.value);
@@ -98,11 +99,29 @@ export const useRouteStore = defineStore("routeStore", () => {
 
   const fetchListTours = async (): Promise<void> => {
     const tours = await useListTours();
+
     if (!tours || !tours.length) {
       return;
     }
+
     setAllTours(tours);
     setActualTour(tours[0] as ICreatedTour);
+
+    const isNotGeneratedTourExist = tours.some(
+      (tour) => tour.generating_percent !== 100,
+    );
+
+    if (import.meta.client) {
+      if (_interval.value) {
+        clearInterval(_interval.value);
+      }
+
+      if (isNotGeneratedTourExist) {
+        _interval.value = setInterval(async () => {
+          await fetchListTours();
+        }, 5000);
+      }
+    }
   };
 
   const setStartPoint = (newPoint: ICoordinate): void => {
@@ -130,6 +149,13 @@ export const useRouteStore = defineStore("routeStore", () => {
   const setAllTours = (newTours: ICreatedTour[]): void => {
     _allTours.value = newTours;
   };
+
+  onUnmounted(() => {
+    if (_interval.value) {
+      clearInterval(_interval.value);
+      _interval.value = null;
+    }
+  });
 
   return {
     // State as computed properties (read-only)
