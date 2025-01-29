@@ -10,6 +10,7 @@ import { onMounted, watch } from "#imports";
 import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
+import createHighPlacesMarkerElem from "~/utils/pages/createHighPlacesMarkerElem";
 
 const MAP_PITCH = 45;
 const WAYPOINTS_MAX_COUNT = 25;
@@ -128,6 +129,36 @@ const decreaseWaypoints = (
   return coordinates.slice(0, WAYPOINTS_MAX_COUNT);
 };
 
+const addHighPlacesToMap = () => {
+  if (!mapInstance) return;
+
+  const highPlaces = routeStore.routeSuggestion?.high_places;
+
+  if (!highPlaces) return;
+
+  const geojson = {
+    type: "FeatureCollection",
+    features: highPlaces.map((place) => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [Number(place.point.lng), Number(place.point.lat)],
+      },
+      properties: {
+        title: place.name,
+      },
+    })),
+  };
+
+  geojson.features.forEach((marker) => {
+    const el = createHighPlacesMarkerElem(marker.properties.title);
+
+    new mapboxgl.Marker(el)
+      .setLngLat(marker.geometry.coordinates as [number, number])
+      .addTo(mapInstance!);
+  });
+};
+
 const addWaypointMarkers = (coordinates: [number, number][]) => {
   if (!mapInstance) {
     return;
@@ -194,6 +225,15 @@ watch(
     // addWaypointMarkers(waypoints);
 
     mapInstance.off("click", selectPoint);
+  },
+);
+
+watch(
+  () => routeStore.routeSuggestion?.high_places,
+  (newHighPlaces) => {
+    if (!newHighPlaces || !mapInstance) return;
+
+    addHighPlacesToMap();
   },
 );
 

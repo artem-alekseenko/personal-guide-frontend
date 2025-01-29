@@ -8,26 +8,18 @@ export const useGuidesStore = defineStore(
   () => {
     // State
     const _guidesList = ref<IGuide[]>([]);
+    const _selectedGuide = ref<IGuide | null>(null);
     const isGuidesListLoading = ref<boolean>(false);
-    const _selectedGuideId = ref<string | null>(null);
 
     // Getters
     const selectedGuide = computed((): IGuide | null => {
-      if (!_selectedGuideId.value) {
-        return null;
-      }
-
-      return (
-        _guidesList.value.find(
-          (guide) => guide.id === _selectedGuideId.value,
-        ) || null
-      );
+      return _selectedGuide.value ?? null;
     });
     const guidesList = computed((): IGuide[] => _guidesList.value);
 
     // Actions
-    const setSelectedGuideId = (newGuide: string): void => {
-      _selectedGuideId.value = newGuide;
+    const setSelectedGuide = (newGuide: IGuide): void => {
+      _selectedGuide.value = newGuide;
     };
     const setGuidesList = (newGuides: IGuide[]) => {
       _guidesList.value = newGuides;
@@ -48,20 +40,19 @@ export const useGuidesStore = defineStore(
     };
 
     return {
+      _selectedGuide,
       guidesList,
       isGuidesListLoading,
       setGuidesList,
       fetchGuidesList,
       selectedGuide,
-      setSelectedGuideId,
-      _selectedGuideId,
-      _guidesList,
+      setSelectedGuide,
     };
   },
   {
     persist: {
       storage: piniaPluginPersistedstate.localStorage(),
-      pick: ["_selectedGuideId"],
+      pick: ["_selectedGuide"],
     },
   },
 );
