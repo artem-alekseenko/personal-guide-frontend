@@ -253,7 +253,7 @@ const addMarker = (coords: [number, number]) => {
     .addTo(mapInstance!);
 
   // @ts-ignore
-  // (marker.value as mapboxgl.Marker).on("dragend", getRecord);
+  (marker.value as mapboxgl.Marker).on("dragend", getRecord);
 };
 
 const addMarkerElemToMap = (
@@ -325,18 +325,26 @@ const scrollToHighlightedSentence = () => {
   });
 };
 
-const playTour = () => {
+const playChunk = () => {
   const newText = formattedText.value.slice(lastSpokenIndex.value);
+  if (!newText) {
+    state.value = STATE.RECORD_FINISHED;
+    return;
+  }
 
   speakMessage({
     text: newText,
     offset: lastSpokenIndex.value,
     onBoundary: (globalCharIndex) => highlightSentence(globalCharIndex),
     onEnd: () => {
-      lastSpokenIndex.value = formattedText.value.length;
-      // clearHighlights();
-      getRecord();
-      state.value = STATE.RECORD_LOADING;
+      lastSpokenIndex.value += newText.length;
+
+      if (lastSpokenIndex.value < formattedText.value.length) {
+        playChunk();
+      } else {
+        state.value = STATE.RECORD_LOADING;
+        getRecord();
+      }
     },
   });
   state.value = STATE.RECORD_ACTIVE;
@@ -364,7 +372,7 @@ const handleTourButtonClick = () => {
       getRecord();
       break;
     case STATE.RECORD_RECEIVED:
-      playTour();
+      playChunk();
       break;
     case STATE.RECORD_ACTIVE:
       pauseTour();
@@ -411,11 +419,11 @@ const addQuestion = () => {
 watch(
   () => tourStore.currentTourRecord,
   (newRecord) => {
-    if (newRecord) {
+    if (newRecord && state.value !== STATE.RECORD_ACTIVE) {
       state.value = STATE.RECORD_RECEIVED;
       removePlaces();
       addPlaces();
-      playTour();
+      playChunk();
     }
   },
 );
