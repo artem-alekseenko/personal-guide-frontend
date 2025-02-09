@@ -11,7 +11,10 @@ export const useTourSpeech = () => {
   }: {
     text: string;
     offset?: number;
-    onBoundary: (charIndex: number) => void;
+    onBoundary: (
+      charIndex: number,
+      utterance: SpeechSynthesisUtterance | null,
+    ) => void;
     onEnd: () => void;
   }) => {
     if (!text) {
@@ -25,8 +28,9 @@ export const useTourSpeech = () => {
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
+
     utterance.onboundary = (event) => {
-      onBoundary(event.charIndex + offset);
+      onBoundary(event.charIndex, currentUtterance.value);
     };
     utterance.onend = () => {
       onEnd();
@@ -37,11 +41,7 @@ export const useTourSpeech = () => {
 
     currentUtterance.value = utterance;
 
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.speak(utterance);
-    } else {
-      console.error("Web Speech API is not supported in this browser");
-    }
+    window.speechSynthesis.speak(utterance);
   };
 
   const pauseSpeech = () => {
@@ -57,9 +57,7 @@ export const useTourSpeech = () => {
   };
 
   const stopSpeech = () => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
+    window.speechSynthesis.cancel();
   };
 
   return {

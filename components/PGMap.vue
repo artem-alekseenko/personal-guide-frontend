@@ -14,8 +14,8 @@ import createHighPlacesMarkerElem from "~/utils/pages/createHighPlacesMarkerElem
 
 const MAP_PITCH = 45;
 const WAYPOINTS_MAX_COUNT = 25;
-const { map } = useAppConfig();
-const mabboxglAccessToken = unref(map.mapbox_gl_access_token);
+const { map_config } = useAppConfig();
+const mabboxglAccessToken = unref(map_config.mapbox_gl_access_token);
 mapboxgl.accessToken = mabboxglAccessToken;
 
 const routeStore = useRouteStore();
