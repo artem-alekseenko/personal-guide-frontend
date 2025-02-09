@@ -1,8 +1,8 @@
 import type { ICreatedTour } from "~/types";
 
 export const useGetTour = async (tourId: string): Promise<ICreatedTour> => {
-  const { data, error } = await useFetch<ICreatedTour>(
-    `/api/get-tour/${tourId}`,
+  const { data, error } = await useAsyncData(`tour-${tourId}`, () =>
+    $fetch<ICreatedTour>(`/api/get-tour/${tourId}`),
   );
 
   if (error.value) {
