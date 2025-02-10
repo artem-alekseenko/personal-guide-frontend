@@ -43,16 +43,15 @@
     <!-- Duration Selector -->
     <div v-if="!routeStore.routeSuggestion" class="m-4">
       <div class="mb-4">
-        <div class="prose p-4">
+        <div class="prose px-4 text-sm">
           Please indicate the desired duration of the excursion
         </div>
         <div class="duration gap-2 px-4">
-          <input
+          <URange
             v-model="duration"
             :max="MAX_DURATION_TOUR_MINUTES"
             :min="MIN_DURATION_TOUR_MINUTES"
             class="range-line w-full cursor-pointer appearance-none rounded-lg"
-            type="range"
           />
           <div class="initial-duration">5 min</div>
           <div class="current-duration">{{ formattedTime }}</div>
