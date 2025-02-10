@@ -1,6 +1,11 @@
 <template>
-  <main v-if="tourStore.tour" class="container mx-auto pb-8">
-    <h1>Tour {{ tourStore.tour.name }}</h1>
+  <main
+    v-if="tourStore.tour"
+    class="container mx-auto flex grow flex-col gap-y-4 py-4"
+  >
+    <h1 class="prose px-4 text-2xl font-extrabold md:px-12">
+      {{ tourStore.tour.name }}
+    </h1>
 
     <!-- Map -->
     <div class="relative">
@@ -16,7 +21,7 @@
           state === STATE.RECORD_LOADING || state === STATE.RECORD_FINISHED
         "
         :loading="state === STATE.RECORD_LOADING"
-        class="mx-auto mb-6 mt-6 flex"
+        class="mx-auto flex"
         @click="handleTourButtonClick"
       >
         {{ mainButtonText }}
@@ -33,7 +38,7 @@
     </p>
 
     <!-- Question input -->
-    <div v-if="state !== STATE.INITIAL" class="mx-4 mt-5">
+    <div v-if="state !== STATE.INITIAL" class="mx-4">
       <UInput
         v-model="userText"
         class="w-full"
@@ -41,6 +46,17 @@
       />
       <PGButton class="mx-auto mt-3 block" @click="addQuestion">
         Send question
+      </PGButton>
+    </div>
+
+    <!-- Complete the tour button -->
+    <div class="flex grow items-end">
+      <PGButton
+        class="prose mx-auto flex ring-green-400"
+        color="white"
+        @click="handleCompleteTour"
+      >
+        Complete the tour
       </PGButton>
     </div>
   </main>
@@ -94,6 +110,7 @@ const currentSpokenSentence = ref("");
 const textRef = ref<HTMLElement | null>(null);
 
 const route = useRoute();
+const router = useRouter();
 const tourStore = useTourStore();
 
 const formattedText = computed(() => {
@@ -417,6 +434,12 @@ function handleTourButtonClick() {
       resumeTour();
       break;
   }
+}
+
+function handleCompleteTour() {
+  state.value = STATE.TOUR_FINISHED;
+  tourStore.setUserText("");
+  router.push({ name: "tours" });
 }
 
 async function addQuestion() {
