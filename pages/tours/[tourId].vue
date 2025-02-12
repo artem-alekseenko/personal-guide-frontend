@@ -29,13 +29,18 @@
     </div>
 
     <!-- Text block -->
-    <p
-      v-if="isShowRecordText"
-      ref="textRef"
-      class="border-primary-500 mx-4 h-60 overflow-y-auto rounded-md border-2 border-solid p-4"
-    >
-      {{ tourStore.textForDisplay || "" }}
-    </p>
+    <div v-if="isShowRecordText" class="flex flex-col gap-y-2 px-4">
+      <p
+        ref="textRef"
+        class="border-primary-500 h-60 overflow-y-auto rounded-md border-2 border-solid p-4"
+      >
+        {{ tourStore.textForDisplay || "" }}
+      </p>
+      <div class="flex items-baseline justify-items-start gap-x-2">
+        <UToggle v-model="isScrollingToHighlightTextEnabled" size="xs" />
+        <p class="text-sm">{{ toggleScrollToHighlightSentenceText }}</p>
+      </div>
+    </div>
 
     <!-- Question input -->
     <div v-if="state !== STATE.INITIAL" class="mx-4">
@@ -270,6 +275,13 @@ const removePlaces = () => {
    Logic of text-to-speech
 ------------------------------------------- */
 const { speakMessage, pauseSpeech, resumeSpeech, stopSpeech } = useTourSpeech();
+const isScrollingToHighlightTextEnabled = ref(true);
+
+const toggleScrollToHighlightSentenceText = computed(() => {
+  return isScrollingToHighlightTextEnabled.value
+    ? "Scroll to highlighted sentence enabled"
+    : "Scroll to highlighted sentence disabled";
+});
 
 function findCurrentSpokenSentence(
   charIndex: number,
@@ -294,7 +306,15 @@ function highlightSentence(
 ) {
   if (!textRef.value || !utterance) return;
 
-  currentSpokenSentence.value = findCurrentSpokenSentence(charIndex, utterance);
+  const spokenSentence = findCurrentSpokenSentence(charIndex, utterance);
+
+  if (
+    currentSpokenSentence.value &&
+    currentSpokenSentence.value === spokenSentence
+  )
+    return;
+
+  currentSpokenSentence.value = spokenSentence;
 
   const currentDisplayedSentences =
     formattedText.value?.match(/[^.!?]*[.!?]["”]?/g)?.map((s) => s.trim()) ||
@@ -310,7 +330,9 @@ function highlightSentence(
 
   textRef.value.innerHTML = highlightedText;
 
-  scrollToHighlightedSentence();
+  if (isScrollingToHighlightTextEnabled.value) {
+    scrollToHighlightedSentence();
+  }
 }
 
 function scrollToHighlightedSentence() {
