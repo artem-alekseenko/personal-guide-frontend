@@ -18,9 +18,14 @@
     <div>
       <PGButton
         :disabled="
-          state === STATE.RECORD_LOADING || state === STATE.RECORD_FINISHED
+          state === STATE.RECORD_LOADING ||
+          state === STATE.RECORD_LOADING_WHEN_PAUSED ||
+          state === STATE.RECORD_FINISHED
         "
-        :loading="state === STATE.RECORD_LOADING"
+        :loading="
+          state === STATE.RECORD_LOADING ||
+          state === STATE.RECORD_LOADING_WHEN_PAUSED
+        "
         class="mx-auto flex"
         @click="handleTourButtonClick"
       >
@@ -100,6 +105,7 @@ mapboxgl.accessToken = mapbox_gl_access_token as string;
 const STATE = {
   INITIAL: "INITIAL",
   RECORD_LOADING: "LOADING_RECORD",
+  RECORD_LOADING_WHEN_PAUSED: "LOADING_RECORD_WHEN_PAUSED",
   RECORD_RECEIVED: "RECORD_RECEIVED",
   RECORD_ACTIVE: "RECORD_ACTIVE",
   RECORD_PAUSED: "RECORD_PAUSED",
@@ -129,6 +135,7 @@ const mainButtonText = computed(() => {
     case STATE.INITIAL:
       return "Start tour";
     case STATE.RECORD_LOADING:
+    case STATE.RECORD_LOADING_WHEN_PAUSED:
       return "Loading...";
     case STATE.RECORD_RECEIVED:
       return "Play";
@@ -431,7 +438,11 @@ async function getRecord() {
     return;
   }
 
-  state.value = STATE.RECORD_LOADING;
+  if (state.value === STATE.RECORD_PAUSED) {
+    state.value = STATE.RECORD_LOADING_WHEN_PAUSED;
+  } else {
+    state.value = STATE.RECORD_LOADING;
+  }
   const lngLat = marker.value.getLngLat();
   const currentCoord: ICoordinate = {
     lat: String(lngLat.lat),
@@ -484,12 +495,15 @@ async function addQuestion() {
 watch(
   () => tourStore.currentTourRecord,
   (newRecord) => {
-    if (newRecord && state.value !== STATE.RECORD_ACTIVE) {
-      state.value = STATE.RECORD_RECEIVED;
-      removePlaces();
-      addPlaces();
-      playChunk();
-    }
+    if (!newRecord) return;
+
+    const isPaused = state.value === STATE.RECORD_LOADING_WHEN_PAUSED;
+    state.value = isPaused ? STATE.RECORD_PAUSED : STATE.RECORD_RECEIVED;
+
+    removePlaces();
+    addPlaces();
+
+    if (!isPaused) playChunk();
   },
 );
 
