@@ -17,23 +17,23 @@
     "@pinia/nuxt": "0.10.1",
     "@tailwindcss/typography": "0.5.16",
     "@types/mapbox-gl": "3.4.1",
-    "@types/node": "22.13.5",
+    "@types/node": "22.13.10",
     "@vueuse/core": "12.7.0",
     "@vueuse/nuxt": "12.7.0",
-    "firebase-admin": "13.1.0",
+    "firebase-admin": "13.2.0",
     "firebase-functions": "6.3.2",
     "nuxt": "3.15.4",
     "nuxt-vuefire": "1.0.5",
     "pinia": "3.0.1",
-    "prettier": "3.5.2",
+    "prettier": "3.5.3",
     "prettier-plugin-tailwindcss": "0.6.11",
     "tailwindcss": "3.4.17",
-    "typescript": "5.7.3",
-    "vue-tsc": "2.2.4"
+    "typescript": "5.8.2",
+    "vue-tsc": "2.2.8"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-directions": "4.3.1",
-    "firebase": "11.3.1",
+    "firebase": "11.4.0",
     "mapbox-gl": "3.10.0",
     "pinia-plugin-persistedstate": "4.2.0",
     "vue": "3.5.13",
@@ -45,6 +45,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@firebase/util",
       "@parcel/watcher",
       "esbuild",
       "protobufjs",
