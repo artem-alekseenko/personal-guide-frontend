@@ -7,9 +7,7 @@
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
 import { onMounted, watch } from "#imports";
-import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import createHighPlacesMarkerElem from "~/utils/pages/createHighPlacesMarkerElem";
 
 const MAP_PITCH = 45;
@@ -17,6 +15,21 @@ const WAYPOINTS_MAX_COUNT = 25;
 const { map_config } = useAppConfig();
 const mabboxglAccessToken = unref(map_config.mapbox_gl_access_token);
 mapboxgl.accessToken = mabboxglAccessToken;
+
+useHead({
+  link: [
+    {
+      rel: "stylesheet",
+      href: "https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css",
+      type: "text/css",
+    },
+    {
+      rel: "stylesheet",
+      href: "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css",
+      type: "text/css",
+    },
+  ],
+});
 
 const routeStore = useRouteStore();
 

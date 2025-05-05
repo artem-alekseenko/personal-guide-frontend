@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full min-h-screen w-full flex-col items-center">
+  <div class="mx-auto flex h-full min-h-screen w-full flex-col items-center">
     <slot />
     <PGButton class="mt-auto" variant="ghost" @click="logout">Logout</PGButton>
   </div>

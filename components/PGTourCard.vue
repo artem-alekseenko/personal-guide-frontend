@@ -1,9 +1,9 @@
 <template>
   <div
     :style="{ backgroundImage: `url(${imageUrl})` }"
-    class="lg:grid-row-3 relative grid grid-cols-1 items-center justify-start justify-items-center gap-x-16 gap-y-4 rounded-xl border border-solid border-lime-200 bg-cover bg-center p-4 shadow-xl hover:border-gray-200 hover:bg-gray-100 md:p-8 lg:w-full lg:grid-cols-4"
+    class="lg:grid-row-3 relative grid grid-cols-1 items-center justify-start justify-items-center gap-x-16 gap-y-4 rounded-xl border border-solid border-lime-200 bg-cover bg-center p-4 shadow-xl hover:border-neutral-200 hover:bg-neutral-100 md:p-8 lg:w-full lg:grid-cols-4"
   >
-    <div class="absolute inset-0 rounded-xl bg-black bg-opacity-50"></div>
+    <div class="absolute inset-0 rounded-xl bg-black bg-black/50"></div>
     <div class="relative z-10">
       <h2 class="prose text-xl font-bold text-white">{{ name }}</h2>
       <p class="prose text-lg font-semibold text-slate-100">

@@ -2,7 +2,7 @@ export default (title: string) => {
   const el = document.createElement("div");
 
   el.innerHTML = `
-    <div class="flex flex-col items-center justify-center px-2 pt-2 rounded-xl bg-gradient-to-b from-gray-200 to-transparent text-green-600">
+    <div class="flex flex-col items-center justify-center px-2 pt-2 rounded-xl bg-gradient-to-b from-neutral-200 to-transparent text-green-600">
       <p class="line-clamp-2 font-bold">${title}</p>
       <svg class="w-16 h-16" xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 48 48">
           <path class="fill-current" d="M24 6c7.4 0 13 6 13 14s-8.6 16.7-13 21.2C19.6 36.7 11 27.5 11 20S16.6 6 24 6m0-4C14.1 2 7 10.1 7 20s11.5 21.3 15.6 25.4a1.9 1.9 0 0 0 2.8 0C29.5 41.3 41 30.1 41 20S33.9 2 24 2Z"/>

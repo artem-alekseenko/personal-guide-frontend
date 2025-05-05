@@ -17,9 +17,12 @@
       </client-only>
       <div
         v-if="state === STATE.ROUTE_REQUESTING"
-        class="absolute inset-0 flex w-full items-center justify-center bg-gray-600 opacity-80"
+        class="absolute inset-0 flex w-full items-center justify-center bg-neutral-600 opacity-80"
       >
-        <UIcon class="size-48 text-gray-50" name="svg-spinners:6-dots-scale" />
+        <UIcon
+          class="size-48 text-neutral-50"
+          name="svg-spinners:6-dots-scale"
+        />
       </div>
     </div>
 
@@ -33,7 +36,7 @@
         v-for="chip in chips"
         :key="chip.name"
         :isSelected="chip.is_selected"
-        class="mb-2 mr-2"
+        class="mr-2 mb-2"
         @click="() => toggleChip(chip.name)"
       >
         {{ chip.name }}
@@ -47,7 +50,7 @@
           Please indicate the desired duration of the excursion
         </div>
         <div class="duration gap-2 px-4">
-          <URange
+          <USlider
             v-model="duration"
             :max="MAX_DURATION_TOUR_MINUTES"
             :min="MIN_DURATION_TOUR_MINUTES"

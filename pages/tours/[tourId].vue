@@ -42,7 +42,7 @@
         {{ tourStore.textForDisplay || "" }}
       </p>
       <div class="flex items-baseline justify-items-start gap-x-2">
-        <UToggle v-model="isScrollingToHighlightTextEnabled" size="xs" />
+        <USwitch v-model="isScrollingToHighlightTextEnabled" size="xs" />
         <p class="text-sm">{{ toggleScrollToHighlightSentenceText }}</p>
       </div>
     </div>
@@ -63,7 +63,7 @@
     <div class="flex grow items-end">
       <PGButton
         class="prose mx-auto flex ring-green-400"
-        color="white"
+        color="neutral"
         @click="handleCompleteTour"
       >
         Complete the tour

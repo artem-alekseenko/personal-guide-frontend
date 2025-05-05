@@ -5,7 +5,6 @@
 </template>
 
 <script lang="ts" setup>
-import type { ButtonVariant } from "#ui/types";
 import type { PropType } from "vue";
 
 const props = defineProps({
@@ -13,7 +12,9 @@ const props = defineProps({
   block: Boolean,
   disabled: Boolean,
   variant: {
-    type: String as PropType<ButtonVariant>,
+    type: String as PropType<
+      "link" | "solid" | "outline" | "soft" | "subtle" | "ghost"
+    >,
     default: "solid",
   },
 });

@@ -27,7 +27,7 @@ const props = defineProps<{
 
 const chipSyles = computed(() =>
   [
-    props.isSelected ? "bg-green-400" : "bg-gray-200",
+    props.isSelected ? "bg-green-400" : "bg-neutral-200",
     props.isSelected ? "text-white" : "",
   ].join(" "),
 );

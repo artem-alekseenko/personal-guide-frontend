@@ -1,5 +1,5 @@
 <template>
-  <section class="container mx-auto flex flex-grow flex-col pb-8">
+  <section class="container mx-auto flex grow flex-col pb-8">
     <h1 class="prose p-4 text-2xl font-extrabold md:p-12">List of tours</h1>
     <PGButton class="mx-auto block" @click="handleCreateTour">
       Create new tour
@@ -20,8 +20,11 @@
         :tourId="tour.id"
       />
     </div>
-    <div v-else class="flex flex-grow items-center justify-center">
-      <UIcon class="size-48 text-gray-600" name="svg-spinners:6-dots-scale" />
+    <div v-else class="flex grow items-center justify-center">
+      <UIcon
+        class="size-48 text-neutral-600"
+        name="svg-spinners:6-dots-scale"
+      />
     </div>
   </section>
 </template>

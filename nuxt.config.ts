@@ -41,4 +41,5 @@ export default defineNuxtConfig({
       key: process.env.RECAPTCHA_KEY,
     },
   },
+  css: ["~/assets/css/main.css"],
 });
