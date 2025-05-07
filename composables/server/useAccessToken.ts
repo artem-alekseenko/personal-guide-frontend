@@ -3,9 +3,9 @@ interface TokenResponse {
 }
 
 export const useAccessToken = async (): Promise<string> => {
-  const accessTokenUrl = process.env.PG_API_ACCESS_TOKEN_URL;
-  const username = process.env.PG_API_GET_TOKEN_USERNAME;
-  const password = process.env.PG_API_GET_TOKEN_PASSWORD;
+  const accessTokenUrl = process.env.PG_API_ACCESS_TOKEN_URL!;
+  const username = process.env.PG_API_GET_TOKEN_USERNAME!;
+  const password = process.env.PG_API_GET_TOKEN_PASSWORD!;
 
   if (!(accessTokenUrl && username && password)) {
     throw new Error(

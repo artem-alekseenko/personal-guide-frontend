@@ -75,7 +75,6 @@
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 
 import {
   computed,
@@ -95,6 +94,21 @@ import type {
   TypeFrom,
 } from "~/types";
 import createPlacesMarkerElem from "~/utils/pages/createPlacesMarkerElem";
+
+useHead({
+  link: [
+    {
+      rel: "stylesheet",
+      href: "https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css",
+      type: "text/css",
+    },
+    {
+      rel: "stylesheet",
+      href: "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css",
+      type: "text/css",
+    },
+  ],
+});
 
 const MAP_PITCH = 45;
 const {

@@ -7,7 +7,7 @@ export default defineNuxtConfig({
     },
   },
   components: [{ path: "~/components/ui", pathPrefix: false }, "~/components"],
-  ssr: true,
+  ssr: false,
   modules: [
     "@vueuse/nuxt",
     "@pinia/nuxt",
