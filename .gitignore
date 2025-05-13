@@ -29,3 +29,4 @@ logs
 
 # Firebase
 /service-account.json
+.vercel
