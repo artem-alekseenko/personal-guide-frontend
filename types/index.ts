@@ -125,6 +125,7 @@ export interface ITourRecord {
   message: string;
   created_at: string;
   places?: IPoint[];
+  audio_data: string;
 }
 
 export interface IGeoJSONFeature {
@@ -155,6 +156,7 @@ export interface ITourRecordRequest {
 export interface ITourRecordResponse {
   places: IPoint[];
   record: ITourRecord;
+  audio_data: string;
 }
 
 export interface ITourTag {

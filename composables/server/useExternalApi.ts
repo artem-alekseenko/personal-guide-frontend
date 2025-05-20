@@ -1,4 +1,5 @@
 import type { TRequestMethod } from "~/types";
+import buildCurlCommand from "~/utils/buildCurlCommand";
 
 /**
  * Makes an HTTP request to an external API with optional parameters and method.
@@ -40,6 +41,7 @@ export const useExternalApi = async <T>(
   }
 
   try {
+    buildCurlCommand(url, requestOptions);
     // @ts-ignore
     return await $fetch<T>(url, requestOptions);
   } catch (error) {

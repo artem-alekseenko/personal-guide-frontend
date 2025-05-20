@@ -297,12 +297,57 @@ const removePlaces = () => {
 ------------------------------------------- */
 const { speakMessage, pauseSpeech, resumeSpeech, stopSpeech } = useTourSpeech();
 const isScrollingToHighlightTextEnabled = ref(true);
+const audioElement = ref<HTMLAudioElement | null>(null);
 
 const toggleScrollToHighlightSentenceText = computed(() => {
   return isScrollingToHighlightTextEnabled.value
     ? "Scroll to highlighted sentence enabled"
     : "Scroll to highlighted sentence disabled";
 });
+
+function playAudio() {
+  if (!tourStore.currentTourRecord) return;
+
+  const audioData = tourStore.currentTourRecord.audio_data;
+
+  if (!audioData) return;
+
+  if (!audioElement.value) {
+    audioElement.value = new Audio();
+  }
+
+  // Convert base64 to blob
+  const byteCharacters = atob(audioData);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: "audio/mp3" });
+
+  const audioUrl = URL.createObjectURL(blob);
+  audioElement.value.src = audioUrl;
+  audioElement.value.play();
+}
+
+function pauseAudio() {
+  if (audioElement.value) {
+    audioElement.value.pause();
+  }
+}
+
+function resumeAudio() {
+  if (audioElement.value) {
+    audioElement.value.play();
+  }
+}
+
+function stopAudio() {
+  if (audioElement.value) {
+    audioElement.value.pause();
+    audioElement.value.currentTime = 0;
+  }
+}
 
 function findCurrentSpokenSentence(
   charIndex: number,
@@ -409,37 +454,22 @@ function playChunk() {
     return;
   }
 
-  speakMessage({
-    text: tourStore.textForSpeech,
-    onBoundary: (charIndex, utterance) => {
-      highlightSentence(charIndex, utterance);
-    },
-    onEnd: () => {
-      updateTextForSpeech();
-      if (tourStore.textForSpeech.length) {
-        playChunk();
-      } else {
-        state.value = STATE.RECORD_LOADING;
-        getRecord();
-      }
-    },
-  });
-
+  playAudio();
   state.value = STATE.RECORD_ACTIVE;
 }
 
 function pauseTour() {
   state.value = STATE.RECORD_PAUSED;
-  pauseSpeech();
+  pauseAudio();
 }
 
 function resumeTour() {
   state.value = STATE.RECORD_ACTIVE;
-  resumeSpeech();
+  resumeAudio();
 }
 
 function forceStopPlayback() {
-  stopSpeech();
+  stopAudio();
   state.value = STATE.RECORD_FINISHED;
 }
 
@@ -491,14 +521,12 @@ function handleCompleteTour() {
 
 async function addQuestion() {
   state.value = STATE.RECORD_PAUSED;
-  pauseSpeech();
+  pauseAudio();
 
   tourStore.setUserText(userText.value);
   userText.value = "";
 
-  stopSpeech();
-
-  updateTextForDisplay();
+  stopAudio();
 
   await getRecord();
 }
@@ -546,11 +574,11 @@ onMounted(async () => {
   } else {
     console.error("No tour found");
   }
-  window.addEventListener("beforeunload", stopSpeech);
+  window.addEventListener("beforeunload", stopAudio);
 });
 
 onBeforeUnmount(() => {
   stopSpeech();
-  window.removeEventListener("beforeunload", stopSpeech);
+  window.removeEventListener("beforeunload", stopAudio);
 });
 </script>

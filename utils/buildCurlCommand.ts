@@ -19,5 +19,8 @@ export default (url: string, options: RequestInit): string => {
     command += ` -d '${options.body}'`;
   }
 
+  console.log("curl");
+  console.log(command);
+
   return command;
 };

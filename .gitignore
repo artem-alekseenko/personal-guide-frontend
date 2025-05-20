@@ -29,4 +29,7 @@ logs
 
 # Firebase
 /service-account.json
+
+# Vercel
 .vercel
+upload-env.sh

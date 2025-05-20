@@ -26,6 +26,7 @@ export const useGetTourRecord = async (
     return {
       ...data.record,
       places: data.places,
+      audio_data: data.audio_data,
     };
   } catch (error) {
     if (error instanceof Error) {
