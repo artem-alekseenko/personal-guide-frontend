@@ -314,6 +314,23 @@ function playAudio() {
 
   if (!audioElement.value) {
     audioElement.value = new Audio();
+    
+    // Add event listener for timeupdate
+    audioElement.value.addEventListener('timeupdate', () => {
+      if (!audioElement.value) return;
+      
+      // Calculate current character index based on audio progress
+      const totalDuration = audioElement.value.duration;
+      const currentTime = audioElement.value.currentTime;
+      const progress = currentTime / totalDuration;
+      
+      const totalTextLength = tourStore.textForSpeech.length;
+      const currentCharIndex = Math.floor(progress * totalTextLength);
+      
+      // Create a temporary utterance to pass to highlightSentence
+      const utterance = new SpeechSynthesisUtterance(tourStore.textForSpeech);
+      highlightSentence(currentCharIndex, utterance);
+    });
   }
 
   // Convert base64 to blob
@@ -353,7 +370,7 @@ function findCurrentSpokenSentence(
   charIndex: number,
   utterance: SpeechSynthesisUtterance,
 ): string {
-  const sentences = utterance.text.match(/[^.!?]*[.!?]["”]?/g) || [];
+  const sentences = utterance.text.match(/[^.!?]*[.!?][""]?/g) || [];
   let accumulatedLength = 0;
 
   for (const sentence of sentences) {
@@ -383,7 +400,7 @@ function highlightSentence(
   currentSpokenSentence.value = spokenSentence;
 
   const currentDisplayedSentences =
-    formattedText.value?.match(/[^.!?]*[.!?]["”]?/g)?.map((s) => s.trim()) ||
+    formattedText.value?.match(/[^.!?]*[.!?][""]?/g)?.map((s) => s.trim()) ||
     [];
 
   const highlightedText = currentDisplayedSentences

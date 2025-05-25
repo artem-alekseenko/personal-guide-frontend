@@ -98,7 +98,8 @@ export const useTourStore = defineStore("tourStore", () => {
       },
       user_text: userText.value,
       pace: "1",
-      type_llm: "SIMPLE",
+      type_llm: "MOCK",
+      type_voice: "MOCK",
     };
 
     const tourId = tour.value.id;
@@ -111,7 +112,8 @@ export const useTourStore = defineStore("tourStore", () => {
     const fixedMessage = ensureSentenceEndsProperly(tourRecord.message);
 
     // const sentences = fixedMessage.match(/[^.!?]*[.!?]/g) || [];
-    // const firstTwoSentences = sentences.slice(0, 2).join(" ");
+    // const firstTwoSentences = sentences.slice(0, 1).join(" ");
+    // const firstTwoSentences = fixedMessage.slice(0, 400);
     // setCurrentTourRecord({ ...tourRecord, message: firstTwoSentences });
     // appendToTextForDisplay(firstTwoSentences);
     // setTextForSpeech(firstTwoSentences);

@@ -150,7 +150,8 @@ export interface ITourRecordRequest {
   point: ICoordinate;
   user_text: string;
   pace: string;
-  type_llm: string;
+  type_llm: "SIMPLE" | "OPENAI" | "GEMINI" | "MOCK";
+  type_voice: "ELEVENLABS" | "MOCK";
 }
 
 export interface ITourRecordResponse {
