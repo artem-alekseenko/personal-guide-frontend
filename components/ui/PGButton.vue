@@ -1,5 +1,13 @@
 <template>
-  <UButton v-bind="buttonProps" v-on="$attrs">
+  <UButton
+    :block="block"
+    :class="$attrs.class"
+    :color="color"
+    :disabled="disabled"
+    :loading="loading"
+    :variant="variant"
+    @click="$emit('click', $event)"
+  >
     <slot />
   </UButton>
 </template>
@@ -7,10 +15,22 @@
 <script lang="ts" setup>
 import type { PropType } from "vue";
 
-const props = defineProps({
+defineProps({
   loading: Boolean,
   block: Boolean,
   disabled: Boolean,
+  color: {
+    type: String as PropType<
+      | "error"
+      | "primary"
+      | "secondary"
+      | "success"
+      | "info"
+      | "warning"
+      | "neutral"
+    >,
+    default: undefined,
+  },
   variant: {
     type: String as PropType<
       "link" | "solid" | "outline" | "soft" | "subtle" | "ghost"
@@ -19,10 +39,5 @@ const props = defineProps({
   },
 });
 
-const buttonProps = computed(() => ({
-  loading: props.loading,
-  block: props.block,
-  disabled: props.disabled,
-  variant: props.variant,
-}));
+defineEmits(["click"]);
 </script>

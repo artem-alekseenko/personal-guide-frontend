@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts" setup>
-import mapboxgl from "mapbox-gl";
+import mapboxgl, { type LngLatLike } from "mapbox-gl";
 import { onMounted, watch } from "#imports";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import createHighPlacesMarkerElem from "~/utils/pages/createHighPlacesMarkerElem";
@@ -20,7 +20,7 @@ useHead({
   link: [
     {
       rel: "stylesheet",
-      href: "https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css",
+      href: "https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css",
       type: "text/css",
     },
     {
@@ -29,24 +29,27 @@ useHead({
       type: "text/css",
     },
   ],
+  script: [
+    {
+      src: "https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js",
+      async: true,
+    },
+  ],
 });
 
 const routeStore = useRouteStore();
 
 const selectedInitialArea = defineModel("selectedArea", {});
 
-const mapContainerRef = ref(null);
+const mapContainerRef = ref<HTMLElement | null>(null);
 let mapInstance: mapboxgl.Map | null = null;
 let directions: MapboxDirections | null = null;
 let marker: mapboxgl.Marker | null = null;
 
 const addMarker = (lat: number, lng: number) => {
-  if (!mapInstance) {
-    return;
-  }
+  if (!mapInstance) return;
   marker?.remove();
   const coordinates: [number, number] = [lng, lat];
-
   marker = new mapboxgl.Marker().setLngLat(coordinates).addTo(mapInstance);
 };
 
@@ -129,10 +132,6 @@ const initializeDirections = () => {
     },
   });
 
-  if (!directions) {
-    return;
-  }
-
   mapInstance.addControl(directions, "top-left");
 };
 
@@ -144,9 +143,7 @@ const decreaseWaypoints = (
 
 const addHighPlacesToMap = () => {
   if (!mapInstance) return;
-
   const highPlaces = routeStore.routeSuggestion?.high_places;
-
   if (!highPlaces) return;
 
   const geojson = {
@@ -167,15 +164,14 @@ const addHighPlacesToMap = () => {
     const el = createHighPlacesMarkerElem(marker.properties.title);
 
     new mapboxgl.Marker(el)
-      .setLngLat(marker.geometry.coordinates as [number, number])
+      .setLngLat(marker.geometry.coordinates as LngLatLike)
       .addTo(mapInstance!);
   });
 };
 
 const addWaypointMarkers = (coordinates: [number, number][]) => {
-  if (!mapInstance) {
-    return;
-  }
+  if (!mapInstance) return;
+
   const geojson = {
     type: "FeatureCollection",
     features: coordinates.map((coordinate) => ({
@@ -187,15 +183,14 @@ const addWaypointMarkers = (coordinates: [number, number][]) => {
     })),
   };
 
-  for (const [index, feature] of geojson.features.entries()) {
+  geojson.features.forEach((feature, index: number) => {
     const el = document.createElement("div");
     el.className = "waypoint-marker";
     el.innerHTML = `<span><b>${index + 1}</b></span>`;
-
     new mapboxgl.Marker(el)
-      .setLngLat(feature.geometry.coordinates as [number, number])
-      .addTo(mapInstance);
-  }
+      .setLngLat(feature.geometry.coordinates as LngLatLike)
+      .addTo(mapInstance!);
+  });
 };
 
 watch(

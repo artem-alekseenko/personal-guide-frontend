@@ -1,4 +1,5 @@
 <template>
+  <!-- <PGTourCard> -->
   <div
     :style="{ backgroundImage: `url(${imageUrl})` }"
     class="lg:grid-row-3 relative grid grid-cols-1 items-center justify-start justify-items-center gap-x-16 gap-y-4 rounded-xl border border-solid border-lime-200 bg-cover bg-center p-4 shadow-xl hover:border-neutral-200 hover:bg-neutral-100 md:p-8 lg:w-full lg:grid-cols-4"
