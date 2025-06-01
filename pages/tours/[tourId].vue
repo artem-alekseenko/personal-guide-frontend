@@ -92,6 +92,7 @@ import {
 import { useRoute } from "vue-router";
 import { useTourStore } from "#imports";
 import { useTourSpeech } from "@/composables/useTourSpeech";
+import { useLogger } from "@/composables/useLogger";
 import type {
   ICoordinate,
   ICreatedTour,
@@ -146,6 +147,7 @@ const route = useRoute();
 const router = useRouter();
 const tourStore = useTourStore();
 const geolocationStore = useGeolocationStore();
+const logger = useLogger();
 
 const formattedText = computed(() => {
   return tourStore.textForDisplay || "";
@@ -194,7 +196,7 @@ interface RouteEvent {
 }
 
 const handleMapInitialized = (map: mapboxgl.Map) => {
-  console.log('Map initialized');
+  logger.log('Map initialized');
   mapInstance = map;
   
   // Set initial map settings
@@ -208,7 +210,7 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
   });
   
   if (tourStore.tour) {
-    console.log('Tour data:', tourStore.tour);
+    logger.log('Tour data:', tourStore.tour);
     initializeDirections();
     // Add a small delay before adding the route to ensure directions control is fully initialized
     setTimeout(() => {
@@ -217,17 +219,17 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
       }
     }, 500);
   } else {
-    console.warn('No tour data available');
+    logger.warn('No tour data available');
   }
 };
 
 const initializeDirections = () => {
   if (!mapInstance) {
-    console.warn('Map instance not available');
+    logger.warn('Map instance not available');
     return;
   }
 
-  console.log('Initializing directions');
+  logger.log('Initializing directions');
 
   directions = new MapboxDirections({
     accessToken: mapbox_gl_access_token,
@@ -243,7 +245,7 @@ const initializeDirections = () => {
 
   // Add event listener for route loading
   directions.on('route', (e: RouteEvent) => {
-    console.log('Route loaded:', e);
+    logger.log('Route loaded:', e);
     if (mapInstance && e.route && Array.isArray(e.route)) {
       // Fit bounds to show the entire route
       const bounds = new mapboxgl.LngLatBounds();
@@ -267,11 +269,11 @@ const initializeDirections = () => {
   });
 
   directions.on('error', (e: Error) => {
-    console.error('Directions error:', e);
+    logger.error('Directions error:', e);
   });
 
   mapInstance.addControl(directions);
-  console.log('Directions control added');
+  logger.log('Directions control added');
 };
 
 const decreaseWaypoints = (
@@ -282,60 +284,60 @@ const decreaseWaypoints = (
 
 const addRouteToMap = (tour: ICreatedTour) => {
   if (!mapInstance || !directions) {
-    console.warn("Map or directions not initialized");
+    logger.warn("Map or directions not initialized");
     return;
   }
 
-  console.log("Adding route to map");
-  console.log("Tour route points:", tour.route.points);
+  logger.log("Adding route to map");
+  logger.log("Tour route points:", tour.route.points);
 
   const coordinates = tour.route.points.map(
     (p) => [Number(p.lng), Number(p.lat)] as [number, number],
   );
 
-  console.log("Original coordinates:", coordinates);
-  console.log("Original coordinates count:", coordinates.length);
+  logger.log("Original coordinates:", coordinates);
+  logger.log("Original coordinates count:", coordinates.length);
 
   if (coordinates.length < 2) {
-    console.warn("Not enough coordinates for route");
+    logger.warn("Not enough coordinates for route");
     return;
   }
 
   const trimmedCoordinates = decreaseWaypoints(coordinates);
-  console.log("Trimmed coordinates:", trimmedCoordinates);
-  console.log("Trimmed coordinates count:", trimmedCoordinates.length);
+  logger.log("Trimmed coordinates:", trimmedCoordinates);
+  logger.log("Trimmed coordinates count:", trimmedCoordinates.length);
 
   const start = trimmedCoordinates[0];
   const finish = trimmedCoordinates.at(-1);
   const waypoints = trimmedCoordinates.slice(1, -1);
 
-  console.log("Start point:", start);
-  console.log("Finish point:", finish);
-  console.log("Waypoints:", waypoints);
+  logger.log("Start point:", start);
+  logger.log("Finish point:", finish);
+  logger.log("Waypoints:", waypoints);
 
   if (!finish || !start || !start[0] || !start[1] || !finish[0] || !finish[1]) {
-    console.warn("Invalid coordinates");
+    logger.warn("Invalid coordinates");
     return;
   }
 
   try {
     // Clear any existing route
     directions.removeRoutes();
-    console.log("Existing routes removed");
+    logger.log("Existing routes removed");
 
     // Set new route
     directions.setOrigin([start[0], start[1]]);
-    console.log("Origin set");
+    logger.log("Origin set");
 
     waypoints.forEach((waypoint, index) => {
       directions!.addWaypoint(index, waypoint);
-      console.log(`Waypoint ${index} added:`, waypoint);
+      logger.log(`Waypoint ${index} added:`, waypoint);
     });
 
     directions.setDestination([finish[0], finish[1]]);
-    console.log("Destination set");
+    logger.log("Destination set");
   } catch (error) {
-    console.error("Error while setting route:", error);
+    logger.error("Error while setting route:", error);
   }
 };
 
@@ -534,7 +536,7 @@ function updateTextForSpeech() {
     currentSpokenSentence.value,
   );
   if (startIndexOfLastSpokenSentence === -1) {
-    console.warn("Sentence not found in textForSpeech");
+    logger.warn("Sentence not found in textForSpeech");
     return;
   }
 
@@ -549,7 +551,7 @@ function updateTextForDisplay() {
     currentSpokenSentence.value,
   );
   if (startIndexOfLastSpokenSentence === -1) {
-    console.warn("Sentence not found in textForDisplay");
+    logger.warn("Sentence not found in textForDisplay");
     return;
   }
 
@@ -590,7 +592,7 @@ function forceStopPlayback() {
 ------------------------------------------- */
 async function getRecord() {
   if (!marker.value) {
-    console.error("No marker found");
+    logger.error("No marker found");
     return;
   }
 
@@ -664,7 +666,7 @@ watch(
 watch(
   state,
   (newState) => {
-    console.log("State: ", newState);
+    logger.log("State: ", newState);
   },
   { immediate: true },
 );
@@ -675,12 +677,12 @@ watch(
 onMounted(async () => {
   await nextTick();
   if (!route.params.tourId || typeof route.params.tourId !== "string") {
-    console.error("No tourId provided");
+    logger.error("No tourId provided");
     return;
   }
-  console.log("Fetching tour with ID:", route.params.tourId);
+  logger.log("Fetching tour with ID:", route.params.tourId);
   await tourStore.fetchGetTour(route.params.tourId as string);
-  console.log("Tour fetched:", tourStore.tour);
+  logger.log("Tour fetched:", tourStore.tour);
   window.addEventListener("beforeunload", stopAudio);
 });
 
