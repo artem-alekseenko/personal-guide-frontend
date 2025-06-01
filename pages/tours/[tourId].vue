@@ -98,6 +98,11 @@ import {
   cleanupAudioUrl,
   createAudioUrl,
 } from "~/utils/audioUtils";
+import { 
+  findCurrentSpokenSentence, 
+  createHighlightedText, 
+  getSentenceIndex 
+} from "~/utils/textUtils";
 import type {
   ICoordinate,
   ICreatedTour,
@@ -465,22 +470,6 @@ function stopAudio() {
   }
 }
 
-function findCurrentSpokenSentence(
-  charIndex: number,
-  utterance: SpeechSynthesisUtterance,
-): string {
-  const sentences = utterance.text.match(/[^.!?]*[.!?][""]?/g) || [];
-  let accumulatedLength = 0;
-
-  for (const sentence of sentences) {
-    accumulatedLength += sentence.length;
-    if (charIndex < accumulatedLength) {
-      return sentence.trim();
-    }
-  }
-  return "";
-}
-
 // Highlighting the current spoken sentence
 function highlightSentence(
   charIndex: number,
@@ -488,7 +477,7 @@ function highlightSentence(
 ) {
   if (!textRef.value || !utterance) return;
 
-  const spokenSentence = findCurrentSpokenSentence(charIndex, utterance);
+  const spokenSentence = findCurrentSpokenSentence(charIndex, utterance.text);
 
   if (
     currentSpokenSentence.value &&
@@ -498,17 +487,10 @@ function highlightSentence(
 
   currentSpokenSentence.value = spokenSentence;
 
-  const currentDisplayedSentences =
-    formattedText.value?.match(/[^.!?]*[.!?][""]?/g)?.map((s) => s.trim()) ||
-    [];
-
-  const highlightedText = currentDisplayedSentences
-    .map((sentence) =>
-      sentence === currentSpokenSentence.value
-        ? `<span class="bg-yellow-200 active-sentence">${sentence}</span> `
-        : `${sentence} `,
-    )
-    .join("");
+  const highlightedText = createHighlightedText(
+    formattedText.value, 
+    currentSpokenSentence.value
+  );
 
   textRef.value.innerHTML = highlightedText;
 
@@ -534,7 +516,8 @@ function clearHighlights() {
 }
 
 function updateTextForSpeech() {
-  const startIndexOfLastSpokenSentence = formattedText.value.indexOf(
+  const startIndexOfLastSpokenSentence = getSentenceIndex(
+    formattedText.value,
     currentSpokenSentence.value,
   );
   if (startIndexOfLastSpokenSentence === -1) {
@@ -549,7 +532,8 @@ function updateTextForSpeech() {
 }
 
 function updateTextForDisplay() {
-  const startIndexOfLastSpokenSentence = formattedText.value.indexOf(
+  const startIndexOfLastSpokenSentence = getSentenceIndex(
+    formattedText.value,
     currentSpokenSentence.value,
   );
   if (startIndexOfLastSpokenSentence === -1) {
