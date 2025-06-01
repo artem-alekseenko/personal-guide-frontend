@@ -93,6 +93,11 @@ import { useRoute } from "vue-router";
 import { useTourStore } from "#imports";
 import { useTourSpeech } from "@/composables/useTourSpeech";
 import { useLogger } from "@/composables/useLogger";
+import {
+  base64ToAudioBlob,
+  cleanupAudioUrl,
+  createAudioUrl,
+} from "~/utils/audioUtils";
 import type {
   ICoordinate,
   ICreatedTour,
@@ -196,40 +201,41 @@ interface RouteEvent {
 }
 
 const handleMapInitialized = (map: mapboxgl.Map) => {
-  logger.log('Map initialized');
+  logger.log("Map initialized");
   mapInstance = map;
-  
+
   // Set initial map settings
   mapInstance.setPitch(MAP_PITCH);
   mapInstance.setBearing(0);
 
   // Add click handler for setting user marker
-  mapInstance.on('click', (e) => {
+  mapInstance.on("click", (e) => {
     const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
     addMarker(coords);
   });
-  
+
   if (tourStore.tour) {
-    logger.log('Tour data:', tourStore.tour);
+    logger.log("Tour data:", tourStore.tour);
     initializeDirections();
     // Add a small delay before adding the route to ensure directions control is fully initialized
     setTimeout(() => {
-      if (tourStore.tour) { // Double check that tour still exists
+      if (tourStore.tour) {
+        // Double check that tour still exists
         addRouteToMap(tourStore.tour);
       }
     }, 500);
   } else {
-    logger.warn('No tour data available');
+    logger.warn("No tour data available");
   }
 };
 
 const initializeDirections = () => {
   if (!mapInstance) {
-    logger.warn('Map instance not available');
+    logger.warn("Map instance not available");
     return;
   }
 
-  logger.log('Initializing directions');
+  logger.log("Initializing directions");
 
   directions = new MapboxDirections({
     accessToken: mapbox_gl_access_token,
@@ -244,8 +250,8 @@ const initializeDirections = () => {
   });
 
   // Add event listener for route loading
-  directions.on('route', (e: RouteEvent) => {
-    logger.log('Route loaded:', e);
+  directions.on("route", (e: RouteEvent) => {
+    logger.log("Route loaded:", e);
     if (mapInstance && e.route && Array.isArray(e.route)) {
       // Fit bounds to show the entire route
       const bounds = new mapboxgl.LngLatBounds();
@@ -258,22 +264,22 @@ const initializeDirections = () => {
           });
         }
       });
-      
+
       if (!bounds.isEmpty()) {
         mapInstance.fitBounds(bounds, {
           padding: 50,
-          maxZoom: 15
+          maxZoom: 15,
         });
       }
     }
   });
 
-  directions.on('error', (e: Error) => {
-    logger.error('Directions error:', e);
+  directions.on("error", (e: Error) => {
+    logger.error("Directions error:", e);
   });
 
   mapInstance.addControl(directions);
-  logger.log('Directions control added');
+  logger.log("Directions control added");
 };
 
 const decreaseWaypoints = (
@@ -395,6 +401,7 @@ const removePlaces = () => {
 const { speakMessage, pauseSpeech, resumeSpeech, stopSpeech } = useTourSpeech();
 const isScrollingToHighlightTextEnabled = ref(true);
 const audioElement = ref<HTMLAudioElement | null>(null);
+const currentAudioUrl = ref<string | null>(null);
 
 const toggleScrollToHighlightSentenceText = computed(() => {
   return isScrollingToHighlightTextEnabled.value
@@ -430,16 +437,11 @@ function playAudio() {
     });
   }
 
-  // Convert base64 to blob
-  const byteCharacters = atob(audioData);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: "audio/mp3" });
+  // Convert base64 to blob using utility
+  const blob = base64ToAudioBlob(audioData);
+  const audioUrl = createAudioUrl(blob, currentAudioUrl.value ?? undefined);
 
-  const audioUrl = URL.createObjectURL(blob);
+  currentAudioUrl.value = audioUrl;
   audioElement.value.src = audioUrl;
   audioElement.value.play();
 }
@@ -591,9 +593,32 @@ function forceStopPlayback() {
    Actions
 ------------------------------------------- */
 async function getRecord() {
+  // If no marker is set, automatically set it to user's current location or first route point
   if (!marker.value) {
-    logger.error("No marker found");
-    return;
+    logger.log("No marker found, setting default marker position");
+    
+    let defaultCoords: [number, number] | null = null;
+    
+    // Try to use user's current location first
+    if (geolocationStore.coordinates) {
+      defaultCoords = geolocationStore.coordinates;
+      logger.log("Using user's current location for marker:", defaultCoords);
+    }
+    // Fallback to first point of tour route
+    else if (tourStore.tour?.route?.points && tourStore.tour.route.points.length > 0) {
+      const firstPoint = tourStore.tour.route.points[0];
+      if (firstPoint) {
+        defaultCoords = [Number(firstPoint.lng), Number(firstPoint.lat)];
+        logger.log("Using first tour route point for marker:", defaultCoords);
+      }
+    }
+    
+    if (defaultCoords) {
+      addMarker(defaultCoords);
+    } else {
+      logger.error("Unable to set default marker position - no location data available");
+      return;
+    }
   }
 
   if (state.value === STATE.RECORD_PAUSED) {
@@ -601,7 +626,8 @@ async function getRecord() {
   } else {
     state.value = STATE.RECORD_LOADING;
   }
-  const lngLat = marker.value.getLngLat();
+  
+  const lngLat = marker.value!.getLngLat();
   const currentCoord: ICoordinate = {
     lat: String(lngLat.lat),
     lng: String(lngLat.lng),
@@ -688,6 +714,13 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stopSpeech();
+
+  // Cleanup audio URL to prevent memory leaks
+  if (currentAudioUrl.value) {
+    cleanupAudioUrl(currentAudioUrl.value);
+    currentAudioUrl.value = null;
+  }
+
   window.removeEventListener("beforeunload", stopAudio);
 });
 </script>
