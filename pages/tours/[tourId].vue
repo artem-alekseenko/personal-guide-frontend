@@ -38,18 +38,13 @@
     </div>
 
     <!-- Text block -->
-    <div v-if="isShowRecordText" class="flex flex-col gap-y-2 px-4">
-      <p
-        ref="textRef"
-        class="border-primary-500 h-60 overflow-y-auto rounded-md border-2 border-solid p-4"
-      >
-        {{ tourStore.textForDisplay || "" }}
-      </p>
-      <div class="flex items-baseline justify-items-start gap-x-2">
-        <USwitch v-model="isScrollingToHighlightTextEnabled" size="xs" />
-        <p class="text-sm">{{ toggleScrollToHighlightSentenceText }}</p>
-      </div>
-    </div>
+    <TourTextDisplay
+      ref="tourTextDisplayRef"
+      :show="isShowRecordText"
+      :text="tourStore.textForDisplay || ''"
+      :highlightSentence="currentHighlightSentence"
+      v-model:scrollToHighlightEnabled="isScrollingToHighlightTextEnabled"
+    />
 
     <!-- Question input -->
     <div v-if="state !== STATE.INITIAL" class="mx-4">
@@ -89,7 +84,7 @@ import {
   ref,
   watch,
 } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useTourStore } from "#imports";
 import { useTourSpeech } from "@/composables/useTourSpeech";
 import { useLogger } from "@/composables/useLogger";
@@ -100,7 +95,6 @@ import {
 } from "~/utils/audioUtils";
 import { 
   findCurrentSpokenSentence, 
-  createHighlightedText, 
   getSentenceIndex 
 } from "~/utils/textUtils";
 import type {
@@ -112,6 +106,7 @@ import type {
 import createPlacesMarkerElem from "~/utils/pages/createPlacesMarkerElem";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import BaseMap from "~/components/base/BaseMap.vue";
+import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
 
 useHead({
   link: [
@@ -150,8 +145,9 @@ type TState = TypeFrom<typeof STATE>;
 const state = ref<TState>(STATE.INITIAL);
 const userText = ref("");
 const currentSpokenSentence = ref("");
+const isScrollingToHighlightTextEnabled = ref(true);
 
-const textRef = ref<HTMLElement | null>(null);
+const tourTextDisplayRef = ref<InstanceType<typeof TourTextDisplay> | null>(null);
 
 const route = useRoute();
 const router = useRouter();
@@ -159,11 +155,9 @@ const tourStore = useTourStore();
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 
-const formattedText = computed(() => {
-  return tourStore.textForDisplay || "";
-});
+const isShowRecordText = computed<boolean>(() => Boolean(tourStore.textForDisplay));
 
-const isShowRecordText = computed(() => tourStore.textForDisplay);
+const currentHighlightSentence = computed(() => currentSpokenSentence.value);
 
 const mainButtonText = computed(() => {
   switch (state.value) {
@@ -404,15 +398,8 @@ const removePlaces = () => {
    Logic of text-to-speech
 ------------------------------------------- */
 const { speakMessage, pauseSpeech, resumeSpeech, stopSpeech } = useTourSpeech();
-const isScrollingToHighlightTextEnabled = ref(true);
 const audioElement = ref<HTMLAudioElement | null>(null);
 const currentAudioUrl = ref<string | null>(null);
-
-const toggleScrollToHighlightSentenceText = computed(() => {
-  return isScrollingToHighlightTextEnabled.value
-    ? "Scroll to highlighted sentence enabled"
-    : "Scroll to highlighted sentence disabled";
-});
 
 function playAudio() {
   if (!tourStore.currentTourRecord) return;
@@ -475,7 +462,7 @@ function highlightSentence(
   charIndex: number,
   utterance: SpeechSynthesisUtterance | null,
 ) {
-  if (!textRef.value || !utterance) return;
+  if (!utterance) return;
 
   const spokenSentence = findCurrentSpokenSentence(charIndex, utterance.text);
 
@@ -486,38 +473,12 @@ function highlightSentence(
     return;
 
   currentSpokenSentence.value = spokenSentence;
-
-  const highlightedText = createHighlightedText(
-    formattedText.value, 
-    currentSpokenSentence.value
-  );
-
-  textRef.value.innerHTML = highlightedText;
-
-  if (isScrollingToHighlightTextEnabled.value) {
-    scrollToHighlightedSentence();
-  }
-}
-
-function scrollToHighlightedSentence() {
-  const highlightedEl = textRef.value?.querySelector(".active-sentence");
-  if (!highlightedEl) return;
-
-  highlightedEl.scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-    inline: "nearest",
-  });
-}
-
-function clearHighlights() {
-  if (!textRef.value) return;
-  textRef.value.innerHTML = formattedText.value;
 }
 
 function updateTextForSpeech() {
+  const text = tourStore.textForDisplay || "";
   const startIndexOfLastSpokenSentence = getSentenceIndex(
-    formattedText.value,
+    text,
     currentSpokenSentence.value,
   );
   if (startIndexOfLastSpokenSentence === -1) {
@@ -525,15 +486,16 @@ function updateTextForSpeech() {
     return;
   }
 
-  const remainingSentences = formattedText.value.slice(
+  const remainingSentences = text.slice(
     startIndexOfLastSpokenSentence + currentSpokenSentence.value.length,
   );
   tourStore.setTextForSpeech(remainingSentences);
 }
 
 function updateTextForDisplay() {
+  const text = tourStore.textForDisplay || "";
   const startIndexOfLastSpokenSentence = getSentenceIndex(
-    formattedText.value,
+    text,
     currentSpokenSentence.value,
   );
   if (startIndexOfLastSpokenSentence === -1) {
@@ -541,7 +503,7 @@ function updateTextForDisplay() {
     return;
   }
 
-  const truncatedText = formattedText.value.slice(
+  const truncatedText = text.slice(
     0,
     startIndexOfLastSpokenSentence + currentSpokenSentence.value.length,
   );
