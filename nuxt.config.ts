@@ -3,7 +3,23 @@ export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   app: {
     head: {
-      link: [{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
+      link: [
+        {
+          rel: "icon",
+          type: "image/svg+xml",
+          href: "/favicon.svg"
+        },
+        {
+          rel: "stylesheet",
+          href: "https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css",
+          type: "text/css",
+        },
+        {
+          rel: "stylesheet",
+          href: "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css",
+          type: "text/css",
+        },
+      ],
     },
   },
   components: [{ path: "~/components/ui", pathPrefix: false }, "~/components"],

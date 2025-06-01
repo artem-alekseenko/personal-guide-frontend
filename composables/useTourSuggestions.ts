@@ -1,4 +1,3 @@
-import { useFetch } from "#imports";
 import type {
   IRouteSuggestionsParams,
   IRouteSuggestionsResponseExtended,
@@ -7,24 +6,24 @@ import type {
 export const useTourSuggestions = async (
   params: IRouteSuggestionsParams,
 ): Promise<IRouteSuggestionsResponseExtended> => {
-  const { data, error } = await useFetch<IRouteSuggestionsResponseExtended>(
-    "api/route-suggestions",
-    { query: params },
-  );
+  try {
+    const data = await $fetch<IRouteSuggestionsResponseExtended>(
+      "api/route-suggestions",
+      { query: params },
+    );
 
-  if (error.value) {
+    if (!data) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: "No tour suggestions returned from the API",
+      });
+    }
+
+    return data;
+  } catch (error) {
     throw createError({
-      ...error.value,
-      statusMessage: `Could not fetch data about route suggestions`,
+      statusCode: (error as any)?.statusCode || 500,
+      statusMessage: `Could not fetch data about route suggestions: ${(error as any)?.message || 'Unknown error'}`,
     });
   }
-
-  if (!data.value) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: "No tour suggestions returned from the API",
-    });
-  }
-
-  return data.value;
 };

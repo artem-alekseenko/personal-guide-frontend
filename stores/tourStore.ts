@@ -98,8 +98,8 @@ export const useTourStore = defineStore("tourStore", () => {
       },
       user_text: userText.value,
       pace: "1",
-      type_llm: "MOCK",
-      type_voice: "MOCK",
+      type_llm: "GEMINI",
+      type_voice: "ELEVEN_LABS",
     };
 
     const tourId = tour.value.id;

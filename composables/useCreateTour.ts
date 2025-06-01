@@ -3,21 +3,21 @@ import type { ICreatedTour, ICreateTourRequest } from "~/types";
 export const useCreateTour = async (
   params: ICreateTourRequest,
 ): Promise<ICreatedTour> => {
-  const { data, error } = await useFetch("/api/create-tour", {
-    body: params,
-    method: "POST",
-  });
+  try {
+    const data = await $fetch<ICreatedTour>("/api/create-tour", {
+      body: params,
+      method: "POST",
+    });
 
-  if (error.value) {
+    if (!data) {
+      throw new Error("Invalid response from the server");
+    }
+
+    return data;
+  } catch (error) {
     throw createError({
-      ...error.value,
-      statusMessage: `Could not create a tour`,
+      statusCode: (error as any)?.statusCode || 500,
+      statusMessage: `Could not create a tour: ${(error as any)?.message || 'Unknown error'}`,
     });
   }
-
-  if (!data.value) {
-    throw new Error("Invalid response from the server");
-  }
-
-  return data.value as ICreatedTour;
 };

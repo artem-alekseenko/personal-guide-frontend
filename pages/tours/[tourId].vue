@@ -10,7 +10,11 @@
     <!-- Map -->
     <div class="relative">
       <client-only>
-        <div ref="mapContainerRef" class="h-[60vh] w-full"></div>
+        <BaseMap
+          ref="baseMapRef"
+          :show-user-location="true"
+          @map-initialized="handleMapInitialized"
+        />
       </client-only>
     </div>
 
@@ -75,6 +79,7 @@
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 
 import {
   computed,
@@ -94,12 +99,14 @@ import type {
   TypeFrom,
 } from "~/types";
 import createPlacesMarkerElem from "~/utils/pages/createPlacesMarkerElem";
+import { useGeolocationStore } from "~/stores/geolocationStore";
+import BaseMap from "~/components/base/BaseMap.vue";
 
 useHead({
   link: [
     {
       rel: "stylesheet",
-      href: "https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css",
+      href: "https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css",
       type: "text/css",
     },
     {
@@ -111,6 +118,7 @@ useHead({
 });
 
 const MAP_PITCH = 45;
+const WAYPOINTS_MAX_COUNT = 25;
 const {
   map_config: { mapbox_gl_access_token },
 } = useAppConfig();
@@ -137,6 +145,7 @@ const textRef = ref<HTMLElement | null>(null);
 const route = useRoute();
 const router = useRouter();
 const tourStore = useTourStore();
+const geolocationStore = useGeolocationStore();
 
 const formattedText = computed(() => {
   return tourStore.textForDisplay || "";
@@ -165,100 +174,186 @@ const mainButtonText = computed(() => {
 /* -------------------------------------------
    Map logic
 ------------------------------------------- */
+const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
 let mapInstance: mapboxgl.Map | null = null;
-const mapContainerRef = ref(null);
+let directions: MapboxDirections | null = null;
 const marker = ref<mapboxgl.Marker | null>(null);
 const placesMarkerElems: mapboxgl.Marker[] = [] as mapboxgl.Marker[];
 
-const initializeMap = async () => {
-  if (!mapContainerRef.value) return;
+// Define marker type with event handling
+type MarkerWithEvents = mapboxgl.Marker & {
+  on(event: string, handler: () => void): void;
+};
 
-  const { lng, lat, zoom, bearing, pitch } = {
-    lng: -79.3832,
-    lat: 43.6532,
-    bearing: 0,
-    pitch: MAP_PITCH,
-    zoom: 16,
-  };
+interface RouteEvent {
+  route: Array<{
+    geometry: {
+      coordinates: [number, number][];
+    };
+  }>;
+}
 
-  mapInstance = new mapboxgl.Map({
-    container: mapContainerRef.value,
-    center: [lng, lat],
-    style: {
-      version: 8,
-      sources: {},
-      imports: [{ id: "basemap", url: "mapbox://styles/mapbox/standard" }],
-      layers: [],
+const handleMapInitialized = (map: mapboxgl.Map) => {
+  console.log('Map initialized');
+  mapInstance = map;
+  
+  // Set initial map settings
+  mapInstance.setPitch(MAP_PITCH);
+  mapInstance.setBearing(0);
+
+  // Add click handler for setting user marker
+  mapInstance.on('click', (e) => {
+    const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+    addMarker(coords);
+  });
+  
+  if (tourStore.tour) {
+    console.log('Tour data:', tourStore.tour);
+    initializeDirections();
+    // Add a small delay before adding the route to ensure directions control is fully initialized
+    setTimeout(() => {
+      if (tourStore.tour) { // Double check that tour still exists
+        addRouteToMap(tourStore.tour);
+      }
+    }, 500);
+  } else {
+    console.warn('No tour data available');
+  }
+};
+
+const initializeDirections = () => {
+  if (!mapInstance) {
+    console.warn('Map instance not available');
+    return;
+  }
+
+  console.log('Initializing directions');
+
+  directions = new MapboxDirections({
+    accessToken: mapbox_gl_access_token,
+    unit: "metric",
+    profile: "mapbox/walking",
+    controls: {
+      inputs: false,
+      instructions: false,
+      profileSwitcher: false,
     },
-    zoom,
-    bearing,
-    pitch,
+    interactive: false,
   });
 
-  mapInstance.addControl(
-    new mapboxgl.GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: true,
-      showUserHeading: true,
-    }),
+  // Add event listener for route loading
+  directions.on('route', (e: RouteEvent) => {
+    console.log('Route loaded:', e);
+    if (mapInstance && e.route && Array.isArray(e.route)) {
+      // Fit bounds to show the entire route
+      const bounds = new mapboxgl.LngLatBounds();
+      e.route.forEach((leg) => {
+        if (leg.geometry && Array.isArray(leg.geometry.coordinates)) {
+          leg.geometry.coordinates.forEach((coord) => {
+            if (Array.isArray(coord) && coord.length === 2) {
+              bounds.extend(coord);
+            }
+          });
+        }
+      });
+      
+      if (!bounds.isEmpty()) {
+        mapInstance.fitBounds(bounds, {
+          padding: 50,
+          maxZoom: 15
+        });
+      }
+    }
+  });
+
+  directions.on('error', (e: Error) => {
+    console.error('Directions error:', e);
+  });
+
+  mapInstance.addControl(directions);
+  console.log('Directions control added');
+};
+
+const decreaseWaypoints = (
+  coordinates: [number, number][],
+): [number, number][] => {
+  return coordinates.slice(0, WAYPOINTS_MAX_COUNT);
+};
+
+const addRouteToMap = (tour: ICreatedTour) => {
+  if (!mapInstance || !directions) {
+    console.warn("Map or directions not initialized");
+    return;
+  }
+
+  console.log("Adding route to map");
+  console.log("Tour route points:", tour.route.points);
+
+  const coordinates = tour.route.points.map(
+    (p) => [Number(p.lng), Number(p.lat)] as [number, number],
   );
 
-  mapInstance.on("style.load", () => {
-    if (!mapInstance) return;
-    mapInstance.setConfigProperty("basemap", "showRoadLabels", false);
-    mapInstance.setConfigProperty("basemap", "showTransitLabels", false);
-    mapInstance.setConfigProperty("basemap", "theme", "faded");
-    mapInstance.setConfigProperty(
-      "basemap",
-      "showPointOfInterestLabels",
-      false,
-    );
-    mapInstance.setConfigProperty("basemap", "showTransitLabels", false);
-  });
-};
+  console.log("Original coordinates:", coordinates);
+  console.log("Original coordinates count:", coordinates.length);
 
-const addLine = (coordinates: number[][]) => {
-  if (!mapInstance) return;
-  mapInstance.on("load", () => {
-    mapInstance?.addSource("route", {
-      type: "geojson",
-      data: {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates,
-        },
-      },
-    });
-    mapInstance?.addLayer({
-      id: "route",
-      type: "line",
-      source: "route",
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": "#22c55e", "line-width": 6 },
-    });
-  });
-};
-
-const getRouteCoords = (tour: ICreatedTour) => {
-  return tour.route.points.map((p) => [Number(p.lng), Number(p.lat)]);
-};
-
-const getInitialCoords = (tour: ICreatedTour): [number, number] => {
-  if (!tour.route || !tour.route.points[0]) {
-    throw new Error("Route or route points are not defined");
+  if (coordinates.length < 2) {
+    console.warn("Not enough coordinates for route");
+    return;
   }
-  return [Number(tour.route.points[0].lng), Number(tour.route.points[0].lat)];
+
+  const trimmedCoordinates = decreaseWaypoints(coordinates);
+  console.log("Trimmed coordinates:", trimmedCoordinates);
+  console.log("Trimmed coordinates count:", trimmedCoordinates.length);
+
+  const start = trimmedCoordinates[0];
+  const finish = trimmedCoordinates.at(-1);
+  const waypoints = trimmedCoordinates.slice(1, -1);
+
+  console.log("Start point:", start);
+  console.log("Finish point:", finish);
+  console.log("Waypoints:", waypoints);
+
+  if (!finish || !start || !start[0] || !start[1] || !finish[0] || !finish[1]) {
+    console.warn("Invalid coordinates");
+    return;
+  }
+
+  try {
+    // Clear any existing route
+    directions.removeRoutes();
+    console.log("Existing routes removed");
+
+    // Set new route
+    directions.setOrigin([start[0], start[1]]);
+    console.log("Origin set");
+
+    waypoints.forEach((waypoint, index) => {
+      directions!.addWaypoint(index, waypoint);
+      console.log(`Waypoint ${index} added:`, waypoint);
+    });
+
+    directions.setDestination([finish[0], finish[1]]);
+    console.log("Destination set");
+  } catch (error) {
+    console.error("Error while setting route:", error);
+  }
 };
 
 const addMarker = (coords: [number, number]) => {
-  marker.value = new mapboxgl.Marker({ draggable: true })
+  // Remove existing marker if any
+  if (marker.value) {
+    marker.value.remove();
+  }
+
+  // Create new marker
+  const newMarker = new mapboxgl.Marker({ draggable: true })
     .setLngLat(coords)
     .addTo(mapInstance!);
 
-  // @ts-ignore
-  marker.value.on("dragend", getRecord);
+  // Add drag end handler
+  (newMarker as MarkerWithEvents).on("dragend", getRecord);
+
+  marker.value = newMarker;
 };
 
 const addMarkerElemToMap = (
@@ -314,19 +409,19 @@ function playAudio() {
 
   if (!audioElement.value) {
     audioElement.value = new Audio();
-    
+
     // Add event listener for timeupdate
-    audioElement.value.addEventListener('timeupdate', () => {
+    audioElement.value.addEventListener("timeupdate", () => {
       if (!audioElement.value) return;
-      
+
       // Calculate current character index based on audio progress
       const totalDuration = audioElement.value.duration;
       const currentTime = audioElement.value.currentTime;
       const progress = currentTime / totalDuration;
-      
+
       const totalTextLength = tourStore.textForSpeech.length;
       const currentCharIndex = Math.floor(progress * totalTextLength);
-      
+
       // Create a temporary utterance to pass to highlightSentence
       const utterance = new SpeechSynthesisUtterance(tourStore.textForSpeech);
       highlightSentence(currentCharIndex, utterance);
@@ -577,20 +672,15 @@ watch(
 /* -------------------------------------------
    Lifecycle hooks
 ------------------------------------------- */
-if (!route.params.tourId || typeof route.params.tourId !== "string") {
-  console.error("No tourId provided");
-}
-await tourStore.fetchGetTour(route.params.tourId as string);
-
 onMounted(async () => {
   await nextTick();
-  await initializeMap();
-  if (tourStore.tour) {
-    addLine(getRouteCoords(tourStore.tour));
-    addMarker(getInitialCoords(tourStore.tour));
-  } else {
-    console.error("No tour found");
+  if (!route.params.tourId || typeof route.params.tourId !== "string") {
+    console.error("No tourId provided");
+    return;
   }
+  console.log("Fetching tour with ID:", route.params.tourId);
+  await tourStore.fetchGetTour(route.params.tourId as string);
+  console.log("Tour fetched:", tourStore.tour);
   window.addEventListener("beforeunload", stopAudio);
 });
 

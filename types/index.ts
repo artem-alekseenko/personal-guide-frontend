@@ -151,7 +151,7 @@ export interface ITourRecordRequest {
   user_text: string;
   pace: string;
   type_llm: "SIMPLE" | "OPENAI" | "GEMINI" | "MOCK";
-  type_voice: "ELEVENLABS" | "MOCK";
+  type_voice: "ELEVEN_LABS" | "MOCK";
 }
 
 export interface ITourRecordResponse {
