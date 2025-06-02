@@ -88,6 +88,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useTourStore } from "#imports";
 import { useTourSpeech } from "@/composables/useTourSpeech";
 import { useMapboxDirections } from "@/composables/useMapboxDirections";
+import { useTourTextSync } from "@/composables/useTourTextSync";
 import { useLogger } from "@/composables/useLogger";
 import {
   base64ToAudioBlob,
@@ -144,7 +145,6 @@ type TState = TypeFrom<typeof STATE>;
 
 const state = ref<TState>(STATE.INITIAL);
 const userText = ref("");
-const currentSpokenSentence = ref("");
 const isScrollingToHighlightTextEnabled = ref(true);
 
 const tourTextDisplayRef = ref<InstanceType<typeof TourTextDisplay> | null>(null);
@@ -154,6 +154,14 @@ const router = useRouter();
 const tourStore = useTourStore();
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
+
+// Initialize text synchronization composable
+const { 
+  currentSpokenSentence, 
+  highlightSentence, 
+  updateTextForSpeech, 
+  updateTextForDisplay 
+} = useTourTextSync();
 
 /* -------------------------------------------
    Map logic
@@ -223,9 +231,6 @@ const mainButtonText = computed(() => {
   }
 });
 
-/* -------------------------------------------
-   Map logic
-------------------------------------------- */
 const handleMapInitialized = (map: mapboxgl.Map) => {
   logger.log("Map initialized");
   mapInstance = map;
@@ -381,62 +386,6 @@ function stopAudio() {
     audioElement.value.pause();
     audioElement.value.currentTime = 0;
   }
-}
-
-// Highlighting the current spoken sentence
-function highlightSentence(
-  charIndex: number,
-  utterance: SpeechSynthesisUtterance | null,
-) {
-  if (!utterance || !utterance.text) {
-    logger.warn("Invalid utterance for highlighting");
-    return;
-  }
-
-  const spokenSentence = findCurrentSpokenSentence(charIndex, utterance.text);
-
-  if (
-    currentSpokenSentence.value &&
-    currentSpokenSentence.value === spokenSentence
-  )
-    return;
-
-  currentSpokenSentence.value = spokenSentence;
-}
-
-function updateTextForSpeech() {
-  const text = tourStore.textForDisplay || "";
-  const startIndexOfLastSpokenSentence = getSentenceIndex(
-    text,
-    currentSpokenSentence.value,
-  );
-  if (startIndexOfLastSpokenSentence === -1) {
-    logger.warn("Sentence not found in textForSpeech");
-    return;
-  }
-
-  const remainingSentences = text.slice(
-    startIndexOfLastSpokenSentence + currentSpokenSentence.value.length,
-  );
-  tourStore.setTextForSpeech(remainingSentences);
-}
-
-function updateTextForDisplay() {
-  const text = tourStore.textForDisplay || "";
-  const startIndexOfLastSpokenSentence = getSentenceIndex(
-    text,
-    currentSpokenSentence.value,
-  );
-  if (startIndexOfLastSpokenSentence === -1) {
-    logger.warn("Sentence not found in textForDisplay");
-    return;
-  }
-
-  const truncatedText = text.slice(
-    0,
-    startIndexOfLastSpokenSentence + currentSpokenSentence.value.length,
-  );
-  tourStore.setTextForDisplay(truncatedText);
 }
 
 function playChunk() {
