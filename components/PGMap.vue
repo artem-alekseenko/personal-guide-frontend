@@ -13,6 +13,7 @@ import { ref, shallowRef, watch, onUnmounted } from "#imports";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useRouteStore } from "~/stores/routeStore";
 import BaseMap from "~/components/base/BaseMap.vue";
+import { useMapboxDirections } from "~/composables/useMapboxDirections";
 
 const WAYPOINTS_MAX_COUNT = 25;
 
@@ -24,14 +25,17 @@ const selectedInitialArea = defineModel("selectedArea", {});
 const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
 const mapInstance = shallowRef<mapboxgl.Map | null>(null);
 
-// Initialize composables
+// Initialize composables with route creation configuration
 const { 
   initializeDirections, 
   clearDirections,
-  removeDirections,
+  cleanup,
   setRoute,
   isInitialized
-} = useDirections(mapInstance);
+} = useMapboxDirections(mapInstance, {
+  enableBounds: true,
+  interactive: false,
+});
 
 const { 
   addMarker, 
@@ -57,7 +61,7 @@ const limitWaypoints = (
 
 // Cleanup on component unmount
 onUnmounted(() => {
-  removeDirections();
+  cleanup();
   clearAllMarkers();
 });
 

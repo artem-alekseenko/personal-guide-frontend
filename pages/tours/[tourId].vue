@@ -74,7 +74,6 @@
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 
 import {
   computed,
@@ -83,10 +82,12 @@ import {
   onMounted,
   ref,
   watch,
+  shallowRef,
 } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTourStore } from "#imports";
 import { useTourSpeech } from "@/composables/useTourSpeech";
+import { useMapboxDirections } from "@/composables/useMapboxDirections";
 import { useLogger } from "@/composables/useLogger";
 import {
   base64ToAudioBlob,
@@ -124,7 +125,6 @@ useHead({
 });
 
 const MAP_PITCH = 45;
-const WAYPOINTS_MAX_COUNT = 25;
 const {
   map_config: { mapbox_gl_access_token },
 } = useAppConfig();
@@ -155,6 +155,52 @@ const tourStore = useTourStore();
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 
+/* -------------------------------------------
+   Map logic
+------------------------------------------- */
+const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
+let mapInstance: mapboxgl.Map | null = null;
+const marker = ref<mapboxgl.Marker | null>(null);
+const placesMarkerElems: mapboxgl.Marker[] = [] as mapboxgl.Marker[];
+const isMapFullyLoaded = ref(false);
+
+// Initialize directions composable for tour viewing
+const mapInstanceRef = shallowRef<mapboxgl.Map | null>(null);
+const { initializeDirections, addRouteToMap, cleanup } = useMapboxDirections(mapInstanceRef, {
+  enableBounds: true,
+  interactive: false,
+});
+
+// Define marker type with event handling
+type MarkerWithEvents = mapboxgl.Marker & {
+  on(event: string, handler: () => void): void;
+};
+
+// Helper function to add route with intelligent retry logic
+function tryAddRouteWithCheck(retries = 5, delay = 100) {
+  if (!mapInstance || !tourStore.tour || !isMapFullyLoaded.value) {
+    logger.warn("Prerequisites not met for route addition");
+    return;
+  }
+
+  let attempts = retries;
+  const interval = setInterval(() => {
+    if (mapInstance && tourStore.tour && isMapFullyLoaded.value) {
+      logger.log(`Adding route, attempt ${retries - attempts + 1}`);
+      addRouteToMap(tourStore.tour, isMapFullyLoaded);
+      clearInterval(interval);
+    } else if (--attempts <= 0) {
+      clearInterval(interval);
+      logger.warn("Unable to add route after multiple attempts");
+    }
+  }, delay);
+}
+
+// Backward compatibility - simple version for quick calls
+function tryAddRouteWithDelay(delay = 100) {
+  tryAddRouteWithCheck(1, delay);
+}
+
 const isShowRecordText = computed<boolean>(() => Boolean(tourStore.textForDisplay));
 
 const currentHighlightSentence = computed(() => currentSpokenSentence.value);
@@ -180,29 +226,10 @@ const mainButtonText = computed(() => {
 /* -------------------------------------------
    Map logic
 ------------------------------------------- */
-const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
-let mapInstance: mapboxgl.Map | null = null;
-let directions: MapboxDirections | null = null;
-const marker = ref<mapboxgl.Marker | null>(null);
-const placesMarkerElems: mapboxgl.Marker[] = [] as mapboxgl.Marker[];
-const isMapFullyLoaded = ref(false);
-
-// Define marker type with event handling
-type MarkerWithEvents = mapboxgl.Marker & {
-  on(event: string, handler: () => void): void;
-};
-
-interface RouteEvent {
-  route: Array<{
-    geometry: {
-      coordinates: [number, number][];
-    };
-  }>;
-}
-
 const handleMapInitialized = (map: mapboxgl.Map) => {
   logger.log("Map initialized");
   mapInstance = map;
+  mapInstanceRef.value = map; // Sync with ref for composable
 
   // Set initial map settings
   mapInstance.setPitch(MAP_PITCH);
@@ -213,14 +240,17 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
     logger.log("Map fully loaded, ready for route");
     isMapFullyLoaded.value = true;
     
-    // Add route if tour data is available
-    if (tourStore.tour) {
-      logger.log("Adding route after map load");
-      setTimeout(() => {
-        if (tourStore.tour) {
-          addRouteToMap(tourStore.tour);
-        }
-      }, 100); // Small delay to ensure directions control is ready
+    // Initialize directions after map is loaded
+    try {
+      initializeDirections();
+      
+      // Add route if tour data is available
+      if (tourStore.tour) {
+        logger.log("Adding route after map load");
+        tryAddRouteWithCheck(); // Use smart retry logic for initial load
+      }
+    } catch (error) {
+      logger.error("Failed to initialize directions:", error);
     }
   });
 
@@ -229,132 +259,6 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
     const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
     addMarker(coords);
   });
-
-  initializeDirections();
-};
-
-const initializeDirections = () => {
-  if (!mapInstance) {
-    logger.warn("Map instance not available");
-    return;
-  }
-
-  logger.log("Initializing directions");
-
-  directions = new MapboxDirections({
-    accessToken: mapbox_gl_access_token,
-    unit: "metric",
-    profile: "mapbox/walking",
-    controls: {
-      inputs: false,
-      instructions: false,
-      profileSwitcher: false,
-    },
-    interactive: false,
-  });
-
-  // Add event listener for route loading
-  directions.on("route", (e: RouteEvent) => {
-    logger.log("Route loaded:", e);
-    if (mapInstance && e.route && Array.isArray(e.route)) {
-      // Fit bounds to show the entire route
-      const bounds = new mapboxgl.LngLatBounds();
-      e.route.forEach((leg) => {
-        if (leg.geometry && Array.isArray(leg.geometry.coordinates)) {
-          leg.geometry.coordinates.forEach((coord) => {
-            if (Array.isArray(coord) && coord.length === 2) {
-              bounds.extend(coord);
-            }
-          });
-        }
-      });
-
-      if (!bounds.isEmpty()) {
-        mapInstance.fitBounds(bounds, {
-          padding: 50,
-          maxZoom: 15,
-        });
-      }
-    }
-  });
-
-  directions.on("error", (e: Error) => {
-    logger.error("Directions error:", e);
-  });
-
-  mapInstance.addControl(directions);
-  logger.log("Directions control added");
-};
-
-const decreaseWaypoints = (
-  coordinates: [number, number][],
-): [number, number][] => {
-  return coordinates.slice(0, WAYPOINTS_MAX_COUNT);
-};
-
-const addRouteToMap = (tour: ICreatedTour) => {
-  if (!mapInstance || !directions) {
-    logger.warn("Map or directions not initialized");
-    logger.log("mapInstance:", !!mapInstance, "directions:", !!directions);
-    return;
-  }
-
-  if (!isMapFullyLoaded.value) {
-    logger.warn("Map not fully loaded yet, skipping route addition");
-    return;
-  }
-
-  logger.log("Adding route to map");
-  logger.log("Tour route points:", tour.route.points);
-
-  const coordinates = tour.route.points.map(
-    (p) => [Number(p.lng), Number(p.lat)] as [number, number],
-  );
-
-  logger.log("Original coordinates:", coordinates);
-  logger.log("Original coordinates count:", coordinates.length);
-
-  if (coordinates.length < 2) {
-    logger.warn("Not enough coordinates for route");
-    return;
-  }
-
-  const trimmedCoordinates = decreaseWaypoints(coordinates);
-  logger.log("Trimmed coordinates:", trimmedCoordinates);
-  logger.log("Trimmed coordinates count:", trimmedCoordinates.length);
-
-  const start = trimmedCoordinates[0];
-  const finish = trimmedCoordinates.at(-1);
-  const waypoints = trimmedCoordinates.slice(1, -1);
-
-  logger.log("Start point:", start);
-  logger.log("Finish point:", finish);
-  logger.log("Waypoints:", waypoints);
-
-  if (!finish || !start || !start[0] || !start[1] || !finish[0] || !finish[1]) {
-    logger.warn("Invalid coordinates");
-    return;
-  }
-
-  try {
-    // Clear any existing route
-    directions.removeRoutes();
-    logger.log("Existing routes removed");
-
-    // Set new route
-    directions.setOrigin([start[0], start[1]]);
-    logger.log("Origin set");
-
-    waypoints.forEach((waypoint, index) => {
-      directions!.addWaypoint(index, waypoint);
-      logger.log(`Waypoint ${index} added:`, waypoint);
-    });
-
-    directions.setDestination([finish[0], finish[1]]);
-    logger.log("Destination set");
-  } catch (error) {
-    logger.error("Error while setting route:", error);
-  }
 };
 
 const addMarker = (coords: [number, number]) => {
@@ -429,9 +333,20 @@ function playAudio() {
       // Calculate current character index based on audio progress
       const totalDuration = audioElement.value.duration;
       const currentTime = audioElement.value.currentTime;
+      
+      if (!totalDuration || totalDuration <= 0) {
+        logger.warn("Invalid audio duration for progress calculation");
+        return;
+      }
+      
       const progress = currentTime / totalDuration;
-
       const totalTextLength = tourStore.textForSpeech.length;
+      
+      if (totalTextLength <= 0) {
+        logger.warn("Empty text for speech progress calculation");
+        return;
+      }
+      
       const currentCharIndex = Math.floor(progress * totalTextLength);
 
       // Create a temporary utterance to pass to highlightSentence
@@ -473,7 +388,10 @@ function highlightSentence(
   charIndex: number,
   utterance: SpeechSynthesisUtterance | null,
 ) {
-  if (!utterance) return;
+  if (!utterance || !utterance.text) {
+    logger.warn("Invalid utterance for highlighting");
+    return;
+  }
 
   const spokenSentence = findCurrentSpokenSentence(charIndex, utterance.text);
 
@@ -650,13 +568,9 @@ watch(
 watch(
   () => tourStore.tour,
   (newTour) => {
-    if (newTour && isMapFullyLoaded.value && mapInstance && directions) {
+    if (newTour && isMapFullyLoaded.value && mapInstance) {
       logger.log("Tour data loaded, adding route to fully loaded map");
-      setTimeout(() => {
-        if (tourStore.tour) {
-          addRouteToMap(tourStore.tour);
-        }
-      }, 100);
+      tryAddRouteWithDelay();
     }
   },
 );
@@ -692,6 +606,17 @@ onBeforeUnmount(() => {
     cleanupAudioUrl(currentAudioUrl.value);
     currentAudioUrl.value = null;
   }
+
+  // Cleanup markers to prevent memory leaks
+  marker.value?.remove();
+  marker.value = null;
+  
+  // Cleanup all places markers
+  placesMarkerElems.forEach((m) => m.remove());
+  placesMarkerElems.length = 0;
+
+  // Cleanup directions
+  cleanup();
 
   window.removeEventListener("beforeunload", stopAudio);
 });
