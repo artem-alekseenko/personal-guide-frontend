@@ -185,6 +185,7 @@ let mapInstance: mapboxgl.Map | null = null;
 let directions: MapboxDirections | null = null;
 const marker = ref<mapboxgl.Marker | null>(null);
 const placesMarkerElems: mapboxgl.Marker[] = [] as mapboxgl.Marker[];
+const isMapFullyLoaded = ref(false);
 
 // Define marker type with event handling
 type MarkerWithEvents = mapboxgl.Marker & {
@@ -207,25 +208,29 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
   mapInstance.setPitch(MAP_PITCH);
   mapInstance.setBearing(0);
 
+  // Wait for map to be fully loaded before adding route
+  mapInstance.on("load", () => {
+    logger.log("Map fully loaded, ready for route");
+    isMapFullyLoaded.value = true;
+    
+    // Add route if tour data is available
+    if (tourStore.tour) {
+      logger.log("Adding route after map load");
+      setTimeout(() => {
+        if (tourStore.tour) {
+          addRouteToMap(tourStore.tour);
+        }
+      }, 100); // Small delay to ensure directions control is ready
+    }
+  });
+
   // Add click handler for setting user marker
   mapInstance.on("click", (e) => {
     const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
     addMarker(coords);
   });
 
-  if (tourStore.tour) {
-    logger.log("Tour data:", tourStore.tour);
-    initializeDirections();
-    // Add a small delay before adding the route to ensure directions control is fully initialized
-    setTimeout(() => {
-      if (tourStore.tour) {
-        // Double check that tour still exists
-        addRouteToMap(tourStore.tour);
-      }
-    }, 500);
-  } else {
-    logger.warn("No tour data available");
-  }
+  initializeDirections();
 };
 
 const initializeDirections = () => {
@@ -290,6 +295,12 @@ const decreaseWaypoints = (
 const addRouteToMap = (tour: ICreatedTour) => {
   if (!mapInstance || !directions) {
     logger.warn("Map or directions not initialized");
+    logger.log("mapInstance:", !!mapInstance, "directions:", !!directions);
+    return;
+  }
+
+  if (!isMapFullyLoaded.value) {
+    logger.warn("Map not fully loaded yet, skipping route addition");
     return;
   }
 
@@ -632,6 +643,21 @@ watch(
     addPlaces();
 
     if (!isPaused) playChunk();
+  },
+);
+
+// Watch for tour data changes and add route when both map and tour are ready
+watch(
+  () => tourStore.tour,
+  (newTour) => {
+    if (newTour && isMapFullyLoaded.value && mapInstance && directions) {
+      logger.log("Tour data loaded, adding route to fully loaded map");
+      setTimeout(() => {
+        if (tourStore.tour) {
+          addRouteToMap(tourStore.tour);
+        }
+      }, 100);
+    }
   },
 );
 
