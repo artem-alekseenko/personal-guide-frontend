@@ -66,6 +66,7 @@
     <!-- Main Button -->
     <PGButton
       :disabled="isMainButtonDisabled"
+      :loading="isButtonLoading"
       class="mx-auto mt-6 block"
       @click="handleMainButtonClick"
     >
@@ -107,6 +108,7 @@ const STATE = {
   DATA_ENTRY_COMPLETED: "DATA_ENTRY_COMPLETED",
   ROUTE_REQUESTING: "ROUTE_REQUESTING",
   ROUTE_RECEIVED: "ROUTE_RECEIVED",
+  TOUR_APPROVING: "TOUR_APPROVING",
 } as const;
 
 type TState = TypeFrom<typeof STATE>;
@@ -124,7 +126,10 @@ const routeStore = useRouteStore();
 const formattedTime = computed(() => formatMinToHours(duration.value));
 const mainButtonText = computed<string>(() => getMainButtonText(state.value));
 const isMainButtonDisabled = computed(
-  () => state.value === STATE.INITIAL || state.value === STATE.ROUTE_REQUESTING,
+  () => state.value === STATE.INITIAL || state.value === STATE.ROUTE_REQUESTING || state.value === STATE.TOUR_APPROVING,
+);
+const isButtonLoading = computed(
+  () => state.value === STATE.ROUTE_REQUESTING || state.value === STATE.TOUR_APPROVING,
 );
 const isShowDescription = computed(
   () =>
@@ -142,7 +147,14 @@ const getRouteSuggestions = async () => {
 };
 
 const approveRoute = async () => {
-  await routeStore.fetchCreateRoute();
+  try {
+    state.value = STATE.TOUR_APPROVING;
+    await routeStore.fetchCreateRoute();
+  } catch (error) {
+    // Reset state on error so user can try again
+    state.value = STATE.ROUTE_RECEIVED;
+    console.error('Failed to approve tour:', error);
+  }
 };
 
 const handleMainButtonClick = async () => {

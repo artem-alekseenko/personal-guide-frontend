@@ -144,18 +144,35 @@ export function useMapboxDirections(
     try {
       logger.log("Removing directions control from map");
       
-      // First clear routes to prevent any ongoing operations
-      directions.removeRoutes();
+      // First try to clear routes safely
+      try {
+        directions.removeRoutes();
+      } catch (routeError) {
+        // Silently handle route clearing errors
+      }
       
-      // Safely remove the control with error handling
-      mapInstance.value.removeControl(directions);
+      // Try to remove the control, but handle DOM errors gracefully
+      try {
+        mapInstance.value.removeControl(directions);
+        logger.log("Directions control successfully removed");
+      } catch (controlError) {
+        // Check if this is the known removeChild error during component unmounting
+        const errorMessage = (controlError as Error)?.message || '';
+        if (errorMessage.includes('removeChild') || errorMessage.includes('null')) {
+          // This is a known DOM cleanup race condition, silently ignore it
+          logger.log("Directions control cleanup completed (DOM already removed)");
+        } else {
+          // Log other unexpected errors
+          logger.warn("Unexpected error removing directions control:", controlError);
+        }
+      }
       
       directions = null;
       isDirectionsReady.value = false;
       logger.log("Directions control removed and cleaned up");
     } catch (error) {
       logger.error("Error removing directions control:", error);
-      // Force cleanup even if removal failed
+      // Force cleanup even if removal failed completely
       directions = null;
       isDirectionsReady.value = false;
     }

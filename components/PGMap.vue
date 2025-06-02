@@ -9,16 +9,18 @@
 
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
-import { ref, shallowRef, watch, onUnmounted } from "#imports";
+import { ref, shallowRef, watch, onUnmounted, nextTick } from "#imports";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useRouteStore } from "~/stores/routeStore";
 import BaseMap from "~/components/base/BaseMap.vue";
 import { useMapboxDirections } from "~/composables/useMapboxDirections";
+import { useLogger } from "@/composables/useLogger";
 
 const WAYPOINTS_MAX_COUNT = 25;
 
 const routeStore = useRouteStore();
 const geolocationStore = useGeolocationStore();
+const logger = useLogger();
 
 const selectedInitialArea = defineModel("selectedArea", {});
 
@@ -60,9 +62,31 @@ const limitWaypoints = (
 };
 
 // Cleanup on component unmount
-onUnmounted(() => {
-  cleanup();
-  clearAllMarkers();
+onUnmounted(async () => {
+  logger.log('Component unmounting, cleaning up map...');
+  
+  // Give Vue time to update DOM before cleanup
+  await nextTick();
+  
+  try {
+    // Check if map instance is still valid before cleanup
+    if (mapInstance.value && mapInstance.value.getContainer()) {
+      cleanup();
+    } else {
+      logger.log('Map instance already destroyed, skipping directions cleanup');
+    }
+  } catch (error) {
+    logger.warn('Error during directions cleanup:', error);
+  }
+  
+  try {
+    clearAllMarkers();
+  } catch (error) {
+    logger.warn('Error during markers cleanup:', error);
+  }
+  
+  // Clear references
+  mapInstance.value = null;
 });
 
 watch(
