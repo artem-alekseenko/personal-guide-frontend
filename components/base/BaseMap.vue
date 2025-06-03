@@ -4,7 +4,7 @@
 
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
-import { onMounted, onUnmounted, ref, watch, readonly } from "vue";
+import { onMounted, onUnmounted, readonly, ref, watch } from "vue";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useLogger } from "~/composables/useLogger";
 
@@ -23,6 +23,7 @@ const emit = defineEmits<{
 
 const MAP_PITCH = 45;
 const DEFAULT_ZOOM = 16;
+const DEFAULT_BEARING = 0;
 const DEFAULT_CENTER: [number, number] = [-79.3832, 43.6532];
 
 const { map_config } = useAppConfig();
@@ -38,10 +39,11 @@ let userMarker: mapboxgl.Marker | null = null;
 const addUserMarker = (lat: number, lng: number) => {
   logger.log("Adding user marker at:", lat, lng);
   if (!mapInstance) return;
-  
+
   // Защита от лишних перерисовок: проверяем, изменились ли координаты
-  if (userMarker?.getLngLat().lat === lat && userMarker.getLngLat().lng === lng) return;
-  
+  if (userMarker?.getLngLat().lat === lat && userMarker.getLngLat().lng === lng)
+    return;
+
   userMarker?.remove();
   const coordinates: [number, number] = [lng, lat];
 
@@ -80,11 +82,6 @@ const initializeMap = async () => {
 
   logger.log("Geolocation coordinates:", geolocationStore.coordinates);
   const coordinates = geolocationStore.coordinates;
-  const { zoom, bearing, pitch } = {
-    bearing: props.initialBearing ?? 0,
-    pitch: props.initialPitch ?? MAP_PITCH,
-    zoom: props.initialZoom ?? DEFAULT_ZOOM,
-  };
 
   // Use provided center, user coordinates, or default
   const [lng, lat] = props.initialCenter ?? coordinates ?? DEFAULT_CENTER;
@@ -96,9 +93,9 @@ const initializeMap = async () => {
       container: mapContainerRef.value,
       center: [lng, lat],
       style: "mapbox://styles/mapbox/standard",
-      zoom,
-      bearing,
-      pitch,
+      zoom: DEFAULT_ZOOM,
+      bearing: DEFAULT_BEARING,
+      pitch: MAP_PITCH,
     });
 
     if (props.showUserLocation) {
@@ -133,6 +130,17 @@ const initializeMap = async () => {
       logger.error("Map error:", e);
     });
 
+    mapInstance.on("moveend", () => {
+      if (!mapInstance) return;
+      const currentPitch = mapInstance.getPitch();
+      if (currentPitch !== MAP_PITCH) {
+        mapInstance.easeTo({
+          pitch: MAP_PITCH,
+          duration: 1000,
+        });
+      }
+    });
+
     if (props.onMapClick) {
       mapInstance.on("click", props.onMapClick);
     }
@@ -144,15 +152,11 @@ const initializeMap = async () => {
         logger.log("Geolocation coordinates changed:", newCoordinates);
         if (newCoordinates && mapInstance) {
           const [lng, lat] = newCoordinates;
-          
-          // Preserve current pitch and bearing when flying to new location
-          const currentPitch = mapInstance.getPitch();
-          const currentBearing = mapInstance.getBearing();
-          
+
           mapInstance.flyTo({
             center: [lng, lat],
-            pitch: currentPitch,
-            bearing: currentBearing,
+            pitch: MAP_PITCH,
+            bearing: DEFAULT_BEARING,
             essential: true,
           });
           addUserMarker(lat, lng);
@@ -193,27 +197,8 @@ onMounted(() => {
 
 // Expose map instance and user marker functions to parent components
 defineExpose({
-  getMap: () => mapInstance ? readonly(mapInstance) : null,
+  getMap: () => (mapInstance ? readonly(mapInstance) : null),
   addUserMarker,
-  preserveMapSettings: () => {
-    if (!mapInstance) return null;
-    return {
-      pitch: mapInstance.getPitch(),
-      bearing: mapInstance.getBearing(),
-      zoom: mapInstance.getZoom(),
-    };
-  },
-  restoreMapSettings: (settings: { pitch?: number; bearing?: number; zoom?: number }) => {
-    if (!mapInstance || !settings) return;
-    const currentCenter = mapInstance.getCenter();
-    mapInstance.flyTo({
-      center: [currentCenter.lng, currentCenter.lat],
-      pitch: settings.pitch ?? mapInstance.getPitch(),
-      bearing: settings.bearing ?? mapInstance.getBearing(),
-      zoom: settings.zoom ?? mapInstance.getZoom(),
-      essential: true,
-    });
-  },
 });
 </script>
 

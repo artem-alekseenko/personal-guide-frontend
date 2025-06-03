@@ -40,10 +40,10 @@
     <!-- Text block -->
     <TourTextDisplay
       ref="tourTextDisplayRef"
+      v-model:scrollToHighlightEnabled="isScrollingToHighlightTextEnabled"
+      :highlightSentence="currentHighlightSentence"
       :show="isShowRecordText"
       :text="tourStore.textForDisplay || ''"
-      :highlightSentence="currentHighlightSentence"
-      v-model:scrollToHighlightEnabled="isScrollingToHighlightTextEnabled"
     />
 
     <!-- Question input -->
@@ -81,8 +81,8 @@ import {
   onBeforeUnmount,
   onMounted,
   ref,
-  watch,
   shallowRef,
+  watch,
 } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTourStore } from "#imports";
@@ -95,16 +95,7 @@ import {
   cleanupAudioUrl,
   createAudioUrl,
 } from "~/utils/audioUtils";
-import { 
-  findCurrentSpokenSentence, 
-  getSentenceIndex 
-} from "~/utils/textUtils";
-import type {
-  ICoordinate,
-  ICreatedTour,
-  IGeoJSONFeature,
-  TypeFrom,
-} from "~/types";
+import type { ICoordinate, IGeoJSONFeature, TypeFrom } from "~/types";
 import createPlacesMarkerElem from "~/utils/pages/createPlacesMarkerElem";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import BaseMap from "~/components/base/BaseMap.vue";
@@ -125,7 +116,6 @@ useHead({
   ],
 });
 
-const MAP_PITCH = 45;
 const {
   map_config: { mapbox_gl_access_token },
 } = useAppConfig();
@@ -147,7 +137,9 @@ const state = ref<TState>(STATE.INITIAL);
 const userText = ref("");
 const isScrollingToHighlightTextEnabled = ref(true);
 
-const tourTextDisplayRef = ref<InstanceType<typeof TourTextDisplay> | null>(null);
+const tourTextDisplayRef = ref<InstanceType<typeof TourTextDisplay> | null>(
+  null,
+);
 
 const route = useRoute();
 const router = useRouter();
@@ -156,12 +148,7 @@ const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 
 // Initialize text synchronization composable
-const { 
-  currentSpokenSentence, 
-  highlightSentence, 
-  updateTextForSpeech, 
-  updateTextForDisplay 
-} = useTourTextSync();
+const { currentSpokenSentence, highlightSentence } = useTourTextSync();
 
 /* -------------------------------------------
    Map logic
@@ -174,10 +161,13 @@ const isMapFullyLoaded = ref(false);
 
 // Initialize directions composable for tour viewing
 const mapInstanceRef = shallowRef<mapboxgl.Map | null>(null);
-const { initializeDirections, addRouteToMap, cleanup } = useMapboxDirections(mapInstanceRef, {
-  enableBounds: true,
-  interactive: false,
-});
+const { initializeDirections, addRouteToMap, cleanup } = useMapboxDirections(
+  mapInstanceRef,
+  {
+    enableBounds: true,
+    interactive: false,
+  },
+);
 
 // Define marker type with event handling
 type MarkerWithEvents = mapboxgl.Marker & {
@@ -209,7 +199,9 @@ function tryAddRouteWithDelay(delay = 100) {
   tryAddRouteWithCheck(1, delay);
 }
 
-const isShowRecordText = computed<boolean>(() => Boolean(tourStore.textForDisplay));
+const isShowRecordText = computed<boolean>(() =>
+  Boolean(tourStore.textForDisplay),
+);
 
 const currentHighlightSentence = computed(() => currentSpokenSentence.value);
 
@@ -236,19 +228,15 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
   mapInstance = map;
   mapInstanceRef.value = map; // Sync with ref for composable
 
-  // Set initial map settings
-  mapInstance.setPitch(MAP_PITCH);
-  mapInstance.setBearing(0);
-
   // Wait for map to be fully loaded before adding route
   mapInstance.on("load", () => {
     logger.log("Map fully loaded, ready for route");
     isMapFullyLoaded.value = true;
-    
+
     // Initialize directions after map is loaded
     try {
       initializeDirections();
-      
+
       // Add route if tour data is available
       if (tourStore.tour) {
         logger.log("Adding route after map load");
@@ -338,20 +326,20 @@ function playAudio() {
       // Calculate current character index based on audio progress
       const totalDuration = audioElement.value.duration;
       const currentTime = audioElement.value.currentTime;
-      
+
       if (!totalDuration || totalDuration <= 0) {
         logger.warn("Invalid audio duration for progress calculation");
         return;
       }
-      
+
       const progress = currentTime / totalDuration;
       const totalTextLength = tourStore.textForSpeech.length;
-      
+
       if (totalTextLength <= 0) {
         logger.warn("Empty text for speech progress calculation");
         return;
       }
-      
+
       const currentCharIndex = Math.floor(progress * totalTextLength);
 
       // Create a temporary utterance to pass to highlightSentence
@@ -420,27 +408,32 @@ async function getRecord() {
   // If no marker is set, automatically set it to user's current location or first route point
   if (!marker.value) {
     logger.log("No marker found, setting default marker position");
-    
+
     let defaultCoords: [number, number] | null = null;
-    
+
     // Try to use user's current location first
     if (geolocationStore.coordinates) {
       defaultCoords = geolocationStore.coordinates;
       logger.log("Using user's current location for marker:", defaultCoords);
     }
     // Fallback to first point of tour route
-    else if (tourStore.tour?.route?.points && tourStore.tour.route.points.length > 0) {
+    else if (
+      tourStore.tour?.route?.points &&
+      tourStore.tour.route.points.length > 0
+    ) {
       const firstPoint = tourStore.tour.route.points[0];
       if (firstPoint) {
         defaultCoords = [Number(firstPoint.lng), Number(firstPoint.lat)];
         logger.log("Using first tour route point for marker:", defaultCoords);
       }
     }
-    
+
     if (defaultCoords) {
       addMarker(defaultCoords);
     } else {
-      logger.error("Unable to set default marker position - no location data available");
+      logger.error(
+        "Unable to set default marker position - no location data available",
+      );
       return;
     }
   }
@@ -450,7 +443,7 @@ async function getRecord() {
   } else {
     state.value = STATE.RECORD_LOADING;
   }
-  
+
   const lngLat = marker.value!.getLngLat();
   const currentCoord: ICoordinate = {
     lat: String(lngLat.lat),
@@ -559,7 +552,7 @@ onBeforeUnmount(() => {
   // Cleanup markers to prevent memory leaks
   marker.value?.remove();
   marker.value = null;
-  
+
   // Cleanup all places markers
   placesMarkerElems.forEach((m) => m.remove());
   placesMarkerElems.length = 0;
