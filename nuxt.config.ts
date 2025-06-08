@@ -55,6 +55,10 @@ export default defineNuxtConfig({
       isTokenAutoRefreshEnabled: true,
       provider: "ReCaptchaV3",
       key: process.env.RECAPTCHA_KEY,
+      // Disable for localhost to avoid 401 errors that slow down auth
+      ...(process.env.NODE_ENV === "development" && { 
+        provider: "debug" as any
+      }),
     },
   },
   css: ["~/assets/css/main.css"],

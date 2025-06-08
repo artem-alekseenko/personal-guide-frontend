@@ -1,7 +1,6 @@
 <template>
   <!-- <Guides> -->
-  <section class="container mx-auto">
-    <h1 class="prose p-4 text-2xl font-extrabold md:p-12">Guides</h1>
+  <section class="container mx-auto pt-4">
     <div v-if="isGuidesListLoading" class="p-4 md:p-12">
       <p>Loading guides...</p>
     </div>

@@ -3,9 +3,6 @@
     v-if="tourStore.tour"
     class="container mx-auto flex grow flex-col gap-y-4 py-4"
   >
-    <h1 class="prose px-4 text-2xl font-extrabold md:px-12">
-      {{ tourStore.tour.name }}
-    </h1>
 
     <!-- Map -->
     <div class="relative">
@@ -72,6 +69,10 @@
 </template>
 
 <script lang="ts" setup>
+definePageMeta({
+  middleware: ["auth"],
+});
+
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 

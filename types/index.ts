@@ -177,3 +177,42 @@ export type TRequestMethod =
   | "OPTIONS"
   | "CONNECT"
   | "TRACE";
+
+// User related types
+export interface IUserPreferences {
+  language: string;
+}
+
+export interface IUserProfile {
+  id: string;
+  email: string;
+  displayName: string | null;
+  photoURL: string | null;
+  emailVerified: boolean;
+  createdAt: string;
+  lastLoginAt: string;
+  preferences: IUserPreferences;
+}
+
+// Server user response
+export interface IServerUserResponse {
+  id: string;
+  name: string;
+  avatar: string | null;
+  email: string | null;
+  full_name: string | null;
+  disabled: boolean;
+  is_admin: boolean;
+  context: string;
+  language: string;
+  preferences: any[];
+}
+
+export interface IUserStats {
+  totalTours: number;
+  completedTours: number;
+  totalDistance: number; // in meters
+  totalTime: number; // in minutes
+  favoriteGuides: string[];
+  visitedPlaces: number;
+}

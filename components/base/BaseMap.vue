@@ -40,7 +40,7 @@ const addUserMarker = (lat: number, lng: number) => {
   logger.log("Adding user marker at:", lat, lng);
   if (!mapInstance) return;
 
-  // Защита от лишних перерисовок: проверяем, изменились ли координаты
+  // Prevent unnecessary re-renders: check if coordinates changed
   if (userMarker?.getLngLat().lat === lat && userMarker.getLngLat().lng === lng)
     return;
 

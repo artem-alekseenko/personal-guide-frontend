@@ -3,7 +3,15 @@
   <div
     class="lg:grid-row-3 grid grid-cols-1 items-center justify-start justify-items-center gap-x-16 gap-y-4 rounded-xl border border-solid border-lime-200 p-4 shadow-xl hover:border-neutral-200 hover:bg-neutral-100 md:p-8 lg:w-full lg:grid-cols-4"
   >
-    <UAvatar :alt="guide.name" :src="guide.avatar" size="3xl" />
+    <div 
+      v-if="!guide.avatar"
+      class="h-24 w-24 rounded-full bg-slate-200 flex items-center justify-center"
+    >
+      <span class="text-3xl font-bold text-gray-600">
+        {{ guide.name?.charAt(0).toUpperCase() }}
+      </span>
+    </div>
+    <UAvatar v-else :alt="guide.name" :src="guide.avatar" size="3xl" />
     <div class="flex-col gap-8 text-center lg:col-span-2 lg:flex">
       <h2 class="font-bold uppercase lg:text-4xl">{{ guide.name }}</h2>
       <div class="pb-4 text-center text-pretty">{{ guide.context }}</div>

@@ -1,6 +1,5 @@
 <template>
-  <section class="container mx-auto flex grow flex-col pb-8">
-    <h1 class="prose p-4 text-2xl font-extrabold md:p-12">List of tours</h1>
+  <section class="container mx-auto flex grow flex-col pb-8 pt-4">
     <PGButton class="mx-auto block" @click="handleCreateTour">
       Create new tour
     </PGButton>

@@ -1,7 +1,12 @@
 <template>
-  <div class="mx-auto flex h-full min-h-screen w-full flex-col items-center">
-    <slot />
-    <PGButton class="mt-auto" variant="ghost" @click="logout">Logout</PGButton>
+  <div class="flex h-full min-h-screen w-full flex-col">
+    <AppHeader />
+    <main class="flex flex-1 flex-col items-center">
+      <slot />
+    </main>
+    <PGButton class="mx-auto mt-auto" variant="ghost" @click="logout"
+      >Logout</PGButton
+    >
   </div>
 </template>
 

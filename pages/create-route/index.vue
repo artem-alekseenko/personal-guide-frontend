@@ -1,7 +1,6 @@
 <template>
   <!-- Create Tour Page -->
-  <section class="container mx-auto pb-8">
-    <h1 class="prose p-4 text-2xl font-extrabold md:p-12">Create Route</h1>
+  <section class="container mx-auto pt-4 pb-8">
     <!-- Instructions -->
     <div v-if="!routeStore.routeSuggestion" class="prose px-4 pb-2">
       Please indicate the area you wish to explore
@@ -79,7 +78,16 @@
         <span>Your Guide:</span
         ><span>{{ guidesStore.selectedGuide?.name }}</span>
       </p>
+      <div
+        v-if="!guidesStore.selectedGuide?.avatar"
+        class="flex h-24 w-24 items-center justify-center rounded-full bg-slate-200"
+      >
+        <span class="text-3xl font-bold text-gray-600">
+          {{ guidesStore.selectedGuide?.name?.charAt(0).toUpperCase() }}
+        </span>
+      </div>
       <UAvatar
+        v-else
         :alt="guidesStore.selectedGuide?.name"
         :src="guidesStore.selectedGuide?.avatar"
         size="3xl"
@@ -114,7 +122,7 @@ const STATE = {
 type TState = TypeFrom<typeof STATE>;
 
 // State
-const state = ref<TState>(STATE.TOUR_APPROVING);
+const state = ref<TState>(STATE.INITIAL);
 const selectedArea = ref<ICoordinate | null>(null);
 const duration = ref(MIN_DURATION_TOUR_MINUTES);
 
