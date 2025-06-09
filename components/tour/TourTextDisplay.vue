@@ -15,7 +15,7 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, ref, watch } from "vue";
-import { createHighlightedText } from "~/utils/textUtils";
+import { createHighlightedText, formatTextWithParagraphs } from "~/utils/textUtils";
 
 interface Props {
   show: boolean;
@@ -55,7 +55,9 @@ const displayText = computed(() => {
     return createHighlightedText(props.text, props.highlightSentence);
   }
   
-  return props.text;
+  // Format text with proper paragraphs even without highlighting
+  const formattedText = formatTextWithParagraphs(props.text);
+  return `<p>${formattedText}</p>`;
 });
 
 const scrollToHighlightedSentence = () => {

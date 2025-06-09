@@ -27,6 +27,9 @@ export function useTourTextSync() {
     )
       return;
 
+    // Debug logging for sentence highlighting
+    logger.log(`Highlight Debug: CharIndex=${charIndex}, New sentence: "${spokenSentence.substring(0, 50)}${spokenSentence.length > 50 ? '...' : ''}"`);
+
     currentSpokenSentence.value = spokenSentence;
   };
 

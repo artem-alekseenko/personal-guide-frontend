@@ -150,7 +150,7 @@ const initializeMap = async () => {
       () => geolocationStore.coordinates,
       (newCoordinates) => {
         logger.log("Geolocation coordinates changed:", newCoordinates);
-        if (newCoordinates && mapInstance) {
+        if (newCoordinates && mapInstance && props.showUserLocation) {
           const [lng, lat] = newCoordinates;
 
           mapInstance.flyTo({
@@ -164,8 +164,32 @@ const initializeMap = async () => {
       },
     );
 
-    // Add initial user marker if coordinates are available
-    if (coordinates) {
+    // Watch for showUserLocation prop changes
+    watch(
+      () => props.showUserLocation,
+      (shouldShow) => {
+        logger.log("showUserLocation changed:", shouldShow);
+        if (!mapInstance) return;
+        
+        if (shouldShow) {
+          // Show user marker if coordinates are available
+          if (geolocationStore.coordinates) {
+            const [lng, lat] = geolocationStore.coordinates;
+            addUserMarker(lat, lng);
+          }
+        } else {
+          // Hide user marker
+          if (userMarker) {
+            userMarker.remove();
+            userMarker = null;
+            logger.log("User marker removed");
+          }
+        }
+      },
+    );
+
+    // Add initial user marker if coordinates are available and showUserLocation is true
+    if (coordinates && props.showUserLocation) {
       const [lng, lat] = coordinates;
       addUserMarker(lat, lng);
     }

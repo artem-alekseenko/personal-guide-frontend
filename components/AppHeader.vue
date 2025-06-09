@@ -318,15 +318,8 @@ const shouldShowBackButton = computed((): boolean => {
 });
 
 const goToSettings = (): void => {
-  // Enhanced settings access control
-  if (!isAuthenticated.value) {
-    console.warn("🧭 Unauthorized access to settings page, redirecting to home");
-    router.replace("/");
-    return;
-  }
-  
-  // Use replace instead of push so settings don't go to history
-  router.replace("/settings");
+  // Simple navigation - middleware will handle auth check
+  router.push("/settings");
 };
 
 const goBack = (): void => {

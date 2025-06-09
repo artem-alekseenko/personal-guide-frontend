@@ -19,7 +19,14 @@ export const findCurrentSpokenSentence = (
   charIndex: number,
   text: string,
 ): string => {
-  const sentences = splitIntoSentences(text);
+  // Clean text for consistent character counting
+  const cleanText = text
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/\n\n/g, ' ') // Replace paragraph breaks with single space
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+    
+  const sentences = splitIntoSentences(cleanText);
   let accumulatedLength = 0;
 
   for (const sentence of sentences) {
@@ -32,19 +39,37 @@ export const findCurrentSpokenSentence = (
 };
 
 /**
- * Creates highlighted text with a specific sentence highlighted
+ * Converts \n\n to proper paragraphs and cleans text
+ */
+export const formatTextWithParagraphs = (text: string): string => {
+  return text
+    .split('\n\n')
+    .map(paragraph => paragraph.trim())
+    .filter(paragraph => paragraph.length > 0)
+    .join('</p><p>');
+};
+
+/**
+ * Creates highlighted text with a specific sentence highlighted and proper paragraph formatting
  */
 export const createHighlightedText = (
   text: string, 
   highlightSentence: string
 ): string => {
-  const sentences = splitIntoSentences(text);
+  // First, format paragraphs
+  const formattedText = formatTextWithParagraphs(text);
   
-  return sentences
+  // Split into sentences while preserving paragraph boundaries
+  const sentences = splitIntoSentences(formattedText);
+  
+  const highlightedText = sentences
     .map((sentence) =>
       sentence === highlightSentence
         ? `<span class="bg-yellow-200 active-sentence">${sentence}</span> `
         : `${sentence} `,
     )
     .join("");
+
+  // Wrap in paragraphs
+  return `<p>${highlightedText}</p>`;
 }; 
