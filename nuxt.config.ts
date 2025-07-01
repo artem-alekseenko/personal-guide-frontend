@@ -24,13 +24,7 @@ export default defineNuxtConfig({
   },
   components: [{ path: "~/components/ui", pathPrefix: false }, "~/components"],
   ssr: false,
-  modules: [
-    "@vueuse/nuxt",
-    "@pinia/nuxt",
-    "@nuxt/ui",
-    "nuxt-vuefire",
-    "pinia-plugin-persistedstate/nuxt",
-  ],
+  modules: ["@vueuse/nuxt", "@pinia/nuxt", "@nuxt/ui", "nuxt-vuefire", "pinia-plugin-persistedstate/nuxt", "@nuxtjs/i18n"],
   future: {
     compatibilityVersion: 4,
   },
