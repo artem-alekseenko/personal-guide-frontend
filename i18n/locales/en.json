@@ -1,0 +1,113 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "logout": "Logout",
+    "settings": "Settings",
+    "goBack": "Go back",
+    "reset": "Reset",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "next": "Next",
+    "previous": "Previous",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information"
+  },
+  "auth": {
+    "login": "Login",
+    "email": "Email",
+    "password": "Password",
+    "loginError": "Login failed. Please check your credentials.",
+    "logoutSuccess": "Successfully logged out"
+  },
+  "navigation": {
+    "goToGuides": "Go to guides pages",
+    "goToSettings": "Go to settings",
+    "goToTour": "Go to the tour",
+    "backToTours": "Back to tours"
+  },
+  "pages": {
+    "home": {
+      "title": "Personal Guide Main Page"
+    },
+    "tours": {
+      "title": "Routes",
+      "createNewTour": "Create new tour",
+      "noTours": "No tours available"
+    },
+    "guides": {
+      "title": "Guides",
+      "loadingGuides": "Loading guides..."
+    },
+    "createRoute": {
+      "title": "Create route",
+      "selectArea": "Please indicate the area you wish to explore",
+      "routeBuilt": "The excursion route has been built:",
+      "selectTopics": "Choose the topics you are interested in:",
+      "durationLabel": "Please indicate the desired duration of the excursion",
+      "minDuration": "5 min",
+      "maxDuration": "60 min",
+      "yourGuide": "Your Guide:",
+      "selectGuideAndCreate": "Select {name} and create tour"
+    },
+    "settings": {
+      "title": "Settings",
+      "profile": "Profile",
+      "preferences": "Preferences",
+      "language": "Language",
+      "statistics": "Statistics",
+      "totalTours": "Total tours",
+      "completed": "Completed",
+      "distance": "Distance",
+      "time": "Time"
+    }
+  },
+  "components": {
+    "tourCard": {
+      "guide": "Guide:",
+      "showMore": "Show more",
+      "showLess": "Show less"
+    },
+    "guide": {
+      "skills": "Skills:"
+    },
+    "tourTextDisplay": {
+      "scrollEnabled": "Scroll to highlighted sentence enabled",
+      "scrollDisabled": "Scroll to highlighted sentence disabled"
+    },
+    "tourPage": {
+      "realGeolocation": "📍 Real Geolocation",
+      "geolocationSimulation": "🎯 Geolocation Simulation",
+      "usingRealLocation": "Using your real location",
+      "clickToSimulate": "Click on map or drag marker to simulate position",
+      "enterQuestion": "Enter your question...",
+      "sendQuestion": "Send question",
+      "completeTour": "Complete the tour"
+    }
+  },
+  "buttons": {
+    "getTourRoute": "Get the tour route",
+    "gettingRoute": "Getting the route...",
+    "approveRoute": "Approve route",
+    "approvingTour": "Approving tour...",
+    "play": "Play",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop"
+  },
+  "errors": {
+    "logoutError": "Error when exiting",
+    "failedToApproveTour": "Failed to approve tour:",
+    "mapNotInitialized": "Map not yet initialized, marker update skipped"
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "fr": "Français"
+  }
+}

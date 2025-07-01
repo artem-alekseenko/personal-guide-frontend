@@ -29,7 +29,7 @@ export interface IUserStore {
 }
 
 const defaultPreferences: IUserPreferences = {
-  language: "ru",
+  language: "en",
 };
 
 const defaultStats: IUserStats = {

@@ -20,21 +20,21 @@
         class="position-toggle-container flex items-center justify-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
       >
         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          📍 Real Geolocation
+          {{ $t('components.tourPage.realGeolocation') }}
         </span>
 
         <!-- USwitch toggle -->
         <USwitch v-model="isManualMode" size="lg" />
 
         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          🎯 Geolocation Simulation
+          {{ $t('components.tourPage.geolocationSimulation') }}
         </span>
       </div>
 
       <!-- Mode description -->
       <div class="mt-2 text-center text-xs text-gray-600 dark:text-gray-400">
-        <span v-if="positionMode === 'gps'"> Using your real location </span>
-        <span v-else> Click on map or drag marker to simulate position </span>
+        <span v-if="positionMode === 'gps'"> {{ $t('components.tourPage.usingRealLocation') }} </span>
+        <span v-else> {{ $t('components.tourPage.clickToSimulate') }} </span>
       </div>
     </div>
 
@@ -70,11 +70,11 @@
       <input
         v-model="userText"
         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-        placeholder="Enter your question..."
+        :placeholder="$t('components.tourPage.enterQuestion')"
         type="text"
       />
       <PGButton class="mx-auto mt-3 block" @click="addQuestion">
-        Send question
+        {{ $t('components.tourPage.sendQuestion') }}
       </PGButton>
     </div>
 
@@ -85,7 +85,7 @@
         color="neutral"
         @click="handleCompleteTour"
       >
-        Complete the tour
+        {{ $t('components.tourPage.completeTour') }}
       </PGButton>
     </div>
 

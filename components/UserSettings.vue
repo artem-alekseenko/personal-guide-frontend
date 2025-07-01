@@ -3,13 +3,13 @@
     <!-- User profile -->
     <div class="mt-4 mb-8">
       <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-        Profile
+        {{ $t("pages.settings.profile") }}
       </h3>
 
       <div class="mb-4 flex items-center">
-        <div 
+        <div
           v-if="!userAvatar || userAvatar === '/default-avatar.png'"
-          class="mr-4 h-16 w-16 rounded-full bg-slate-200 flex items-center justify-center"
+          class="mr-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-200"
         >
           <span class="text-2xl font-bold text-gray-600">
             {{ userName.charAt(0).toUpperCase() }}
@@ -35,25 +35,25 @@
     <!-- Preferences -->
     <div class="mb-8">
       <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-        Preferences
+        {{ $t("pages.settings.preferences") }}
       </h3>
 
       <div class="space-y-4">
         <!-- Language -->
         <div class="relative">
           <label
-            for="language-select"
             class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            for="language-select"
           >
-            Language
+            {{ $t("pages.settings.language") }}
           </label>
           <div class="relative">
             <button
               id="language-select"
               ref="dropdownButton"
-              type="button"
-              class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white p-2 text-left dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               :class="{ 'ring-2 ring-blue-500': isDropdownOpen }"
+              class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white p-2 text-left dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              type="button"
               @click="toggleDropdown"
               @keydown.enter.prevent="toggleDropdown"
               @keydown.space.prevent="toggleDropdown"
@@ -63,21 +63,21 @@
             >
               <span>{{ getLanguageLabel(preferences.language) }}</span>
               <svg
-                class="ml-2 h-4 w-4 transition-transform duration-200"
                 :class="{ 'rotate-180': isDropdownOpen }"
+                class="ml-2 h-4 w-4 transition-transform duration-200"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path
+                  d="M19 9l-7 7-7-7"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M19 9l-7 7-7-7"
                 />
               </svg>
             </button>
-            
+
             <!-- Dropdown menu -->
             <div
               v-if="isDropdownOpen"
@@ -87,12 +87,12 @@
               <button
                 v-for="option in languageOptions"
                 :key="option.value"
-                type="button"
-                class="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white"
                 :class="{
                   'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400':
                     preferences.language === option.value,
                 }"
+                class="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:text-white dark:hover:bg-gray-600"
+                type="button"
                 @click="selectLanguage(option.value)"
               >
                 {{ option.label }}
@@ -106,7 +106,7 @@
     <!-- Statistics -->
     <div v-if="stats" class="mb-8">
       <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-        Statistics
+        {{ $t("pages.settings.statistics") }}
       </h3>
 
       <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -115,7 +115,7 @@
             {{ stats.totalTours }}
           </div>
           <div class="text-sm text-gray-600 dark:text-gray-400">
-            Total tours
+            {{ $t("pages.settings.totalTours") }}
           </div>
         </div>
 
@@ -123,21 +123,27 @@
           <div class="text-2xl font-bold text-green-600 dark:text-green-400">
             {{ stats.completedTours }}
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Completed</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            {{ $t("pages.settings.completed") }}
+          </div>
         </div>
 
         <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
           <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {{ formatDistance(stats.totalDistance) }}
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Distance</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            {{ $t("pages.settings.distance") }}
+          </div>
         </div>
 
         <div class="rounded-lg bg-orange-50 p-4 dark:bg-orange-900/20">
           <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">
             {{ formatTime(stats.totalTime) }}
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Time</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            {{ $t("pages.settings.time") }}
+          </div>
         </div>
       </div>
     </div>
@@ -148,13 +154,13 @@
         class="rounded-md border border-gray-300 px-4 py-2 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
         @click="resetSettings"
       >
-        Reset
+        {{ $t("common.reset") }}
       </button>
       <button
         class="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
         @click="logout"
       >
-        Logout
+        {{ $t("common.logout") }}
       </button>
     </div>
   </div>
@@ -185,8 +191,8 @@ const dropdownMenu = ref<HTMLDivElement>();
 
 // Language options
 const languageOptions = [
-  { value: 'ru', label: 'Русский' },
-  { value: 'en', label: 'English' },
+  { value: "ru", label: "Русский" },
+  { value: "en", label: "English" },
 ];
 
 // Sync with store when changes occur
@@ -204,7 +210,7 @@ const updatePreferences = async () => {
 
 // Dropdown functions
 const getLanguageLabel = (value: string): string => {
-  const option = languageOptions.find(opt => opt.value === value);
+  const option = languageOptions.find((opt) => opt.value === value);
   return option?.label || value;
 };
 
@@ -246,11 +252,11 @@ const handleClickOutside = (event: Event) => {
 
 // Setup click outside listener
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
+  document.addEventListener("click", handleClickOutside);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
+  document.removeEventListener("click", handleClickOutside);
 });
 
 const resetSettings = () => {

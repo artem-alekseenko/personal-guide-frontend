@@ -17,11 +17,11 @@
       <div class="pb-4 text-center text-pretty">{{ guide.context }}</div>
     </div>
     <div class="pb-4">
-      <span class="font-bold">Skills:</span>
+      <span class="font-bold">{{ $t('components.guide.skills') }}</span>
       {{ guide.skills }}
     </div>
     <PGButton @click="selectGuide">
-      Select {{ guide.name }} and create tour
+      {{ $t('pages.createRoute.selectGuideAndCreate', { name: guide.name }) }}
     </PGButton>
     <div class="col-span-full w-full gap-8 lg:flex">
       <div

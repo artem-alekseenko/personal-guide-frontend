@@ -2,7 +2,7 @@
   <!-- <Guides> -->
   <section class="container mx-auto pt-4">
     <div v-if="isGuidesListLoading" class="p-4 md:p-12">
-      <p>Loading guides...</p>
+      <p>{{ $t('pages.guides.loadingGuides') }}</p>
     </div>
     <div v-else class="flex flex-col justify-center gap-4 p-4 md:p-12">
       <PGGuide

@@ -7,7 +7,7 @@ export default defineNuxtConfig({
         {
           rel: "icon",
           type: "image/svg+xml",
-          href: "/favicon.svg"
+          href: "/favicon.svg",
         },
         {
           rel: "stylesheet",
@@ -24,7 +24,14 @@ export default defineNuxtConfig({
   },
   components: [{ path: "~/components/ui", pathPrefix: false }, "~/components"],
   ssr: false,
-  modules: ["@vueuse/nuxt", "@pinia/nuxt", "@nuxt/ui", "nuxt-vuefire", "pinia-plugin-persistedstate/nuxt", "@nuxtjs/i18n"],
+  modules: [
+    "@vueuse/nuxt",
+    "@pinia/nuxt",
+    "@nuxt/ui",
+    "nuxt-vuefire",
+    "pinia-plugin-persistedstate/nuxt",
+    "@nuxtjs/i18n",
+  ],
   future: {
     compatibilityVersion: 4,
   },
@@ -50,10 +57,29 @@ export default defineNuxtConfig({
       provider: "ReCaptchaV3",
       key: process.env.RECAPTCHA_KEY,
       // Disable for localhost to avoid 401 errors that slow down auth
-      ...(process.env.NODE_ENV === "development" && { 
-        provider: "debug" as any
+      ...(process.env.NODE_ENV === "development" && {
+        provider: "debug" as any,
       }),
     },
   },
   css: ["~/assets/css/main.css"],
+  i18n: {
+    locales: [
+      { code: "en", file: "en.json", name: "English" },
+      { code: "ru", file: "ru.json", name: "Русский" },
+      { code: "fr", file: "fr.json", name: "Français" },
+    ],
+    defaultLocale: "en",
+    lazy: true,
+    langDir: "locales",
+    bundle: {
+      optimizeTranslationDirective: false,
+    },
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: "i18n_redirected",
+      alwaysRedirect: true,
+      fallbackLocale: "en",
+    },
+  },
 });

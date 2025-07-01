@@ -22,10 +22,10 @@
           @click="toggleExpanded"
           class="ml-auto block mt-2 text-sm text-blue-200 hover:text-blue-100 underline focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50 rounded transition-colors duration-200"
         >
-          {{ isExpanded ? 'Show less' : 'Show more' }}
+          {{ isExpanded ? $t('components.tourCard.showLess') : $t('components.tourCard.showMore') }}
         </button>
       </div>
-      <p class="text-slate-100">Guide: {{ guideName }}</p>
+      <p class="text-slate-100">{{ $t('components.tourCard.guide') }} {{ guideName }}</p>
       <p v-if="generatingPercent !== 100" class="prose">
         <UProgress :value="generatingPercent" indicator />
       </p>
@@ -35,7 +35,7 @@
         :to="`/tours/${tourId}`"
         class="prose block text-right text-blue-100 underline"
       >
-        Go to the tour
+        {{ $t('navigation.goToTour') }}
       </NuxtLink>
     </div>
   </div>

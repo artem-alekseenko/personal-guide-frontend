@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n();
 const textRef = ref<HTMLElement | null>(null);
 
 const isScrollingEnabled = computed({
@@ -44,8 +45,8 @@ const isScrollingEnabled = computed({
 
 const toggleScrollText = computed(() => {
   return isScrollingEnabled.value
-    ? "Scroll to highlighted sentence enabled"
-    : "Scroll to highlighted sentence disabled";
+    ? t('components.tourTextDisplay.scrollEnabled')
+    : t('components.tourTextDisplay.scrollDisabled');
 });
 
 const displayText = computed(() => {

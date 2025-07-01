@@ -3,14 +3,14 @@
     <UInput
       v-model="email"
       class="block"
-      placeholder="Email"
+      :placeholder="$t('auth.email')"
       type="email"
       variant="outline"
     />
     <UInput
       v-model="password"
       class="block"
-      placeholder="Password"
+      :placeholder="$t('auth.password')"
       type="password"
       variant="outline"
     />
@@ -19,7 +19,7 @@
       block
       variant="outline"
       @click="login"
-      >Login</PGButton
+      >{{ $t('auth.login') }}</PGButton
     >
   </div>
 </template>

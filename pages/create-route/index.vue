@@ -3,10 +3,10 @@
   <section class="container mx-auto pt-4 pb-8">
     <!-- Instructions -->
     <div v-if="!routeStore.routeSuggestion" class="prose px-4 pb-2">
-      Please indicate the area you wish to explore
+      {{ $t("pages.createRoute.selectArea") }}
     </div>
     <div v-else class="prose px-4 pb-2">
-      The excursion route has been built:
+      {{ $t("pages.createRoute.routeBuilt") }}
     </div>
 
     <!-- Map -->
@@ -30,7 +30,7 @@
 
     <!-- Chips -->
     <div v-if="isShowChips" class="px-4 py-4">
-      <p class="mb-4">Choose the topics you are interested in:</p>
+      <p class="mb-4">{{ $t("pages.createRoute.selectTopics") }}</p>
       <PGChip
         v-for="chip in chips"
         :key="chip.name"
@@ -46,7 +46,7 @@
     <div v-if="!routeStore.routeSuggestion" class="m-4">
       <div class="mb-4">
         <div class="prose px-4 text-sm">
-          Please indicate the desired duration of the excursion
+          {{ $t("pages.createRoute.durationLabel") }}
         </div>
         <div class="duration gap-2 px-4">
           <USlider
@@ -55,9 +55,13 @@
             :min="MIN_DURATION_TOUR_MINUTES"
             class="range-line w-full cursor-pointer appearance-none rounded-lg"
           />
-          <div class="initial-duration">5 min</div>
+          <div class="initial-duration">
+            {{ $t("pages.createRoute.minDuration") }}
+          </div>
           <div class="current-duration">{{ formattedTime }}</div>
-          <div class="max-duration">{{ MAX_DURATION_TOUR_MINUTES }} min</div>
+          <div class="max-duration">
+            {{ $t("pages.createRoute.maxDuration") }}
+          </div>
         </div>
       </div>
     </div>
@@ -75,7 +79,7 @@
     <!-- Guide Information -->
     <div class="my-6 flex justify-center gap-8">
       <p class="flex flex-col">
-        <span>Your Guide:</span
+        <span>{{ $t("pages.createRoute.yourGuide") }}</span
         ><span>{{ guidesStore.selectedGuide?.name }}</span>
       </p>
       <div

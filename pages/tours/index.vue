@@ -1,7 +1,7 @@
 <template>
-  <section class="container mx-auto flex grow flex-col pb-8 pt-4">
+  <section class="container mx-auto flex grow flex-col pt-4 pb-8">
     <PGButton class="mx-auto block" @click="handleCreateTour">
-      Create new tour
+      {{ $t("pages.tours.createNewTour") }}
     </PGButton>
     <div
       v-if="routeStore.allTours.length"

@@ -2,11 +2,13 @@
   <template v-if="state === STATE.USER_ENTERED">
     <div class="flex items-center justify-center gap-8 p-4">
       <p>{{ user?.email }}</p>
-      <PGButton variant="ghost" @click="logout">Logout</PGButton>
+      <PGButton variant="ghost" @click="logout">{{
+        $t("common.logout")
+      }}</PGButton>
     </div>
     <div class="flex flex-1 items-center justify-center">
       <NuxtLink class="block text-center underline" to="/guides"
-        >Go to guides pages
+        >{{ $t("navigation.goToGuides") }}
       </NuxtLink>
     </div>
   </template>

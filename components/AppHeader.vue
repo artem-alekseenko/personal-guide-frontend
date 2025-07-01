@@ -17,7 +17,7 @@
               : 'cursor-not-allowed text-gray-400 dark:text-gray-600',
           ]"
           :disabled="!canNavigateBack"
-          aria-label="Go back"
+          :aria-label="$t('common.goBack')"
           icon="i-heroicons-arrow-left"
           size="sm"
           variant="ghost"
@@ -33,7 +33,7 @@
       <div class="flex items-center space-x-4">
         <!-- Settings icon -->
         <UButton
-          aria-label="Settings"
+          :aria-label="$t('common.settings')"
           icon="i-heroicons-cog-6-tooth"
           size="lg"
           variant="ghost"
@@ -71,6 +71,7 @@ const route = useRoute();
 const router = useRouter();
 const { userName, userAvatar, isAuthenticated } = useAuth();
 const tourStore = useTourStore();
+const { t } = useI18n();
 
 const MAX_HISTORY_SIZE = 10;
 const HISTORY_SAVE_THROTTLE_MS = 300; // Throttle history saves to max once per 300ms
@@ -85,7 +86,7 @@ const pageTitle = computed((): string => {
     return tourStore.tour.name;
   }
 
-  return (route.meta.title as string) || "Personal Guide";
+  return (route.meta.title as string) || t('pages.home.title');
 });
 
 // Track browser history state

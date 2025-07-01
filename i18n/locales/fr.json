@@ -1,0 +1,113 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "logout": "Se déconnecter",
+    "settings": "Paramètres",
+    "goBack": "Retourner",
+    "reset": "Réinitialiser",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK",
+    "error": "Erreur",
+    "success": "Succès",
+    "warning": "Avertissement",
+    "info": "Information"
+  },
+  "auth": {
+    "login": "Connexion",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "loginError": "Échec de la connexion. Veuillez vérifier vos identifiants.",
+    "logoutSuccess": "Déconnexion réussie"
+  },
+  "navigation": {
+    "goToGuides": "Aller aux pages des guides",
+    "goToSettings": "Aller aux paramètres",
+    "goToTour": "Aller à la visite",
+    "backToTours": "Retour aux visites"
+  },
+  "pages": {
+    "home": {
+      "title": "Page principale du Guide Personnel"
+    },
+    "tours": {
+      "title": "Itinéraires",
+      "createNewTour": "Créer une nouvelle visite",
+      "noTours": "Aucune visite disponible"
+    },
+    "guides": {
+      "title": "Guides",
+      "loadingGuides": "Chargement des guides..."
+    },
+    "createRoute": {
+      "title": "Créer un itinéraire",
+      "selectArea": "Veuillez indiquer la zone que vous souhaitez explorer",
+      "routeBuilt": "L’itinéraire de l’excursion a été créé :",
+      "selectTopics": "Choisissez les sujets qui vous intéressent :",
+      "durationLabel": "Veuillez indiquer la durée souhaitée de l’excursion",
+      "minDuration": "5 min",
+      "maxDuration": "60 min",
+      "yourGuide": "Votre guide :",
+      "selectGuideAndCreate": "Sélectionner {name} et créer la visite"
+    },
+    "settings": {
+      "title": "Paramètres",
+      "profile": "Profil",
+      "preferences": "Préférences",
+      "language": "Langue",
+      "statistics": "Statistiques",
+      "totalTours": "Total des visites",
+      "completed": "Terminées",
+      "distance": "Distance",
+      "time": "Temps"
+    }
+  },
+  "components": {
+    "tourCard": {
+      "guide": "Guide :",
+      "showMore": "Afficher plus",
+      "showLess": "Afficher moins"
+    },
+    "guide": {
+      "skills": "Compétences :"
+    },
+    "tourTextDisplay": {
+      "scrollEnabled": "Défilement vers la phrase surlignée activé",
+      "scrollDisabled": "Défilement vers la phrase surlignée désactivé"
+    },
+    "tourPage": {
+      "realGeolocation": "📍 Géolocalisation réelle",
+      "geolocationSimulation": "🎯 Simulation de géolocalisation",
+      "usingRealLocation": "Utilisation de votre position réelle",
+      "clickToSimulate": "Cliquez sur la carte ou faites glisser le marqueur pour simuler la position",
+      "enterQuestion": "Saisissez votre question...",
+      "sendQuestion": "Envoyer la question",
+      "completeTour": "Terminer la visite"
+    }
+  },
+  "buttons": {
+    "getTourRoute": "Obtenir l’itinéraire",
+    "gettingRoute": "Obtention de l’itinéraire...",
+    "approveRoute": "Approuver l’itinéraire",
+    "approvingTour": "Approbation de la visite...",
+    "play": "Lecture",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "stop": "Arrêter"
+  },
+  "errors": {
+    "logoutError": "Erreur lors de la déconnexion",
+    "failedToApproveTour": "Échec de l’approbation de la visite :",
+    "mapNotInitialized": "La carte n’est pas encore initialisée, la mise à jour du marqueur est ignorée"
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "fr": "Français"
+  }
+}
