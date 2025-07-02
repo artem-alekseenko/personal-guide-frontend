@@ -3,9 +3,9 @@
   <div
     class="lg:grid-row-3 grid grid-cols-1 items-center justify-start justify-items-center gap-x-16 gap-y-4 rounded-xl border border-solid border-lime-200 p-4 shadow-xl hover:border-neutral-200 hover:bg-neutral-100 md:p-8 lg:w-full lg:grid-cols-4"
   >
-    <div 
+    <div
       v-if="!guide.avatar"
-      class="h-24 w-24 rounded-full bg-slate-200 flex items-center justify-center"
+      class="flex h-24 w-24 items-center justify-center rounded-full bg-slate-200"
     >
       <span class="text-3xl font-bold text-gray-600">
         {{ guide.name?.charAt(0).toUpperCase() }}
@@ -17,11 +17,11 @@
       <div class="pb-4 text-center text-pretty">{{ guide.context }}</div>
     </div>
     <div class="pb-4">
-      <span class="font-bold">{{ $t('components.guide.skills') }}</span>
+      <span class="font-bold">{{ $t("components.guide.skills") }}</span>
       {{ guide.skills }}
     </div>
     <PGButton @click="selectGuide">
-      {{ $t('pages.createRoute.selectGuideAndCreate', { name: guide.name }) }}
+      {{ $t("pages.createRoute.selectGuideAndCreate", { name: guide.name }) }}
     </PGButton>
     <div class="col-span-full w-full gap-8 lg:flex">
       <div
@@ -63,6 +63,6 @@ const guidesStore = useGuidesStore();
 const selectGuide = () => {
   guidesStore.setSelectedGuide(guide.value);
 
-  router.push({ name: "create-route" });
+  router.push("/create-route");
 };
 </script>
