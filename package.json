@@ -18,9 +18,9 @@
     "@pinia/nuxt": "0.11.1",
     "@tailwindcss/typography": "0.5.16",
     "@types/mapbox-gl": "3.4.1",
-    "@types/node": "24.0.8",
-    "@vueuse/core": "13.4.0",
-    "@vueuse/nuxt": "13.4.0",
+    "@types/node": "24.0.10",
+    "@vueuse/core": "13.5.0",
+    "@vueuse/nuxt": "13.5.0",
     "firebase-admin": "13.4.0",
     "firebase-functions": "6.3.2",
     "nuxt": "3.17.6",
@@ -30,7 +30,7 @@
     "prettier-plugin-tailwindcss": "0.6.13",
     "tailwindcss": "4.1.11",
     "typescript": "5.8.3",
-    "vue-tsc": "3.0.0"
+    "vue-tsc": "3.0.1"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-directions": "4.3.1",
