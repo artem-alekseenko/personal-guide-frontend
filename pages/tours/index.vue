@@ -32,7 +32,6 @@
 import { definePageMeta } from "#imports";
 
 definePageMeta({
-  title: "Routes",
   middleware: ["auth"],
 });
 

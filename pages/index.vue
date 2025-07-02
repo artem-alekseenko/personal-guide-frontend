@@ -25,9 +25,7 @@ import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import type { TypeFrom } from "~/types";
 import { definePageMeta } from "#imports";
 
-definePageMeta({
-  title: "Personal Guide Main Page",
-});
+definePageMeta({});
 
 const STATE = {
   INITIAL: "INITIAL",

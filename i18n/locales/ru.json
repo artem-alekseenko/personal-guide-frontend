@@ -16,7 +16,16 @@
     "error": "Ошибка",
     "success": "Успешно",
     "warning": "Внимание",
-    "info": "Информация"
+    "info": "Информация",
+    "timeFormat": {
+      "minutes": "{count} мин",
+      "hours": "{count}ч",
+      "hoursAndMinutes": "{hours}ч {minutes}м"
+    },
+    "distanceFormat": {
+      "meters": "{count} м",
+      "kilometers": "{count} км"
+    }
   },
   "auth": {
     "login": "Войти",

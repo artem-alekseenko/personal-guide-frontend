@@ -40,66 +40,10 @@
 
       <div class="space-y-4">
         <!-- Language -->
-        <div class="relative">
-          <label
-            class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-            for="language-select"
-          >
-            {{ $t("pages.settings.language") }}
-          </label>
-          <div class="relative">
-            <button
-              id="language-select"
-              ref="dropdownButton"
-              :class="{ 'ring-2 ring-blue-500': isDropdownOpen }"
-              class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white p-2 text-left dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              type="button"
-              @click="toggleDropdown"
-              @keydown.enter.prevent="toggleDropdown"
-              @keydown.space.prevent="toggleDropdown"
-              @keydown.escape="closeDropdown"
-              @keydown.arrow-down.prevent="openDropdown"
-              @keydown.arrow-up.prevent="openDropdown"
-            >
-              <span>{{ getLanguageLabel(preferences.language) }}</span>
-              <svg
-                :class="{ 'rotate-180': isDropdownOpen }"
-                class="ml-2 h-4 w-4 transition-transform duration-200"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M19 9l-7 7-7-7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                />
-              </svg>
-            </button>
-
-            <!-- Dropdown menu -->
-            <div
-              v-if="isDropdownOpen"
-              ref="dropdownMenu"
-              class="absolute z-10 mt-1 w-full rounded-md border border-gray-300 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
-            >
-              <button
-                v-for="option in languageOptions"
-                :key="option.value"
-                :class="{
-                  'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400':
-                    preferences.language === option.value,
-                }"
-                class="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:text-white dark:hover:bg-gray-600"
-                type="button"
-                @click="selectLanguage(option.value)"
-              >
-                {{ option.label }}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LanguageSelector
+          :preferences="preferences"
+          @update:preferences="handlePreferencesUpdate"
+        />
       </div>
     </div>
 
@@ -184,17 +128,6 @@ const {
 // Local copy of preferences for form reactivity
 const preferences = ref<IUserPreferences>({ ...userPreferences.value });
 
-// Dropdown state
-const isDropdownOpen = ref(false);
-const dropdownButton = ref<HTMLButtonElement>();
-const dropdownMenu = ref<HTMLDivElement>();
-
-// Language options
-const languageOptions = [
-  { value: "ru", label: "Русский" },
-  { value: "en", label: "English" },
-];
-
 // Sync with store when changes occur
 watch(
   userPreferences,
@@ -208,56 +141,11 @@ const updatePreferences = async () => {
   await updateUserPreferences(preferences.value);
 };
 
-// Dropdown functions
-const getLanguageLabel = (value: string): string => {
-  const option = languageOptions.find((opt) => opt.value === value);
-  return option?.label || value;
-};
-
-const toggleDropdown = () => {
-  isDropdownOpen.value = !isDropdownOpen.value;
-};
-
-const openDropdown = () => {
-  isDropdownOpen.value = true;
-};
-
-const closeDropdown = () => {
-  isDropdownOpen.value = false;
-};
-
-const selectLanguage = async (value: string) => {
-  // Only update if language actually changed
-  if (preferences.value.language === value) {
-    closeDropdown();
-    return;
-  }
-
-  preferences.value.language = value;
+// Handle preferences update from LanguageSelector
+const handlePreferencesUpdate = async (newPreferences: IUserPreferences) => {
+  preferences.value = newPreferences;
   await updatePreferences();
-  closeDropdown();
 };
-
-// Close dropdown when clicking outside
-const handleClickOutside = (event: Event) => {
-  if (
-    dropdownButton.value &&
-    dropdownMenu.value &&
-    !dropdownButton.value.contains(event.target as Node) &&
-    !dropdownMenu.value.contains(event.target as Node)
-  ) {
-    closeDropdown();
-  }
-};
-
-// Setup click outside listener
-onMounted(() => {
-  document.addEventListener("click", handleClickOutside);
-});
-
-onUnmounted(() => {
-  document.removeEventListener("click", handleClickOutside);
-});
 
 const resetSettings = () => {
   reset();
@@ -271,17 +159,29 @@ const logout = async () => {
 
 const formatDistance = (meters: number): string => {
   if (meters < 1000) {
-    return `${meters} m`;
+    return t('common.distanceFormat.meters', { count: meters });
   }
-  return `${(meters / 1000).toFixed(1)} km`;
+  return t('common.distanceFormat.kilometers', { 
+    count: (meters / 1000).toFixed(1) 
+  });
 };
+
+const { t } = useI18n();
 
 const formatTime = (minutes: number): string => {
   if (minutes < 60) {
-    return `${minutes} min`;
+    return t('common.timeFormat.minutes', { count: minutes });
   }
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
+  
+  if (remainingMinutes === 0) {
+    return t('common.timeFormat.hours', { count: hours });
+  }
+  
+  return t('common.timeFormat.hoursAndMinutes', { 
+    hours, 
+    minutes: remainingMinutes 
+  });
 };
 </script>

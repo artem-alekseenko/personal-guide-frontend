@@ -6,12 +6,7 @@
 
 <script lang="ts" setup>
 definePageMeta({
-  title: "Settings",
   middleware: ["auth"],
-});
-
-useHead({
-  title: "Settings",
 });
 
 onMounted(() => {

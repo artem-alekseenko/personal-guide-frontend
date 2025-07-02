@@ -108,7 +108,6 @@ import { definePageMeta, useGuidesStore } from "#imports";
 import { getMainButtonText } from "~/utils/pages/create-route/mainButtonText";
 
 definePageMeta({
-  title: "Create route",
   middleware: ["auth"],
 });
 

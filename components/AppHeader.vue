@@ -60,6 +60,7 @@
 <script lang="ts" setup>
 import { useAuth } from "~/composables/useAuth";
 import { useTourStore } from "~/stores/tourStore";
+import { usePageTitle } from "~/composables/usePageTitle";
 import { throttle } from "~/utils/throttleDebounce";
 import type { RouteLocationNormalized } from "vue-router";
 
@@ -79,15 +80,8 @@ const HISTORY_SAVE_THROTTLE_MS = 300; // Throttle history saves to max once per 
 // Local navigation history with explicit typing
 const navigationHistory = ref<NavigationHistoryEntry[]>([]);
 
-// Get page title from route metadata or tour data
-const pageTitle = computed((): string => {
-  // For specific tour page show tour name
-  if (route.name === "tours-tourId" && tourStore.tour) {
-    return tourStore.tour.name;
-  }
-
-  return (route.meta.title as string) || t('pages.home.title');
-});
+// Use the page title composable for automatic i18n support
+const { pageTitle } = usePageTitle();
 
 // Track browser history state
 const canGoBack = ref<boolean>(false);

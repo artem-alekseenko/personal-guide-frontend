@@ -16,7 +16,16 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Information"
+    "info": "Information",
+    "timeFormat": {
+      "minutes": "{count} min",
+      "hours": "{count}h",
+      "hoursAndMinutes": "{hours}h {minutes}m"
+    },
+    "distanceFormat": {
+      "meters": "{count} m",
+      "kilometers": "{count} km"
+    }
   },
   "auth": {
     "login": "Login",

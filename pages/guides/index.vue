@@ -21,7 +21,6 @@ import PGGuide from "~/components/PGGuide.vue";
 import { definePageMeta, useGuidesStore } from "#imports";
 
 definePageMeta({
-  title: "Guides",
   middleware: ["auth"],
 });
 
@@ -32,9 +31,4 @@ const { fetchGuidesList } = guidesStore;
 if (!isGuidesListLoading.value) {
   fetchGuidesList();
 }
-
-const title = "Guides";
-useHead({
-  title,
-});
 </script>
