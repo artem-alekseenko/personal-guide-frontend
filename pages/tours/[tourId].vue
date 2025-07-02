@@ -226,6 +226,7 @@ const router = useRouter();
 const tourStore = useTourStore();
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
+const { t } = useI18n();
 
 // Use persistent tour state (after route is available)
 const tourId = route.params.tourId as string;
@@ -316,20 +317,20 @@ const currentHighlightSentence = computed(() => currentSpokenSentence.value);
 const mainButtonText = computed(() => {
   switch (state.value) {
     case STATE.INITIAL:
-      return "Start tour";
+      return t('buttons.startTour');
     case STATE.RECORD_LOADING:
     case STATE.RECORD_LOADING_WHEN_PAUSED:
-      return "Loading...";
+      return t('common.loading');
     case STATE.RECORD_RECEIVED:
-      return "Play";
+      return t('buttons.play');
     case STATE.RECORD_ACTIVE:
-      return "Pause";
+      return t('buttons.pause');
     case STATE.RECORD_PAUSED:
-      return "Resume";
+      return t('buttons.resume');
     case STATE.RECORD_FINISHED:
-      return "Go to next point";
+      return t('buttons.goToNextPoint');
     case STATE.ERROR:
-      return "Try Again";
+      return t('buttons.tryAgain');
   }
 });
 

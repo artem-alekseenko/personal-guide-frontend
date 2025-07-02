@@ -107,7 +107,10 @@
     "play": "Lecture",
     "pause": "Pause",
     "resume": "Reprendre",
-    "stop": "Arrêter"
+    "stop": "Arrêter",
+    "startTour": "Commencer la visite",
+    "goToNextPoint": "Aller au point suivant",
+    "tryAgain": "Réessayer"
   },
   "errors": {
     "logoutError": "Erreur lors de la déconnexion",

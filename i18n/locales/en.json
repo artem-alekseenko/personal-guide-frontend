@@ -107,7 +107,10 @@
     "play": "Play",
     "pause": "Pause",
     "resume": "Resume",
-    "stop": "Stop"
+    "stop": "Stop",
+    "startTour": "Start tour",
+    "goToNextPoint": "Go to next point",
+    "tryAgain": "Try Again"
   },
   "errors": {
     "logoutError": "Error when exiting",

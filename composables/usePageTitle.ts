@@ -27,10 +27,10 @@ export const usePageTitle = () => {
       // Convert route name to translation key format
       // e.g., "create-route" -> "pages.createRoute.title"
       const translationKey = `pages.${routeName.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())}.title`;
-      
+
       // Try to get translation
       const translatedTitle = t(translationKey);
-      
+
       // If translation exists and is not the same as the key, use it
       if (translatedTitle !== translationKey) {
         return translatedTitle;
@@ -38,13 +38,11 @@ export const usePageTitle = () => {
     }
 
     // Fallback to home page title
-    return t('pages.home.title');
+    return t("pages.home.title");
   };
 
   // Reactive page title that updates when locale changes
   const pageTitle = computed((): string => {
-    // Include locale in computation to make it reactive
-    const currentLocale = locale.value;
     return getPageTitle();
   });
 
@@ -57,9 +55,13 @@ export const usePageTitle = () => {
   };
 
   // Watch for changes and update tab title
-  watch(pageTitle, (newTitle) => {
-    updateTabTitle(newTitle);
-  }, { immediate: true });
+  watch(
+    pageTitle,
+    (newTitle) => {
+      updateTabTitle(newTitle);
+    },
+    { immediate: true },
+  );
 
   // Watch for locale changes to update titles
   watch(locale, () => {
@@ -70,22 +72,28 @@ export const usePageTitle = () => {
   });
 
   // Watch for route changes to update titles
-  watch(() => route.name, () => {
-    nextTick(() => {
-      updateTabTitle();
-    });
-  });
+  watch(
+    () => route.name,
+    () => {
+      nextTick(() => {
+        updateTabTitle();
+      });
+    },
+  );
 
   // Watch for tour changes to update titles
-  watch(() => tourStore.tour, () => {
-    nextTick(() => {
-      updateTabTitle();
-    });
-  });
+  watch(
+    () => tourStore.tour,
+    () => {
+      nextTick(() => {
+        updateTabTitle();
+      });
+    },
+  );
 
   return {
     pageTitle,
     updateTabTitle,
     getPageTitle,
   };
-}; 
+};

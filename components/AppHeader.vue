@@ -10,6 +10,7 @@
         <!-- Back button (show only on certain pages) -->
         <UButton
           v-if="shouldShowBackButton"
+          :aria-label="$t('common.goBack')"
           :class="[
             'transition-colors',
             canNavigateBack
@@ -17,7 +18,6 @@
               : 'cursor-not-allowed text-gray-400 dark:text-gray-600',
           ]"
           :disabled="!canNavigateBack"
-          :aria-label="$t('common.goBack')"
           icon="i-heroicons-arrow-left"
           size="sm"
           variant="ghost"
@@ -124,7 +124,10 @@ const saveNavigationHistoryToStorage = (): void => {
 };
 
 // Throttled version of save function to prevent excessive localStorage writes during rapid adds
-const throttledSaveNavigationHistory = throttle(saveNavigationHistoryToStorage, HISTORY_SAVE_THROTTLE_MS);
+const throttledSaveNavigationHistory = throttle(
+  saveNavigationHistoryToStorage,
+  HISTORY_SAVE_THROTTLE_MS,
+);
 
 // Auto-cleanup throttled function on component unmount
 onUnmounted(() => {
@@ -168,10 +171,10 @@ const addToNavigationHistory = (routePath: NavigationHistoryEntry): void => {
 // Remove and return the last route from history (with immediate save for reliability)
 const popFromNavigationHistory = (): NavigationHistoryEntry | undefined => {
   const previousRoute = navigationHistory.value.pop();
-  
+
   // Critical: save immediately after pop to prevent data loss during rapid back navigation
   saveNavigationHistoryToStorage();
-  
+
   return previousRoute;
 };
 
@@ -213,11 +216,7 @@ const canNavigateBack = computed((): boolean => {
   }
 
   // Or if it's PWA and we're not on main page
-  if (isPWAStandalone.value && route.name !== "index") {
-    return true;
-  }
-
-  return false;
+  return isPWAStandalone.value && route.name !== "index";
 });
 
 // Check back capability on mount and route change
@@ -274,21 +273,24 @@ watch(isAuthenticated, (newValue: boolean, oldValue: boolean) => {
 });
 
 // Update state on route change
-watch(route, (newRoute: RouteLocationNormalized, oldRoute: RouteLocationNormalized) => {
-  if (oldRoute && newRoute.path !== oldRoute.path) {
-    // Add previous route to history
-    addToNavigationHistory(oldRoute.fullPath);
+watch(
+  route,
+  (newRoute: RouteLocationNormalized, oldRoute: RouteLocationNormalized) => {
+    if (oldRoute && newRoute.path !== oldRoute.path) {
+      // Add previous route to history
+      addToNavigationHistory(oldRoute.fullPath);
 
-    // Debug history
-    console.log("Navigation history updated:", {
-      from: oldRoute.fullPath,
-      to: newRoute.fullPath,
-      historySize: navigationHistory.value.length,
-      history: navigationHistory.value,
-    });
-  }
-  updateBackButtonState();
-});
+      // Debug history
+      console.log("Navigation history updated:", {
+        from: oldRoute.fullPath,
+        to: newRoute.fullPath,
+        historySize: navigationHistory.value.length,
+        history: navigationHistory.value,
+      });
+    }
+    updateBackButtonState();
+  },
+);
 
 // Determine when to show back button
 const shouldShowBackButton = computed((): boolean => {

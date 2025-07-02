@@ -25,7 +25,6 @@
         <svg
           :class="{ 'rotate-180': isDropdownOpen }"
           class="ml-2 h-4 w-4 transition-transform duration-200"
-          fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
@@ -81,16 +80,14 @@ const isDropdownOpen = ref(false);
 const dropdownButton = ref<HTMLButtonElement>();
 const dropdownMenu = ref<HTMLDivElement>();
 
-const { locale, setLocale, availableLocales, t } = useI18n();
+const { setLocale, availableLocales, t } = useI18n();
 
 // Create a type that represents any valid locale code
-type LocaleCode = typeof availableLocales[number];
+type LocaleCode = (typeof availableLocales)[number];
 
 const getLabelByCode = (code: string): string => {
   const label = t(`languages.${code}`);
-  return typeof label === "string" && label !== `languages.${code}`
-    ? label
-    : code;
+  return label !== `languages.${code}` ? label : code;
 };
 
 const languageOptions = computed(() =>
@@ -129,7 +126,7 @@ const selectLanguage = async (value: string) => {
     language: value,
   };
   emit("update:preferences", updatedPreferences);
-  setLocale(value as LocaleCode);
+  await setLocale(value as LocaleCode);
   closeDropdown();
 };
 
