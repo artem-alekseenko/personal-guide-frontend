@@ -31,8 +31,9 @@
 
       <!-- Navigation and settings -->
       <div class="flex items-center space-x-4">
-        <!-- Settings icon -->
+        <!-- Settings icon (hide on settings page) -->
         <UButton
+          v-if="route.name !== 'settings'"
           :aria-label="$t('common.settings')"
           icon="i-heroicons-cog-6-tooth"
           size="lg"
