@@ -32,7 +32,11 @@
     "email": "Email",
     "password": "Password",
     "loginError": "Login failed. Please check your credentials.",
-    "logoutSuccess": "Successfully logged out"
+    "logoutSuccess": "Successfully logged out",
+    "loading": {
+      "title": "Authenticating...",
+      "subtitle": "Please wait while we verify your account"
+    }
   },
   "navigation": {
     "goToGuides": "Go to guides pages",

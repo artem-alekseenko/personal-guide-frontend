@@ -32,7 +32,11 @@
     "email": "E-mail",
     "password": "Mot de passe",
     "loginError": "Échec de la connexion. Veuillez vérifier vos identifiants.",
-    "logoutSuccess": "Déconnexion réussie"
+    "logoutSuccess": "Déconnexion réussie",
+    "loading": {
+      "title": "Authentification...",
+      "subtitle": "Veuillez patienter pendant que nous vérifions votre compte"
+    }
   },
   "navigation": {
     "goToGuides": "Aller aux pages des guides",

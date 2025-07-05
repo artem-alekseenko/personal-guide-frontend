@@ -1,5 +1,8 @@
 <template>
   <UApp>
+    <!-- Auth loader -->
+    <AuthLoader />
+    
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
