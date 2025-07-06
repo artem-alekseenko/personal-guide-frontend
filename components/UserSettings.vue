@@ -120,6 +120,7 @@
 
 <script lang="ts" setup>
 import { useAuth } from "~/composables/useAuth";
+import { useToastNotifications } from "~/composables/useToastNotifications";
 import type { IUserPreferences } from "~/types";
 
 const {
@@ -134,6 +135,7 @@ const {
 } = useAuth();
 
 const { isSavingPreferences } = useAuth();
+const { showSettingsSaved, showSettingsError } = useToastNotifications();
 
 // Local copy of preferences for form reactivity
 const preferences = ref<IUserPreferences>({ ...userPreferences.value });
@@ -148,7 +150,12 @@ watch(
 );
 
 const updatePreferences = async () => {
-  await updateUserPreferences(preferences.value);
+  try {
+    await updateUserPreferences(preferences.value);
+    showSettingsSaved();
+  } catch (error) {
+    showSettingsError();
+  }
 };
 
 // Handle preferences update from LanguageSelector

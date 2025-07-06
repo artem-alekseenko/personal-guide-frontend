@@ -122,6 +122,23 @@
     "failedToApproveTour": "Failed to approve tour:",
     "mapNotInitialized": "Map not yet initialized, marker update skipped"
   },
+  "toast": {
+    "settings": {
+      "saved": "Settings saved",
+      "savedDescription": "Your preferences have been updated successfully.",
+      "error": "Settings error",
+      "errorDescription": "Failed to save your preferences. Please try again."
+    },
+
+    "network": {
+      "error": "Network error",
+      "errorDescription": "Unable to connect to the server. Please check your internet connection."
+    },
+    "general": {
+      "operationFailed": "Operation failed",
+      "unexpectedError": "An unexpected error occurred. Please try again."
+    }
+  },
   "languages": {
     "en": "English",
     "ru": "Русский",

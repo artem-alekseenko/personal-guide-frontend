@@ -126,5 +126,22 @@
     "en": "English",
     "ru": "Русский",
     "fr": "Français"
+  },
+  "toast": {
+    "settings": {
+      "saved": "Paramètres sauvegardés",
+      "savedDescription": "Vos préférences ont été mises à jour avec succès.",
+      "error": "Erreur de paramètres",
+      "errorDescription": "Impossible de sauvegarder vos préférences. Veuillez réessayer."
+    },
+
+    "network": {
+      "error": "Erreur réseau",
+      "errorDescription": "Impossible de se connecter au serveur. Veuillez vérifier votre connexion Internet."
+    },
+    "general": {
+      "operationFailed": "L'opération a échoué",
+      "unexpectedError": "Une erreur inattendue s'est produite. Veuillez réessayer."
+    }
   }
 }

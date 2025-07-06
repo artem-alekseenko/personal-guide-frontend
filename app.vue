@@ -1,5 +1,5 @@
 <template>
-  <UApp>
+  <UApp :toaster="{ position: 'top-right', duration: 4000 }">
     <!-- Auth loader -->
     <AuthLoader />
     
