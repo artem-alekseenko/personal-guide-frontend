@@ -145,13 +145,15 @@ export interface IGeoJSON {
   features: IGeoJSONFeature[] | null;
 }
 
+import type { VoiceType } from "./voice";
+
 export interface ITourRecordRequest {
   duration: string;
   point: ICoordinate;
   user_text: string;
   pace: string;
   type_llm: "SIMPLE" | "OPENAI" | "GEMINI" | "MOCK";
-  type_voice: "ELEVEN_LABS" | "MOCK";
+  type_voice: VoiceType;
 }
 
 export interface ITourRecordResponse {
@@ -181,6 +183,7 @@ export type TRequestMethod =
 // User related types
 export interface IUserPreferences {
   language: string;
+  voiceType: VoiceType;
 }
 
 export interface IUserProfile {

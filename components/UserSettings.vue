@@ -44,6 +44,12 @@
           :preferences="preferences"
           @update:preferences="handlePreferencesUpdate"
         />
+        
+        <!-- Voice Type -->
+        <VoiceTypeSelector
+          :preferences="preferences"
+          @update:preferences="handlePreferencesUpdate"
+        />
       </div>
     </div>
 

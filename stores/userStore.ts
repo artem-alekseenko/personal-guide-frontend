@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { User } from "firebase/auth";
 import type { IUserPreferences, IUserProfile, IUserStats } from "~/types";
+import { DEFAULT_VOICE_TYPE } from "~/types/voice";
 import { useUserApi } from "~/composables/useUserApi";
 
 export interface IUserStore {
@@ -30,6 +31,7 @@ export interface IUserStore {
 
 const defaultPreferences: IUserPreferences = {
   language: "en",
+  voiceType: DEFAULT_VOICE_TYPE,
 };
 
 const defaultStats: IUserStats = {

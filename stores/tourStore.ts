@@ -99,6 +99,9 @@ export const useTourStore = defineStore("tourStore", () => {
     if (!tour.value) return;
 
     try {
+      // Get user preferences for voice type
+      const { userPreferences } = useAuth();
+      
       const params: ITourRecordRequest = {
         duration: "100",
         point: {
@@ -108,7 +111,7 @@ export const useTourStore = defineStore("tourStore", () => {
         user_text: userText.value,
         pace: "1",
         type_llm: "GEMINI",
-        type_voice: "ELEVEN_LABS",
+        type_voice: userPreferences.value.voiceType,
       };
 
       const tourId = tour.value.id;

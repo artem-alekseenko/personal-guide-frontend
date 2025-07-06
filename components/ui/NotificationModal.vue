@@ -1,11 +1,11 @@
 <template>
   <ModalOverlay
+    :animation-type="animationType"
     :aria-describedby="descriptionId"
     :aria-labelledby="titleId"
     :close-on-overlay-click="closeOnOverlayClick"
     :open="open"
     :role="modalRole"
-    :animation-type="animationType"
     @close="handleOverlayClose"
   >
     <ModalContent
@@ -167,9 +167,12 @@ const modalRole = computed(() => {
 
 // Dynamic animation type based on notification type
 const animationType = computed(() => {
-  const animationMap: Record<NotificationType, 'default' | 'bounce' | 'slide' | 'zoom'> = {
+  const animationMap: Record<
+    NotificationType,
+    "default" | "bounce" | "slide" | "zoom"
+  > = {
     success: "bounce",
-    error: "slide", 
+    error: "slide",
     warning: "zoom",
     info: "default",
   };
@@ -387,6 +390,7 @@ onUnmounted(() => {
   font-family:
     ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo,
     monospace;
+  line-break: anywhere;
 }
 
 .dark .details-text {
