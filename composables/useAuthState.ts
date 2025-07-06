@@ -2,6 +2,7 @@ import { useAuth } from "~/composables/useAuth";
 
 export const useAuthState = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const userStore = useUserStore();
   
   // Track if Firebase auth has been initialized
   const isAuthInitialized = ref(false);
@@ -9,9 +10,9 @@ export const useAuthState = () => {
   // Show loader when:
   // 1. Auth is not initialized yet, OR
   // 2. User is not authenticated and we're still loading, OR
-  // 3. We're explicitly loading something
+  // 3. We're explicitly loading something (but not saving preferences)
   const shouldShowAuthLoader = computed(() => {
-    return !isAuthInitialized.value || (!isAuthenticated.value && isLoading.value) || isLoading.value;
+    return !isAuthInitialized.value || (!isAuthenticated.value && isLoading.value) || (isLoading.value && !userStore.isSavingPreferences);
   });
   
   // Mark auth as initialized when user state changes

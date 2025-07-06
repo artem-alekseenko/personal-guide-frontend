@@ -69,6 +69,7 @@ export const useAuth = () => {
     stats: computed(() => userStore.stats),
     isAuthenticated: computed(() => userStore.isAuthenticated),
     isLoading: computed(() => userStore.isLoading),
+    isSavingPreferences: computed(() => userStore.isSavingPreferences),
     
     // Getters from store
     userPreferences: computed(() => userStore.userPreferences),

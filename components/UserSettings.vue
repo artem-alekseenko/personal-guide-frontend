@@ -1,5 +1,7 @@
 <template>
   <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
+    <!-- Settings saving overlay -->
+    <SettingsSavingOverlay :is-saving="isSavingPreferences" />
     <!-- User profile -->
     <div class="mt-4 mb-8">
       <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
@@ -130,6 +132,8 @@ const {
   logout: authLogout,
   reset,
 } = useAuth();
+
+const { isSavingPreferences } = useAuth();
 
 // Local copy of preferences for form reactivity
 const preferences = ref<IUserPreferences>({ ...userPreferences.value });

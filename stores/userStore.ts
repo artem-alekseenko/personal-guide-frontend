@@ -12,6 +12,7 @@ export interface IUserStore {
   stats: Ref<IUserStats | null>;
   isAuthenticated: ComputedRef<boolean>;
   isLoading: Ref<boolean>;
+  isSavingPreferences: Ref<boolean>;
 
   // Getters
   userPreferences: ComputedRef<IUserPreferences>;
@@ -51,6 +52,7 @@ export const useUserStore = defineStore(
     const profile = ref<IUserProfile | null>(null);
     const stats = ref<IUserStats | null>(null);
     const isLoading = ref<boolean>(false);
+    const isSavingPreferences = ref<boolean>(false);
 
     // Getters
     const isAuthenticated = computed((): boolean => {
@@ -184,7 +186,7 @@ export const useUserStore = defineStore(
       }
 
       try {
-        isLoading.value = true;
+        isSavingPreferences.value = true;
         const { updateUserProfile } = useUserApi();
 
         const currentName = userName.value;
@@ -199,7 +201,7 @@ export const useUserStore = defineStore(
         console.error("Failed to sync preferences to server:", error);
         throw error; // Re-throw to allow UI to handle the error
       } finally {
-        isLoading.value = false;
+        isSavingPreferences.value = false;
       }
     };
 
@@ -216,6 +218,7 @@ export const useUserStore = defineStore(
       profile,
       stats,
       isLoading,
+      isSavingPreferences,
 
       // Getters
       isAuthenticated,
