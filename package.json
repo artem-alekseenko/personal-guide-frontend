@@ -34,10 +34,10 @@
   },
   "dependencies": {
     "@mapbox/mapbox-gl-directions": "4.3.1",
-    "firebase": "11.10.0",
-    "mapbox-gl": "3.13.0",
-    "pinia-plugin-persistedstate": "4.4.1",
-    "vue": "3.5.17",
+    "firebase": "12.2.1",
+    "mapbox-gl": "3.14.0",
+    "pinia-plugin-persistedstate": "4.5.0",
+    "vue": "3.5.20",
     "vue-router": "4.5.1"
   },
   "packageManager": "pnpm@10.15.0",
