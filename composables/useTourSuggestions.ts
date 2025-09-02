@@ -11,7 +11,7 @@ export const useTourSuggestions = async (
   
   try {
     const data = await apiFetch<IRouteSuggestionsResponseExtended>(
-      "api/route-suggestions",
+      "/api/route-suggestions",
       { query: params },
     );
 
