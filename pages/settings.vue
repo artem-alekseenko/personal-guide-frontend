@@ -5,9 +5,7 @@
 </template>
 
 <script lang="ts" setup>
-definePageMeta({
-  middleware: ["auth"],
-});
+definePageMeta({});
 
 onMounted(() => {
   if (import.meta.client) {

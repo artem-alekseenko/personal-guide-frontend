@@ -39,6 +39,10 @@ export default defineNuxtConfig({
   typescript: {
     typeCheck: true,
   },
+  runtimeConfig: {
+    pgApiBaseUrl: process.env.PG_API_BASE_URL || '',
+    publicApiPrefixes: process.env.PUBLIC_API_PREFIXES || '/api/health,/api/public',
+  },
   vuefire: {
     auth: {
       enabled: true,

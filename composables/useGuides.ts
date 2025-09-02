@@ -1,8 +1,11 @@
 import type { IGuide } from "~/types";
 
 export const useGuides = async (): Promise<IGuide[]> => {
+  const { $apiFetch } = useNuxtApp();
+  const apiFetch = $apiFetch as typeof $fetch;
+  
   try {
-    const data = await $fetch<IGuide[]>("/api/guides");
+    const data = await apiFetch<IGuide[]>("/api/guides");
     return data;
   } catch (error) {
     throw createError({

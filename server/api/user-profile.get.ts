@@ -2,7 +2,6 @@ import type { IServerUserResponse } from "~/types";
 import { useExternalApi } from "~/composables/server/useExternalApi";
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig();
   const apiUrl = process.env.PG_API_GET_ME;
 
   if (!apiUrl) {
@@ -13,7 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const response = await useExternalApi<IServerUserResponse>(apiUrl);
+    const response = await useExternalApi<IServerUserResponse>(event, apiUrl);
     return response;
   } catch (error: any) {
     console.error("Error fetching user profile:", error);

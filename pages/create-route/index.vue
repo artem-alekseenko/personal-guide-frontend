@@ -107,9 +107,7 @@ import PGMap from "~/components/PGMap.vue";
 import { definePageMeta, useGuidesStore } from "#imports";
 import { getMainButtonText } from "~/utils/pages/create-route/mainButtonText";
 
-definePageMeta({
-  middleware: ["auth"],
-});
+definePageMeta({});
 
 // Constants
 const MIN_DURATION_TOUR_MINUTES = 5;

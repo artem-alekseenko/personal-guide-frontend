@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const response = await useExternalApi<IListOfTours>(apiUrlForGettingTours);
+    const response = await useExternalApi<IListOfTours>(event, apiUrlForGettingTours);
 
     const { tours } = response;
 

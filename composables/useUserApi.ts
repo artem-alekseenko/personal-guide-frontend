@@ -1,18 +1,27 @@
 import type { IServerUserResponse } from "~/types";
 
 export const useUserApi = () => {
+  const nuxtApp = useNuxtApp();
+  const apiFetch = (nuxtApp.$apiFetch ?? $fetch) as typeof $fetch;
+
+  if (!("$apiFetch" in nuxtApp) && import.meta.dev) {
+    console.warn(
+      "[useUserApi] $apiFetch is not ready yet, falling back to $fetch (no Authorization header).",
+    );
+  }
+  
   /**
    * Fetch user profile from server
    */
   const fetchUserProfile = async (): Promise<IServerUserResponse> => {
     try {
-      const response = await $fetch<IServerUserResponse>('/api/user-profile');
+      const response = await apiFetch<IServerUserResponse>("/api/user-profile");
       return response;
     } catch (error: any) {
-      console.error('Error fetching user profile:', error);
+      console.error("Error fetching user profile:", error);
       throw createError({
         statusCode: error.statusCode || 500,
-        statusMessage: error.message || 'Failed to fetch user profile'
+        statusMessage: error.message || "Failed to fetch user profile",
       });
     }
   };
@@ -20,10 +29,13 @@ export const useUserApi = () => {
   /**
    * Update user profile on server
    */
-  const updateUserProfile = async (name: string, language: string): Promise<IServerUserResponse> => {
+  const updateUserProfile = async (
+    name: string,
+    language: string,
+  ): Promise<IServerUserResponse> => {
     try {
-      const response = await $fetch<IServerUserResponse>('/api/user-profile', {
-        method: 'PUT',
+      const response = await apiFetch<IServerUserResponse>("/api/user-profile", {
+        method: "PUT",
         body: {
           name,
           language,
@@ -31,10 +43,10 @@ export const useUserApi = () => {
       });
       return response;
     } catch (error: any) {
-      console.error('Error updating user profile:', error);
+      console.error("Error updating user profile:", error);
       throw createError({
         statusCode: error.statusCode || 500,
-        statusMessage: error.message || 'Failed to update user profile'
+        statusMessage: error.message || "Failed to update user profile",
       });
     }
   };

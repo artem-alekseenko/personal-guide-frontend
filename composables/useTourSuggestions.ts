@@ -6,8 +6,11 @@ import type {
 export const useTourSuggestions = async (
   params: IRouteSuggestionsParams,
 ): Promise<IRouteSuggestionsResponseExtended> => {
+  const { $apiFetch } = useNuxtApp();
+  const apiFetch = $apiFetch as typeof $fetch;
+  
   try {
-    const data = await $fetch<IRouteSuggestionsResponseExtended>(
+    const data = await apiFetch<IRouteSuggestionsResponseExtended>(
       "api/route-suggestions",
       { query: params },
     );

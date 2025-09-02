@@ -2,7 +2,7 @@ import type { IGuide, IGuidesResponse } from "~/types";
 import { useExternalApi } from "~/composables/server/useExternalApi";
 import { defineEventHandler } from "h3";
 
-export default defineEventHandler(async (): Promise<IGuide[]> => {
+export default defineEventHandler(async (event): Promise<IGuide[]> => {
   const apiUrlForGettingGuides = process.env.PG_API_GUIDES_URL;
 
   if (!apiUrlForGettingGuides) {
@@ -12,6 +12,7 @@ export default defineEventHandler(async (): Promise<IGuide[]> => {
 
   try {
     const response = await useExternalApi<IGuidesResponse>(
+      event,
       apiUrlForGettingGuides,
     );
 

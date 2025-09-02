@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   if (!params) {
     throw new Error("Params are not defined");
   }
-  const { tourId } = params;
+  const { tourId } = params as Record<string, string>;
 
   if (!process.env.PG_API_CREATE_ROUTE_URL) {
     console.error("External API URL for getting tour record is not defined");
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event);
 
   try {
-    return await useExternalApi(apiUrlForGettingTourRecord, body, "POST");
+    return await useExternalApi(event, apiUrlForGettingTourRecord, body, "POST");
   } catch (error) {
     console.error("Failed to fetch data from external", error);
   }

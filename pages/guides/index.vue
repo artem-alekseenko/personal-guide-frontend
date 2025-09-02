@@ -20,9 +20,7 @@
 import PGGuide from "~/components/PGGuide.vue";
 import { definePageMeta, useGuidesStore } from "#imports";
 
-definePageMeta({
-  middleware: ["auth"],
-});
+definePageMeta({});
 
 const guidesStore = useGuidesStore();
 const { guidesList, isGuidesListLoading } = storeToRefs(guidesStore);

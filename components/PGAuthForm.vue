@@ -42,6 +42,7 @@ const email = ref("");
 const password = ref("");
 
 const auth = getAuth();
+const route = useRoute();
 
 const login = async () => {
   state.value = STATE.REQUESTING_USER;
@@ -60,5 +61,11 @@ const login = async () => {
   }
 
   state.value = STATE.USER_FOUND;
+
+  // Navigate after successful login: respect ?next, default to /tours, and avoid open redirects
+  const nextParam = (route.query.next as string) || "/tours";
+  if (typeof nextParam === "string" && nextParam.startsWith("/")) {
+    await navigateTo(nextParam, { replace: true });
+  }
 };
 </script>

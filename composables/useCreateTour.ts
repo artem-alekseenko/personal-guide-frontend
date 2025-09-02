@@ -3,8 +3,11 @@ import type { ICreatedTour, ICreateTourRequest } from "~/types";
 export const useCreateTour = async (
   params: ICreateTourRequest,
 ): Promise<ICreatedTour> => {
+  const { $apiFetch } = useNuxtApp();
+  const apiFetch = $apiFetch as typeof $fetch;
+  
   try {
-    const data = await $fetch<ICreatedTour>("/api/create-tour", {
+    const data = await apiFetch<ICreatedTour>("/api/create-tour", {
       body: params,
       method: "POST",
     });

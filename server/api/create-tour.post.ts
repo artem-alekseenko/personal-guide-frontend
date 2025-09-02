@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event);
 
   try {
-    return await useExternalApi(apiUrlForCreatingRoute, body, "POST");
+    return await useExternalApi(event, apiUrlForCreatingRoute, body, "POST");
   } catch (error) {
     console.error("Failed to fetch data from external API", error);
   }

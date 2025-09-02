@@ -25,7 +25,7 @@ import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import type { TypeFrom } from "~/types";
 import { definePageMeta } from "#imports";
 
-definePageMeta({});
+definePageMeta({ public: true });
 
 const STATE = {
   INITIAL: "INITIAL",

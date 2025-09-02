@@ -93,9 +93,7 @@
 </template>
 
 <script lang="ts" setup>
-definePageMeta({
-  middleware: ["auth"],
-});
+definePageMeta({});
 
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";

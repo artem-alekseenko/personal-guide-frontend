@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const { name, language } = body;
+    const { name, language } = body as Record<string, unknown>;
 
     if (!name || !language) {
       throw createError({
@@ -36,6 +36,7 @@ export default defineEventHandler(async (event) => {
     };
 
     const response = await useExternalApi<IServerUserResponse>(
+      event,
       apiUrl,
       requestParams,
       "PUT",

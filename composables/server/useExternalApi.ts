@@ -1,51 +1,33 @@
+import type { H3Event } from "h3";
 import type { TRequestMethod } from "~/types";
 import buildCurlCommand from "~/utils/buildCurlCommand";
+import { forwardAuthAndFetch } from "~/server/utils/http";
 
 /**
- * Makes an HTTP request to an external API with optional parameters and method.
- * Automatically includes an authorization token from environment variables.
- *
- * @template T The expected response type.
- * @param {string} url - The endpoint URL to send the request to.
- * @param {Record<string, string>} [params={}] - An object containing query parameters or body parameters.
- * @param {TRequestMethod} [method='GET'] - The HTTP method to use for the request.
- * @returns {Promise<T>} A promise that resolves to the response of type T.
- * @throws Will throw an error if the HTTP request fails.
+ * Server-only helper: forwards client Authorization to downstream service.
  */
 export const useExternalApi = async <T>(
+  event: H3Event,
   url: string,
-  params: Record<string, string> = {},
+  params: Record<string, string | number | boolean> = {},
   method: TRequestMethod = "GET",
 ): Promise<T> => {
-  const accessToken = process.env.PG_API_AUTHORIZATION_TOKEN;
   const hasParams = Object.keys(params).length > 0;
-  const urlEncodedParams = hasParams
-    ? new URLSearchParams(params).toString()
-    : "";
 
   const headers = new Headers();
-  headers.append("Authorization", `Bearer ${accessToken}`);
-
-  const requestOptions: RequestInit = {
-    method,
-    headers,
-  };
+  const init: RequestInit = { method, headers: headers as any };
 
   if (hasParams) {
+    const usp = new URLSearchParams(params as any).toString();
     if (method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD") {
-      url += `?${urlEncodedParams}`;
+      url += `?${usp}`;
     } else {
-      requestOptions.body = JSON.stringify(params);
-      headers.append("Content-Type", "application/json");
+      init.body = JSON.stringify(params);
+      headers.set("Content-Type", "application/json");
     }
   }
 
-  try {
-    buildCurlCommand(url, requestOptions);
-    // @ts-ignore
-    return await $fetch<T>(url, requestOptions);
-  } catch (error) {
-    console.error("Inside useExternalApi error", error);
-    throw error;
-  }
+  const curl = buildCurlCommand(url, init);
+  console.log(`[useExternalApi] ${method} ${url}\n${curl}`);
+  return forwardAuthAndFetch<T>(event, url, init);
 };

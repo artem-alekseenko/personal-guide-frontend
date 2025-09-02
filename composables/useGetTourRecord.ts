@@ -8,8 +8,11 @@ export const useGetTourRecord = async (
   tourId: string,
   params: ITourRecordRequest,
 ): Promise<ITourRecord> => {
+  const { $apiFetch } = useNuxtApp();
+  const apiFetch = $apiFetch as typeof $fetch;
+  
   try {
-    const data = await $fetch<ITourRecordResponse>(
+    const data = await apiFetch<ITourRecordResponse>(
       `/api/get-tour-record/${tourId}`,
       {
         body: params,

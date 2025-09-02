@@ -39,6 +39,7 @@ export default defineEventHandler(
 
     try {
       const response = await useExternalApi<IRouteSuggestionsResponse>(
+        event,
         externalApiUrl,
         {
           curr_lat: restParams.lat,
