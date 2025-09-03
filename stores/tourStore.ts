@@ -88,7 +88,7 @@ export const useTourStore = defineStore("tourStore", () => {
       setTour(tour);
     } catch (error) {
       console.error("Error fetching tour:", error);
-      
+
       // Use notification system for errors
       const { showApiError } = useNotification();
       showApiError(error, "Failed to fetch tour data");
@@ -101,7 +101,7 @@ export const useTourStore = defineStore("tourStore", () => {
     try {
       // Get user preferences for voice type
       const { userPreferences } = useAuth();
-      
+
       const params: ITourRecordRequest = {
         duration: "100",
         point: {
@@ -110,8 +110,8 @@ export const useTourStore = defineStore("tourStore", () => {
         },
         user_text: userText.value,
         pace: "1",
-        type_llm: "GEMINI",
-        type_voice: userPreferences.value.voiceType,
+        type_llm: "DEFAULT",
+        type_voice: "MOCK",
       };
 
       const tourId = tour.value.id;
@@ -122,7 +122,8 @@ export const useTourStore = defineStore("tourStore", () => {
         const { showError } = useNotification();
         showError({
           title: "No Data Received",
-          message: "No tour record received from server. The server returned an empty response.",
+          message:
+            "No tour record received from server. The server returned an empty response.",
           primaryActionText: "Try Again",
         });
         return;
@@ -136,11 +137,11 @@ export const useTourStore = defineStore("tourStore", () => {
       setUserText("");
     } catch (error) {
       console.error("Error fetching tour step:", error);
-      
+
       // Use notification system for errors
       const { showApiError } = useNotification();
       showApiError(error, "Failed to fetch tour step");
-      
+
       throw error; // Re-throw so the page component can handle state changes
     }
   };

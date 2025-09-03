@@ -152,7 +152,7 @@ export interface ITourRecordRequest {
   point: ICoordinate;
   user_text: string;
   pace: string;
-  type_llm: "SIMPLE" | "OPENAI" | "GEMINI" | "MOCK";
+  type_llm: "SIMPLE" | "OPENAI" | "GEMINI" | "MOCK" | "DEFAULT";
   type_voice: VoiceType;
 }
 
