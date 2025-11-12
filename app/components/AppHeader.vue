@@ -63,7 +63,6 @@ import { useAuth } from "~/composables/useAuth";
 import { useTourStore } from "~/stores/tourStore";
 import { usePageTitle } from "~/composables/usePageTitle";
 import { throttle } from "~/utils/throttleDebounce";
-import type { RouteLocationNormalized } from "vue-router";
 
 // Type definitions for better reliability
 type RouteName = string | symbol | null | undefined;
@@ -276,7 +275,7 @@ watch(isAuthenticated, (newValue: boolean, oldValue: boolean) => {
 // Update state on route change
 watch(
   route,
-  (newRoute: RouteLocationNormalized, oldRoute: RouteLocationNormalized) => {
+  (newRoute, oldRoute) => {
     if (oldRoute && newRoute.path !== oldRoute.path) {
       // Add previous route to history
       addToNavigationHistory(oldRoute.fullPath);

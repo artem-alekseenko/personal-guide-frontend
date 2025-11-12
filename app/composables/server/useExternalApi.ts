@@ -1,7 +1,7 @@
 import type { H3Event } from "h3";
 import type { TRequestMethod } from "~/types";
 import buildCurlCommand from "~/utils/buildCurlCommand";
-import { forwardAuthAndFetch } from "~/server/utils/http";
+import { forwardAuthAndFetch } from "../../../server/utils/http";
 
 /**
  * Server-only helper: forwards client Authorization to downstream service.

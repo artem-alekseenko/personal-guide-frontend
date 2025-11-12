@@ -1,6 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
+  srcDir: "app/",
+  serverDir: "server/",
   app: {
     head: {
       link: [
@@ -75,7 +77,7 @@ export default defineNuxtConfig({
     ],
     defaultLocale: "en",
     lazy: true,
-    langDir: "locales",
+    langDir: "../i18n/locales",
     strategy: "no_prefix",
     bundle: {
       optimizeTranslationDirective: false,
