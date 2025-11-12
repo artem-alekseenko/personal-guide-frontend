@@ -71,13 +71,14 @@ export default defineNuxtConfig({
   },
   css: ["~/assets/css/main.css"],
   i18n: {
+    restructureDir: "i18n",
     locales: [
       { code: "en", file: "en.json", name: "English" },
       { code: "ru", file: "ru.json", name: "Русский" },
       { code: "fr", file: "fr.json", name: "Français" },
     ],
     defaultLocale: "en",
-    langDir: "../i18n/locales",
+    langDir: "locales",
     strategy: "no_prefix",
     detectBrowserLanguage: {
       useCookie: true,
