@@ -42,8 +42,9 @@ export default defineNuxtConfig({
     typeCheck: true,
   },
   runtimeConfig: {
-    pgApiBaseUrl: process.env.PG_API_BASE_URL || '',
-    publicApiPrefixes: process.env.PUBLIC_API_PREFIXES || '/api/health,/api/public',
+    pgApiBaseUrl: process.env.PG_API_BASE_URL || "",
+    publicApiPrefixes:
+      process.env.PUBLIC_API_PREFIXES || "/api/health,/api/public",
   },
   vuefire: {
     auth: {
@@ -76,12 +77,8 @@ export default defineNuxtConfig({
       { code: "fr", file: "fr.json", name: "Français" },
     ],
     defaultLocale: "en",
-    lazy: true,
     langDir: "../i18n/locales",
     strategy: "no_prefix",
-    bundle: {
-      optimizeTranslationDirective: false,
-    },
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: "i18n_redirected",
