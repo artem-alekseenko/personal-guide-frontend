@@ -54,7 +54,8 @@
       "popupClosed": "La connexion a été annulée",
       "popupBlocked": "La fenêtre contextuelle a été bloquée. Veuillez autoriser les popups pour ce site.",
       "accountExistsDifferentCredential": "Un compte existe déjà avec le même e-mail mais une autre méthode de connexion",
-      "passwordMismatch": "Les mots de passe ne correspondent pas"
+      "passwordMismatch": "Les mots de passe ne correspondent pas",
+      "serviceUnavailable": "Connexion temporairement indisponible. Veuillez réessayer plus tard."
     }
   },
   "navigation": {
