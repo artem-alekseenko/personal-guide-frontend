@@ -145,7 +145,7 @@ export interface IGeoJSON {
   features: IGeoJSONFeature[] | null;
 }
 
-import type { VoiceType } from "./voice";
+import type {VoiceType} from "./voice";
 
 export interface ITourRecordRequest {
   duration: string;
@@ -180,7 +180,6 @@ export type TRequestMethod =
   | "CONNECT"
   | "TRACE";
 
-// User related types
 export interface IUserPreferences {
   language: string;
   voiceType: VoiceType;
@@ -197,7 +196,6 @@ export interface IUserProfile {
   preferences: IUserPreferences;
 }
 
-// Server user response
 export interface IServerUserResponse {
   id: string;
   name: string;

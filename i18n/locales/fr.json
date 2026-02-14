@@ -29,13 +29,32 @@
   },
   "auth": {
     "login": "Connexion",
+    "register": "S'inscrire",
     "email": "E-mail",
     "password": "Mot de passe",
+    "passwordConfirm": "Confirmer le mot de passe",
     "loginError": "Échec de la connexion. Veuillez vérifier vos identifiants.",
     "logoutSuccess": "Déconnexion réussie",
+    "orSignInWithEmail": "Ou connectez-vous avec l'e-mail",
+    "continueWithGoogle": "Continuer avec Google",
+    "noAccountRegister": "Pas de compte ? S'inscrire",
+    "hasAccountLogin": "Déjà un compte ? Se connecter",
     "loading": {
       "title": "Authentification...",
       "subtitle": "Veuillez patienter pendant que nous vérifions votre compte"
+    },
+    "errors": {
+      "invalidEmail": "Adresse e-mail invalide",
+      "userDisabled": "Ce compte a été désactivé",
+      "userNotFound": "Aucun compte trouvé avec cet e-mail",
+      "wrongPassword": "Mot de passe incorrect",
+      "emailAlreadyInUse": "Un compte existe déjà avec cet e-mail",
+      "weakPassword": "Le mot de passe doit contenir au moins 6 caractères",
+      "invalidCredential": "Identifiants invalides. Veuillez réessayer.",
+      "popupClosed": "La connexion a été annulée",
+      "popupBlocked": "La fenêtre contextuelle a été bloquée. Veuillez autoriser les popups pour ce site.",
+      "accountExistsDifferentCredential": "Un compte existe déjà avec le même e-mail mais une autre méthode de connexion",
+      "passwordMismatch": "Les mots de passe ne correspondent pas"
     }
   },
   "navigation": {
@@ -46,7 +65,8 @@
   },
   "pages": {
     "home": {
-      "title": "Page principale du Guide Personnel"
+      "title": "Page principale du Guide Personnel",
+      "titleLogin": "Connexion"
     },
     "tours": {
       "title": "Itinéraires",
