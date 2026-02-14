@@ -127,6 +127,7 @@ const errorKeyMap: Partial<Record<AuthErrorCode, string>> = {
   "auth/cancelled-popup-request": "auth.errors.popupClosed",
   "auth/popup-blocked": "auth.errors.popupBlocked",
   "auth/account-exists-with-different-credential": "auth.errors.accountExistsDifferentCredential",
+  "auth/service-unavailable": "auth.errors.serviceUnavailable",
 };
 
 const getErrorMessage = (code: AuthErrorCode): string =>
@@ -167,6 +168,8 @@ const handleEmailSubmit = async () => {
 };
 
 const onSocialError = (code: string) => {
-  formError.value = isAuthErrorCode(code) ? getErrorMessage(code) : t("auth.loginError");
+  formError.value = isAuthErrorCode(code)
+    ? getErrorMessage(code)
+    : t("auth.errors.serviceUnavailable");
 };
 </script>

@@ -54,7 +54,8 @@
       "popupClosed": "Вход отменён",
       "popupBlocked": "Всплывающее окно заблокировано. Разрешите всплывающие окна для этого сайта.",
       "accountExistsDifferentCredential": "Аккаунт с таким email уже существует с другим способом входа",
-      "passwordMismatch": "Пароли не совпадают"
+      "passwordMismatch": "Пароли не совпадают",
+      "serviceUnavailable": "Вход временно недоступен. Попробуйте позже."
     }
   },
   "navigation": {

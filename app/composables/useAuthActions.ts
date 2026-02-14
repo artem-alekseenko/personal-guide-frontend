@@ -1,9 +1,9 @@
 import {
-  getAuth,
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  getAuth,
   GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  signInWithPopup,
 } from "firebase/auth";
 
 export type AuthErrorCode =
@@ -18,7 +18,23 @@ export type AuthErrorCode =
   | "auth/popup-blocked"
   | "auth/cancelled-popup-request"
   | "auth/account-exists-with-different-credential"
+  | "auth/service-unavailable"
   | string;
+
+const isInfraError = (err: { code?: string; message?: string }): boolean => {
+  const msg = (err.message ?? "").toLowerCase();
+  const code = err.code ?? "";
+  return (
+    code === "auth/app-check-failed" ||
+    code === "auth/internal-error" ||
+    msg.includes("app not registered") ||
+    msg.includes("app-check") ||
+    msg.includes("failed_precondition") ||
+    msg.includes("exchangeRecaptchaV3Token") ||
+    msg.includes("network") ||
+    msg.includes("unavailable")
+  );
+};
 
 export interface AuthActionResult {
   success: boolean;
@@ -54,7 +70,9 @@ export const useAuthActions = () => {
       const err = e as { code?: string; message?: string };
       return {
         success: false,
-        errorCode: err.code as AuthErrorCode,
+        errorCode: (isInfraError(err)
+          ? "auth/service-unavailable"
+          : err.code) as AuthErrorCode,
         errorMessage: err.message,
       };
     }
@@ -72,7 +90,9 @@ export const useAuthActions = () => {
       const err = e as { code?: string; message?: string };
       return {
         success: false,
-        errorCode: err.code as AuthErrorCode,
+        errorCode: (isInfraError(err)
+          ? "auth/service-unavailable"
+          : err.code) as AuthErrorCode,
         errorMessage: err.message,
       };
     }
@@ -88,7 +108,9 @@ export const useAuthActions = () => {
       const err = e as { code?: string; message?: string };
       return {
         success: false,
-        errorCode: err.code as AuthErrorCode,
+        errorCode: (isInfraError(err)
+          ? "auth/service-unavailable"
+          : err.code) as AuthErrorCode,
         errorMessage: err.message,
       };
     }

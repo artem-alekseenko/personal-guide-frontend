@@ -54,7 +54,8 @@
       "popupClosed": "Sign-in was cancelled",
       "popupBlocked": "Popup was blocked. Please allow popups for this site.",
       "accountExistsDifferentCredential": "An account already exists with the same email but different sign-in method",
-      "passwordMismatch": "Passwords do not match"
+      "passwordMismatch": "Passwords do not match",
+      "serviceUnavailable": "Login temporarily unavailable. Please try again later."
     }
   },
   "navigation": {
