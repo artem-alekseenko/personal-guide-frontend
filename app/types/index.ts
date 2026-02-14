@@ -62,8 +62,7 @@ export interface IRouteSuggestionsResponse {
   high_places: IHighPlace[];
 }
 
-export interface IRouteSuggestionsResponseExtended
-  extends IRouteSuggestionsResponse {
+export interface IRouteSuggestionsResponseExtended extends IRouteSuggestionsResponse {
   coordinates: [number, number][];
 }
 
@@ -145,7 +144,7 @@ export interface IGeoJSON {
   features: IGeoJSONFeature[] | null;
 }
 
-import type {VoiceType} from "./voice";
+import type { VoiceType } from "./voice";
 
 export interface ITourRecordRequest {
   duration: string;

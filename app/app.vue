@@ -32,7 +32,12 @@
 </template>
 
 <script setup>
-const { notification, handlePrimaryAction, handleSecondaryAction, hideNotification } = useNotification();
+const {
+  notification,
+  handlePrimaryAction,
+  handleSecondaryAction,
+  hideNotification,
+} = useNotification();
 
 const handleOpenChange = (isOpen) => {
   if (!isOpen) {
@@ -44,7 +49,7 @@ const handleModalClose = (reason) => {
   if (notification.value.onClose) {
     notification.value.onClose(reason);
   }
-  
+
   hideNotification();
 };
 </script>

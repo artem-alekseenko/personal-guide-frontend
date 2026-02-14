@@ -58,10 +58,10 @@
 </template>
 
 <script lang="ts" setup>
-import {useAuth} from "~/composables/useAuth";
-import {useTourStore} from "~/stores/tourStore";
-import {usePageTitle} from "~/composables/usePageTitle";
-import {throttle} from "~/utils/throttleDebounce";
+import { useAuth } from "~/composables/useAuth";
+import { useTourStore } from "~/stores/tourStore";
+import { usePageTitle } from "~/composables/usePageTitle";
+import { throttle } from "~/utils/throttleDebounce";
 
 type RouteName = string | symbol | null | undefined;
 type NavigationHistoryEntry = string;
@@ -240,22 +240,19 @@ watch(isAuthenticated, (newValue: boolean, oldValue: boolean) => {
   }
 });
 
-watch(
-  route,
-  (newRoute, oldRoute) => {
-    if (oldRoute && newRoute.path !== oldRoute.path) {
-      addToNavigationHistory(oldRoute.fullPath);
+watch(route, (newRoute, oldRoute) => {
+  if (oldRoute && newRoute.path !== oldRoute.path) {
+    addToNavigationHistory(oldRoute.fullPath);
 
-      console.log("Navigation history updated:", {
-        from: oldRoute.fullPath,
-        to: newRoute.fullPath,
-        historySize: navigationHistory.value.length,
-        history: navigationHistory.value,
-      });
-    }
-    updateBackButtonState();
-  },
-);
+    console.log("Navigation history updated:", {
+      from: oldRoute.fullPath,
+      to: newRoute.fullPath,
+      historySize: navigationHistory.value.length,
+      history: navigationHistory.value,
+    });
+  }
+  updateBackButtonState();
+});
 
 const shouldShowBackButton = computed((): boolean => {
   const excludedPages: RouteName[] = ["index"];

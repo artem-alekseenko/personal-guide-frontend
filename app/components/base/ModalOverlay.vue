@@ -18,11 +18,7 @@
 
         <!-- Modal content slot with content transition -->
         <transition :name="`modal-${animationType}`" appear>
-          <div
-            v-if="open"
-            class="modal-container"
-            @click.stop
-          >
+          <div v-if="open" class="modal-container" @click.stop>
             <slot />
           </div>
         </transition>

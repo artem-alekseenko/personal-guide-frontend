@@ -31,7 +31,8 @@ export const useGeolocationStore = defineStore("geolocation", () => {
   const watchId = ref<number | null>(null);
   const isInitialized = ref(false);
 
-  const { state, getCurrentPosition, watchPosition, clearWatch, resetState } = useGeolocation();
+  const { state, getCurrentPosition, watchPosition, clearWatch, resetState } =
+    useGeolocation();
   const isLoading = computed(() => state.value.isLoading);
   const logger = useLogger();
 

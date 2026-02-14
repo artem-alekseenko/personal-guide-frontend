@@ -1,4 +1,4 @@
-import type { NotificationType } from '~/types/modal';
+import type { NotificationType } from "~/types/modal";
 
 interface NotificationOptions {
   title?: string;
@@ -41,11 +41,11 @@ interface NotificationState {
 // Global notification state
 const notificationState = ref<NotificationState>({
   open: false,
-  type: 'info',
-  title: '',
-  message: '',
-  primaryActionText: 'OK',
-  secondaryActionText: 'Cancel',
+  type: "info",
+  title: "",
+  message: "",
+  primaryActionText: "OK",
+  secondaryActionText: "Cancel",
   showSecondaryAction: false,
   closeOnOverlayClick: true,
   closeOnSecondaryAction: true,
@@ -55,16 +55,19 @@ const notificationState = ref<NotificationState>({
 });
 
 export const useNotification = () => {
-  const showNotification = (type: NotificationType, options: NotificationOptions) => {
+  const showNotification = (
+    type: NotificationType,
+    options: NotificationOptions,
+  ) => {
     notificationState.value = {
       open: true,
       type,
-      title: options.title || 'Notification',
+      title: options.title || "Notification",
       subtitle: options.subtitle,
-      message: options.message || 'Notification message',
+      message: options.message || "Notification message",
       details: options.details,
-      primaryActionText: options.primaryActionText || 'OK',
-      secondaryActionText: options.secondaryActionText || 'Cancel',
+      primaryActionText: options.primaryActionText || "OK",
+      secondaryActionText: options.secondaryActionText || "Cancel",
       showSecondaryAction: options.showSecondaryAction || false,
       closeOnOverlayClick: options.closeOnOverlayClick ?? true,
       closeOnSecondaryAction: options.closeOnSecondaryAction ?? true,
@@ -98,12 +101,12 @@ export const useNotification = () => {
   // Convenience methods for different notification types
   const showError = (options: NotificationOptions) => {
     const defaults = {
-      title: 'Error',
-      message: 'Sorry, an error occurred. Please try again later.',
-      primaryActionText: 'OK',
+      title: "Error",
+      message: "Sorry, an error occurred. Please try again later.",
+      primaryActionText: "OK",
     };
-    
-    showNotification('error', {
+
+    showNotification("error", {
       ...defaults,
       ...options,
     });
@@ -111,14 +114,14 @@ export const useNotification = () => {
 
   const showSuccess = (options: NotificationOptions) => {
     const defaults = {
-      title: 'Success',
-      message: 'Operation completed successfully.',
-      primaryActionText: 'Great!',
+      title: "Success",
+      message: "Operation completed successfully.",
+      primaryActionText: "Great!",
       autoClose: true,
       autoCloseDuration: 4000,
     };
-    
-    showNotification('success', {
+
+    showNotification("success", {
       ...defaults,
       ...options,
     });
@@ -126,12 +129,12 @@ export const useNotification = () => {
 
   const showWarning = (options: NotificationOptions) => {
     const defaults = {
-      title: 'Warning',
-      message: 'Please review and proceed with caution.',
-      primaryActionText: 'Understood',
+      title: "Warning",
+      message: "Please review and proceed with caution.",
+      primaryActionText: "Understood",
     };
-    
-    showNotification('warning', {
+
+    showNotification("warning", {
       ...defaults,
       ...options,
     });
@@ -139,14 +142,14 @@ export const useNotification = () => {
 
   const showInfo = (options: NotificationOptions) => {
     const defaults = {
-      title: 'Information',
-      message: 'Here is some information for you.',
-      primaryActionText: 'OK',
+      title: "Information",
+      message: "Here is some information for you.",
+      primaryActionText: "OK",
       autoClose: true,
       autoCloseDuration: 6000,
     };
-    
-    showNotification('info', {
+
+    showNotification("info", {
       ...defaults,
       ...options,
     });
@@ -154,23 +157,23 @@ export const useNotification = () => {
 
   // Convenience method for API errors
   const showApiError = (error: any, context?: string) => {
-    const title = 'Error';
+    const title = "Error";
     const subtitle = context ? `Context: ${context}` : undefined;
-    
+
     // Default fallback message
-    let message = 'Sorry, an error occurred. Please try again later.';
-    let details = '';
+    let message = "Sorry, an error occurred. Please try again later.";
+    let details = "";
 
     try {
       if (error?.response) {
         // HTTP error response
         const status = error.response.status;
         const statusText = error.response.statusText;
-        
+
         if (status && statusText) {
           message = `Server error (${status}): ${statusText}`;
         }
-        
+
         if (error.response.data) {
           try {
             details = JSON.stringify(error.response.data, null, 2);
@@ -181,13 +184,13 @@ export const useNotification = () => {
       } else if (error?.message) {
         // General error with message
         message = error.message || message;
-        details = error.stack || '';
-      } else if (typeof error === 'string') {
+        details = error.stack || "";
+      } else if (typeof error === "string") {
         // String error
         message = error || message;
       }
     } catch (e) {
-      console.error('Error parsing error object:', e);
+      console.error("Error parsing error object:", e);
       // Keep default message if parsing fails
     }
 
@@ -196,23 +199,23 @@ export const useNotification = () => {
       subtitle,
       message,
       details: details || undefined,
-      primaryActionText: 'OK',
+      primaryActionText: "OK",
       onPrimaryAction: () => {
         // Just close the modal
-      }
+      },
     });
   };
 
   return {
     // State
     notification: readonly(notificationState),
-    
+
     // Actions
     showNotification,
     hideNotification,
     handlePrimaryAction,
     handleSecondaryAction,
-    
+
     // Convenience methods
     showError,
     showSuccess,
@@ -220,4 +223,4 @@ export const useNotification = () => {
     showInfo,
     showApiError,
   };
-}; 
+};

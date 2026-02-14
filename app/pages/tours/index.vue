@@ -5,10 +5,7 @@
         {{ $t("pages.tours.createNewTour") }}
       </PGButton>
     </div>
-    <div
-      v-if="routeStore.allTours.length"
-      class="tours-page__list"
-    >
+    <div v-if="routeStore.allTours.length" class="tours-page__list">
       <PGTourCard
         v-for="tour in routeStore.allTours"
         :key="tour.id"
@@ -22,16 +19,13 @@
       />
     </div>
     <div v-else class="tours-page__empty">
-      <UIcon
-        class="tours-page__loader"
-        name="svg-spinners:6-dots-scale"
-      />
+      <UIcon class="tours-page__loader" name="svg-spinners:6-dots-scale" />
     </div>
   </section>
 </template>
 
 <script lang="ts" setup>
-import {definePageMeta} from "#imports";
+import { definePageMeta } from "#imports";
 
 definePageMeta({});
 
@@ -71,7 +65,6 @@ const handleCreateTour = () => {
   padding: 1rem;
 
   @container (width >= 420px) {
-
   }
 }
 

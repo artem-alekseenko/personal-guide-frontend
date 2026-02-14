@@ -28,4 +28,4 @@ export const createAudioUrl = (blob: Blob, previousUrl?: string): string => {
  */
 export const cleanupAudioUrl = (url: string): void => {
   URL.revokeObjectURL(url);
-}; 
+};

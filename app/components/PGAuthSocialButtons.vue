@@ -10,7 +10,7 @@
       class="inline-flex items-center justify-center gap-2"
       @click="handleClick(provider.id)"
     >
-      <UIcon :name="provider.icon" class="w-5 h-5 shrink-0" />
+      <UIcon :name="provider.icon" class="h-5 w-5 shrink-0" />
       {{ provider.label }}
     </PGButton>
   </div>

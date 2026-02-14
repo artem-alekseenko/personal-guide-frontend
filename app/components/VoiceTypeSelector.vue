@@ -35,5 +35,3 @@ const handleVoiceTypeChange = (voiceType: string) => {
   emit("update:preferences", updatedPreferences);
 };
 </script>
-
- 

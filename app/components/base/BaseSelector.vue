@@ -1,13 +1,9 @@
 <template>
   <div class="base-selector">
-    <label
-      v-if="label"
-      :for="id"
-      class="base-selector__label"
-    >
+    <label v-if="label" :for="id" class="base-selector__label">
       {{ label }}
     </label>
-    
+
     <div class="base-selector__dropdown">
       <button
         :id="id"
@@ -257,7 +253,9 @@ onUnmounted(() => {
   background-color: white;
   padding-block: 0.25rem;
   font-size: 1rem;
-  box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1);
+  box-shadow:
+    0 10px 15px -3px oklch(0 0 0 / 0.1),
+    0 4px 6px -4px oklch(0 0 0 / 0.1);
   outline: 1px solid oklch(0 0 0 / 0.05);
 }
 
@@ -310,4 +308,4 @@ onUnmounted(() => {
   background-color: oklch(0.2 0.1 250);
   color: oklch(0.7 0.2 250);
 }
-</style> 
+</style>

@@ -5,7 +5,7 @@ export const useCreateTour = async (
 ): Promise<ICreatedTour> => {
   const { $apiFetch } = useNuxtApp();
   const apiFetch = $apiFetch as typeof $fetch;
-  
+
   try {
     const data = await apiFetch<ICreatedTour>("/api/create-tour", {
       body: params,
@@ -20,7 +20,7 @@ export const useCreateTour = async (
   } catch (error) {
     throw createError({
       statusCode: (error as any)?.statusCode || 500,
-      statusMessage: `Could not create a tour: ${(error as any)?.message || 'Unknown error'}`,
+      statusMessage: `Could not create a tour: ${(error as any)?.message || "Unknown error"}`,
     });
   }
 };

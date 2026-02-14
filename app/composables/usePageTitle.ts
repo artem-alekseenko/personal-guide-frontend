@@ -13,8 +13,8 @@ export const usePageTitle = () => {
 
     if (route.name === "index") {
       return isAuthenticated.value
-          ? t("pages.home.title")
-          : t("pages.home.titleLogin");
+        ? t("pages.home.title")
+        : t("pages.home.titleLogin");
     }
 
     const metaTitle = route.meta.title;

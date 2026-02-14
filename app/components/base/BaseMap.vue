@@ -170,7 +170,7 @@ const initializeMap = async () => {
       (shouldShow) => {
         logger.log("showUserLocation changed:", shouldShow);
         if (!mapInstance) return;
-        
+
         if (shouldShow) {
           // Show user marker if coordinates are available
           if (geolocationStore.coordinates) {

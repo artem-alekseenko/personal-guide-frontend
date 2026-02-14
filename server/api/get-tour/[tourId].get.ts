@@ -6,12 +6,15 @@ export default defineEventHandler(async (event) => {
 
   if (!params) {
     throw new Error("Params are not defined");
-    }
+  }
 
   const { tourId } = params as Record<string, string>;
   const apiUrlForGettingTour = `${process.env.PG_API_LIST_TOURS_URL}${tourId}`;
   try {
-    const response = await useExternalApi<ICreatedTour>(event, apiUrlForGettingTour);
+    const response = await useExternalApi<ICreatedTour>(
+      event,
+      apiUrlForGettingTour,
+    );
 
     return response;
   } catch (error) {

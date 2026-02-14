@@ -46,7 +46,7 @@
           :preferences="preferences"
           @update:preferences="handlePreferencesUpdate"
         />
-        
+
         <!-- Voice Type -->
         <VoiceTypeSelector
           :preferences="preferences"
@@ -176,10 +176,10 @@ const logout = async () => {
 
 const formatDistance = (meters: number): string => {
   if (meters < 1000) {
-    return t('common.distanceFormat.meters', { count: meters });
+    return t("common.distanceFormat.meters", { count: meters });
   }
-  return t('common.distanceFormat.kilometers', { 
-    count: (meters / 1000).toFixed(1) 
+  return t("common.distanceFormat.kilometers", {
+    count: (meters / 1000).toFixed(1),
   });
 };
 
@@ -187,18 +187,18 @@ const { t } = useI18n();
 
 const formatTime = (minutes: number): string => {
   if (minutes < 60) {
-    return t('common.timeFormat.minutes', { count: minutes });
+    return t("common.timeFormat.minutes", { count: minutes });
   }
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  
+
   if (remainingMinutes === 0) {
-    return t('common.timeFormat.hours', { count: hours });
+    return t("common.timeFormat.hours", { count: hours });
   }
-  
-  return t('common.timeFormat.hoursAndMinutes', { 
-    hours, 
-    minutes: remainingMinutes 
+
+  return t("common.timeFormat.hoursAndMinutes", {
+    hours,
+    minutes: remainingMinutes,
   });
 };
 </script>

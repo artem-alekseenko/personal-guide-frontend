@@ -1,6 +1,10 @@
-export type NotificationType = 'error' | 'success' | 'warning' | 'info';
+export type NotificationType = "error" | "success" | "warning" | "info";
 
-export type CloseReason = 'overlay' | 'escape' | 'primary-action' | 'secondary-action';
+export type CloseReason =
+  | "overlay"
+  | "escape"
+  | "primary-action"
+  | "secondary-action";
 
 export interface NotificationModalProps {
   open: boolean;
@@ -20,14 +24,14 @@ export interface NotificationModalProps {
 }
 
 export interface NotificationModalEmits {
-  (e: 'update:open', value: boolean): void;
-  (e: 'close', reason: CloseReason): void;
-  (e: 'primary-action'): void;
-  (e: 'secondary-action'): void;
+  (e: "update:open", value: boolean): void;
+  (e: "close", reason: CloseReason): void;
+  (e: "primary-action"): void;
+  (e: "secondary-action"): void;
 }
 
 export interface ModalOverlayEmits {
-  (e: 'close', reason: 'overlay' | 'escape'): void;
+  (e: "close", reason: "overlay" | "escape"): void;
 }
 
 export interface ModalOverlayProps {
@@ -36,12 +40,12 @@ export interface ModalOverlayProps {
   closeOnEscape?: boolean;
   ariaLabelledby?: string;
   ariaDescribedby?: string;
-  role?: 'dialog' | 'alertdialog';
-  animationType?: 'default' | 'bounce' | 'slide' | 'zoom';
+  role?: "dialog" | "alertdialog";
+  animationType?: "default" | "bounce" | "slide" | "zoom";
 }
 
 export interface ModalContentProps {
   title?: string;
   subtitle?: string;
   titleId?: string;
-} 
+}

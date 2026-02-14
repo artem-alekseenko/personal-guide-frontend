@@ -28,7 +28,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
         typeof to.query.next === "string" ? to.query.next : undefined;
       const target =
         nextParam && nextParam.startsWith("/") ? nextParam : AFTER_LOGIN_ROUTE;
-      
+
       // Don't redirect to the same page to avoid unnecessary navigation
       if (to.path !== target) {
         return navigateTo(target, { replace: true });

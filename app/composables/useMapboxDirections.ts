@@ -15,7 +15,11 @@ interface RouteEvent {
 interface MapboxDirectionsOptions {
   enableBounds?: boolean;
   interactive?: boolean;
-  profile?: "mapbox/driving-traffic" | "mapbox/driving" | "mapbox/walking" | "mapbox/cycling";
+  profile?:
+    | "mapbox/driving-traffic"
+    | "mapbox/driving"
+    | "mapbox/walking"
+    | "mapbox/cycling";
   controls?: {
     inputs?: boolean;
     instructions?: boolean;
@@ -27,7 +31,7 @@ const WAYPOINTS_MAX_COUNT = 25;
 
 export function useMapboxDirections(
   mapInstance: ShallowRef<mapboxgl.Map | null> | Ref<mapboxgl.Map | null>,
-  options: MapboxDirectionsOptions = {}
+  options: MapboxDirectionsOptions = {},
 ) {
   const logger = useLogger();
   const {
@@ -55,7 +59,7 @@ export function useMapboxDirections(
       logger.warn("Directions already initialized");
       return directions;
     }
-    
+
     if (!mapInstance.value) {
       logger.error("Map instance not available for directions initialization");
       return null;
@@ -143,30 +147,38 @@ export function useMapboxDirections(
 
     try {
       logger.log("Removing directions control from map");
-      
+
       // First try to clear routes safely
       try {
         directions.removeRoutes();
       } catch (routeError) {
         // Silently handle route clearing errors
       }
-      
+
       // Try to remove the control, but handle DOM errors gracefully
       try {
         mapInstance.value.removeControl(directions);
         logger.log("Directions control successfully removed");
       } catch (controlError) {
         // Check if this is the known removeChild error during component unmounting
-        const errorMessage = (controlError as Error)?.message || '';
-        if (errorMessage.includes('removeChild') || errorMessage.includes('null')) {
+        const errorMessage = (controlError as Error)?.message || "";
+        if (
+          errorMessage.includes("removeChild") ||
+          errorMessage.includes("null")
+        ) {
           // This is a known DOM cleanup race condition, silently ignore it
-          logger.log("Directions control cleanup completed (DOM already removed)");
+          logger.log(
+            "Directions control cleanup completed (DOM already removed)",
+          );
         } else {
           // Log other unexpected errors
-          logger.warn("Unexpected error removing directions control:", controlError);
+          logger.warn(
+            "Unexpected error removing directions control:",
+            controlError,
+          );
         }
       }
-      
+
       directions = null;
       isDirectionsReady.value = false;
       logger.log("Directions control removed and cleaned up");
@@ -187,14 +199,17 @@ export function useMapboxDirections(
   // Method for simple coordinate-based route setting (used in route creation)
   const setRoute = (coordinates: [number, number][]): boolean => {
     logger.log("Setting route with coordinates:", coordinates.length, "points");
-    
+
     if (!directions) {
       logger.error("Cannot set route: directions not initialized");
       return false;
     }
-    
+
     if (coordinates.length < 2) {
-      logger.error("Cannot set route: insufficient coordinates", coordinates.length);
+      logger.error(
+        "Cannot set route: insufficient coordinates",
+        coordinates.length,
+      );
       return false;
     }
 
@@ -206,30 +221,30 @@ export function useMapboxDirections(
     logger.log("Route details:", {
       start,
       finish,
-      waypoints: waypoints.length
+      waypoints: waypoints.length,
     });
 
     try {
       clearDirections();
-      
+
       directions.setOrigin([start[0], start[1]]);
       logger.log("Origin set:", start);
 
       waypoints.forEach((waypoint: [number, number], index: number) => {
         directions!.addWaypoint(index, waypoint);
       });
-      
+
       if (waypoints.length > 0) {
         logger.log("Waypoints added:", waypoints.length);
       }
 
       directions.setDestination([finish[0], finish[1]]);
       logger.log("Destination set:", finish);
-      
+
       logger.log("Route successfully set");
       return true;
     } catch (error) {
-      logger.error('Error setting route:', error);
+      logger.error("Error setting route:", error);
       return false;
     }
   };
@@ -237,11 +252,16 @@ export function useMapboxDirections(
   // Method for tour-based route setting (used in tour viewing)
   const addRouteToMap = (
     tour: ICreatedTour,
-    isMapFullyLoaded: Ref<boolean>
+    isMapFullyLoaded: Ref<boolean>,
   ): void => {
     if (!mapInstance.value || !directions) {
       logger.warn("Map or directions not initialized");
-      logger.log("mapInstance:", !!mapInstance.value, "directions:", !!directions);
+      logger.log(
+        "mapInstance:",
+        !!mapInstance.value,
+        "directions:",
+        !!directions,
+      );
       return;
     }
 
@@ -282,7 +302,14 @@ export function useMapboxDirections(
     logger.log("Finish point:", finish);
     logger.log("Waypoints:", waypoints);
 
-    if (!finish || !start || !start[0] || !start[1] || !finish[0] || !finish[1]) {
+    if (
+      !finish ||
+      !start ||
+      !start[0] ||
+      !start[1] ||
+      !finish[0] ||
+      !finish[1]
+    ) {
       logger.warn("Invalid coordinates");
       return;
     }
@@ -323,7 +350,7 @@ export function useMapboxDirections(
     // State
     directions: readonly(ref(directions)),
     isDirectionsReady: readonly(isDirectionsReady),
-    
+
     // Core methods
     initializeDirections,
     clearDirections,
@@ -331,9 +358,9 @@ export function useMapboxDirections(
     cleanup,
     getDirections,
     isInitialized,
-    
+
     // Route setting methods
-    setRoute,           // For coordinate arrays
-    addRouteToMap,      // For tour objects
+    setRoute, // For coordinate arrays
+    addRouteToMap, // For tour objects
   };
-} 
+}

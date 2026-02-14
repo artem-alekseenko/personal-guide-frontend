@@ -20,21 +20,23 @@
         class="position-toggle-container flex items-center justify-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
       >
         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ $t('components.tourPage.realGeolocation') }}
+          {{ $t("components.tourPage.realGeolocation") }}
         </span>
 
         <!-- USwitch toggle -->
         <USwitch v-model="isManualMode" size="lg" />
 
         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ $t('components.tourPage.geolocationSimulation') }}
+          {{ $t("components.tourPage.geolocationSimulation") }}
         </span>
       </div>
 
       <!-- Mode description -->
       <div class="mt-2 text-center text-xs text-gray-600 dark:text-gray-400">
-        <span v-if="positionMode === 'gps'"> {{ $t('components.tourPage.usingRealLocation') }} </span>
-        <span v-else> {{ $t('components.tourPage.clickToSimulate') }} </span>
+        <span v-if="positionMode === 'gps'">
+          {{ $t("components.tourPage.usingRealLocation") }}
+        </span>
+        <span v-else> {{ $t("components.tourPage.clickToSimulate") }} </span>
       </div>
     </div>
 
@@ -74,7 +76,7 @@
         type="text"
       />
       <PGButton class="mx-auto mt-3 block" @click="addQuestion">
-        {{ $t('components.tourPage.sendQuestion') }}
+        {{ $t("components.tourPage.sendQuestion") }}
       </PGButton>
     </div>
 
@@ -85,10 +87,9 @@
         color="neutral"
         @click="handleCompleteTour"
       >
-        {{ $t('components.tourPage.completeTour') }}
+        {{ $t("components.tourPage.completeTour") }}
       </PGButton>
     </div>
-
   </main>
 </template>
 
@@ -228,7 +229,13 @@ const { t } = useI18n();
 
 // Use persistent tour state (after route is available)
 const tourId = route.params.tourId as string;
-const { state, setState, clearSavedState, shouldRestoreState, getSavedAudioPosition } = useTourState(tourId);
+const {
+  state,
+  setState,
+  clearSavedState,
+  shouldRestoreState,
+  getSavedAudioPosition,
+} = useTourState(tourId);
 
 // Audio resume constants
 const AUDIO_REWIND_SECONDS = 5; // Seconds to rewind when resuming
@@ -315,20 +322,20 @@ const currentHighlightSentence = computed(() => currentSpokenSentence.value);
 const mainButtonText = computed(() => {
   switch (state.value) {
     case STATE.INITIAL:
-      return t('buttons.startTour');
+      return t("buttons.startTour");
     case STATE.RECORD_LOADING:
     case STATE.RECORD_LOADING_WHEN_PAUSED:
-      return t('common.loading');
+      return t("common.loading");
     case STATE.RECORD_RECEIVED:
-      return t('buttons.play');
+      return t("buttons.play");
     case STATE.RECORD_ACTIVE:
-      return t('buttons.pause');
+      return t("buttons.pause");
     case STATE.RECORD_PAUSED:
-      return t('buttons.resume');
+      return t("buttons.resume");
     case STATE.RECORD_FINISHED:
-      return t('buttons.goToNextPoint');
+      return t("buttons.goToNextPoint");
     case STATE.ERROR:
-      return t('buttons.tryAgain');
+      return t("buttons.tryAgain");
   }
 });
 
@@ -357,7 +364,9 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
 
     // Check if simulation mode is already active and create marker if needed
     if (positionMode.value === "manual" && geolocationStore.coordinates) {
-      logger.log("Map loaded - simulation mode already active, creating marker at GPS position");
+      logger.log(
+        "Map loaded - simulation mode already active, creating marker at GPS position",
+      );
       addSimulationMarker(geolocationStore.coordinates);
     }
   });
@@ -519,12 +528,12 @@ function playAudio(startFromPosition?: number) {
       // Apply sync delay to compensate for text highlighting being ahead
       const adjustedTime = Math.max(0, currentTime - AUDIO_SYNC_DELAY_SECONDS);
       const progress = adjustedTime / totalDuration;
-      
+
       // Clean text from HTML tags, paragraph markers, and normalize whitespace for accurate character counting
       const cleanText = tourStore.textForSpeech
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/\n\n/g, ' ') // Replace paragraph breaks with single space
-        .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/<[^>]*>/g, "") // Remove HTML tags
+        .replace(/\n\n/g, " ") // Replace paragraph breaks with single space
+        .replace(/\s+/g, " ") // Normalize whitespace
         .trim();
       const totalTextLength = cleanText.length;
 
@@ -536,8 +545,11 @@ function playAudio(startFromPosition?: number) {
       const currentCharIndex = Math.floor(progress * totalTextLength);
 
       // Debug logging for sync analysis
-      if (Math.floor(currentTime) % 5 === 0 && currentTime % 1 < 0.1) { // Log every 5 seconds
-        logger.log(`Sync Debug: Time=${currentTime.toFixed(1)}s/${totalDuration.toFixed(1)}s (${(progress*100).toFixed(1)}%), CharIndex=${currentCharIndex}/${totalTextLength}, AdjustedTime=${adjustedTime.toFixed(1)}s, Text="${cleanText.substring(currentCharIndex-10, currentCharIndex+10)}"`);
+      if (Math.floor(currentTime) % 5 === 0 && currentTime % 1 < 0.1) {
+        // Log every 5 seconds
+        logger.log(
+          `Sync Debug: Time=${currentTime.toFixed(1)}s/${totalDuration.toFixed(1)}s (${(progress * 100).toFixed(1)}%), CharIndex=${currentCharIndex}/${totalTextLength}, AdjustedTime=${adjustedTime.toFixed(1)}s, Text="${cleanText.substring(currentCharIndex - 10, currentCharIndex + 10)}"`,
+        );
       }
 
       // Create a temporary utterance to pass to highlightSentence
@@ -563,15 +575,17 @@ function playAudio(startFromPosition?: number) {
     };
 
     // Use loadeddata event for more reliable position setting
-    audioElement.value.addEventListener('loadeddata', setPositionAndPlay, { once: true });
-    
+    audioElement.value.addEventListener("loadeddata", setPositionAndPlay, {
+      once: true,
+    });
+
     // Fallback timeout in case event doesn't fire
     setTimeout(() => {
       if (audioElement.value && audioElement.value.currentTime === 0) {
         setPositionAndPlay();
       }
     }, 200);
-    
+
     // Start loading the audio
     audioElement.value.load();
   } else {
@@ -602,23 +616,23 @@ function stopAudio() {
 function canResumeAudio(): boolean {
   // Check if audio element exists and has valid source
   return !!(
-    audioElement.value && 
-    audioElement.value.src && 
+    audioElement.value &&
+    audioElement.value.src &&
     audioElement.value.readyState >= 2 // HAVE_CURRENT_DATA or higher
   );
 }
 
 function resumeAudioFromSavedPosition() {
   if (!audioElement.value) return;
-  
+
   const savedPosition = getSavedAudioPosition();
-  
+
   if (savedPosition !== null) {
     // Calculate rewind position (but don't go below 0)
     const rewindPosition = Math.max(0, savedPosition - AUDIO_REWIND_SECONDS);
     audioElement.value.currentTime = rewindPosition;
   }
-  
+
   audioElement.value.play();
 }
 
@@ -642,14 +656,14 @@ function playChunkFromSavedPosition() {
   const savedPosition = getSavedAudioPosition();
   if (savedPosition !== null) {
     const rewindPosition = Math.max(0, savedPosition - AUDIO_REWIND_SECONDS);
-    
+
     // Use the enhanced playAudio with position
     playAudio(rewindPosition);
   } else {
     // No saved position, play normally
     playAudio();
   }
-  
+
   setState(STATE.RECORD_ACTIVE);
 }
 
@@ -795,8 +809,6 @@ async function addQuestion() {
   }
 }
 
-
-
 /* -------------------------------------------
    Watchers
 ------------------------------------------- */
@@ -846,14 +858,14 @@ onMounted(async () => {
   logger.log("Fetching tour with ID:", route.params.tourId);
   await tourStore.fetchGetTour(route.params.tourId as string);
   logger.log("Tour fetched:", tourStore.tour);
-  
+
   // Check if we should restore the tour state after fetching tour data
   if (shouldRestoreState.value && tourStore.textForDisplay) {
     logger.log("Restoring tour state:", state.value);
     // The state is already restored from localStorage in the composable
     // We just need to ensure the UI reflects the current state
   }
-  
+
   window.addEventListener("beforeunload", stopAudio);
 });
 

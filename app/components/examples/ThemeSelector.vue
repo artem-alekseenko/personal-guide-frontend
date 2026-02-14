@@ -42,4 +42,4 @@ const currentTheme = computed(() => props.theme);
 const handleThemeChange = (theme: string) => {
   emit("update:theme", theme);
 };
-</script> 
+</script>

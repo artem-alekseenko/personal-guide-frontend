@@ -12,7 +12,7 @@ export const useAuth = () => {
     firebaseUser,
     (newUser) => {
       userStore.setUser(newUser ?? null);
-      
+
       // Update last login time when user logs in
       if (newUser && userStore.profile) {
         const updatedProfile = {
@@ -22,18 +22,21 @@ export const useAuth = () => {
         userStore.setProfile(updatedProfile);
       }
     },
-    { immediate: true }
+    { immediate: true },
   );
 
-  const updateUserPreferences = async (preferences: Partial<IUserPreferences>, syncToServer: boolean = true) => {
+  const updateUserPreferences = async (
+    preferences: Partial<IUserPreferences>,
+    syncToServer: boolean = true,
+  ) => {
     userStore.updatePreferences(preferences);
-    
+
     // Sync to server if requested
     if (syncToServer) {
       try {
         await userStore.syncPreferencesToServer();
       } catch (error) {
-        console.error('Failed to sync preferences to server:', error);
+        console.error("Failed to sync preferences to server:", error);
         // Don't throw error to avoid breaking the UI
       }
     }
@@ -58,7 +61,7 @@ export const useAuth = () => {
     if ($firebaseAuth) {
       await $firebaseAuth.signOut();
     }
-    
+
     userStore.logout();
   };
 
@@ -70,21 +73,21 @@ export const useAuth = () => {
     isAuthenticated: computed(() => userStore.isAuthenticated),
     isLoading: computed(() => userStore.isLoading),
     isSavingPreferences: computed(() => userStore.isSavingPreferences),
-    
+
     // Getters from store
     userPreferences: computed(() => userStore.userPreferences),
     userName: computed(() => userStore.userName),
     userAvatar: computed(() => userStore.userAvatar),
-    
+
     // Actions
     updateUserPreferences,
     updateUserStats,
     loadServerPreferences,
     syncPreferencesToServer,
     logout,
-    
+
     // Store methods
     setProfile: userStore.setProfile,
     reset: userStore.reset,
   };
-}; 
+};

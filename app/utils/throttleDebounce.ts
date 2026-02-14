@@ -30,7 +30,7 @@ interface DebouncedFunction<T extends (...args: any[]) => any> {
  * @param delay - The delay in milliseconds
  * @param options - Throttle behavior options
  * @returns Throttled function with cancel method
- * 
+ *
  * @example
  * ```typescript
  * // Basic usage with default options (leading: true, trailing: true)
@@ -38,13 +38,13 @@ interface DebouncedFunction<T extends (...args: any[]) => any> {
  * throttledSave(data); // Executes immediately
  * throttledSave(data); // Throttled
  * throttledSave(data); // Will execute after 300ms
- * 
+ *
  * // Leading only - execute immediately, ignore subsequent calls
  * const leadingThrottle = throttle(onClick, 1000, { leading: true, trailing: false });
- * 
+ *
  * // Trailing only - execute only after calls stop
  * const trailingThrottle = throttle(onScroll, 100, { leading: false, trailing: true });
- * 
+ *
  * // Manual cleanup
  * throttledSave.cancel();
  * ```
@@ -52,10 +52,10 @@ interface DebouncedFunction<T extends (...args: any[]) => any> {
 export const throttle = <T extends (...args: any[]) => any>(
   func: T,
   delay: number,
-  options: ThrottleOptions = {}
+  options: ThrottleOptions = {},
 ): ThrottledFunction<T> => {
   const { leading = true, trailing = true } = options;
-  
+
   let lastCallTime = 0;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastArgs: Parameters<T> | undefined;
@@ -68,7 +68,7 @@ export const throttle = <T extends (...args: any[]) => any>(
   const throttled = (...args: Parameters<T>): void => {
     const now = Date.now();
     const timeSinceLastCall = now - lastCallTime;
-    
+
     // Store latest arguments for potential trailing execution
     lastArgs = args;
 
@@ -99,7 +99,7 @@ export const throttle = <T extends (...args: any[]) => any>(
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
-        
+
         timeoutId = setTimeout(() => {
           if (lastArgs) {
             executeFunction(lastArgs);
@@ -128,7 +128,7 @@ export const throttle = <T extends (...args: any[]) => any>(
  * @param func - The function to debounce
  * @param delay - The delay in milliseconds
  * @returns Debounced function with cancel method
- * 
+ *
  * @example
  * ```typescript
  * // Search input debouncing
@@ -136,10 +136,10 @@ export const throttle = <T extends (...args: any[]) => any>(
  * debouncedSearch('query1'); // Cancelled
  * debouncedSearch('query2'); // Cancelled
  * debouncedSearch('query3'); // Will execute after 300ms
- * 
+ *
  * // Form validation
  * const debouncedValidate = debounce(validateForm, 500);
- * 
+ *
  * // Manual cleanup (e.g., on component unmount)
  * debouncedSearch.cancel();
  * ```
@@ -154,7 +154,7 @@ export const debounce = <T extends (...args: any[]) => any>(
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    
+
     timeoutId = setTimeout(() => {
       func(...args);
       timeoutId = null;
@@ -176,7 +176,7 @@ export const debounce = <T extends (...args: any[]) => any>(
  * @param func - The function to throttle
  * @param delay - The delay in milliseconds
  * @returns Throttled function that only executes on leading edge
- * 
+ *
  * @example
  * ```typescript
  * // Button click protection - execute immediately, ignore rapid clicks
@@ -199,13 +199,13 @@ export const throttleLeading = <T extends (...args: any[]) => any>(
  * @param func - The function to throttle
  * @param delay - The delay in milliseconds
  * @returns Throttled function that only executes on trailing edge
- * 
+ *
  * @example
  * ```typescript
  * // Window resize handler - execute only after resizing stops
  * const handleResize = throttleTrailing(updateLayout, 250);
  * window.addEventListener('resize', handleResize);
- * 
+ *
  * // Scroll position save - save only when scrolling stops
  * const saveScrollPosition = throttleTrailing(savePosition, 100);
  * ```
@@ -220,16 +220,16 @@ export const throttleTrailing = <T extends (...args: any[]) => any>(
 /**
  * Cleanup multiple throttled/debounced functions at once
  * @param functions - Array of throttled/debounced functions to cancel
- * 
+ *
  * @example
  * ```typescript
  * const throttled1 = throttle(func1, 300);
  * const throttled2 = throttle(func2, 500);
  * const debounced1 = debounce(func3, 200);
- * 
+ *
  * // Cancel all at once
  * cancelAll([throttled1, throttled2, debounced1]);
- * 
+ *
  * // Useful for cleanup in Vue components:
  * onUnmounted(() => {
  *   cancelAll([throttled1, throttled2, debounced1]);
@@ -237,24 +237,24 @@ export const throttleTrailing = <T extends (...args: any[]) => any>(
  * ```
  */
 export const cancelAll = (
-  functions: Array<ThrottledFunction<any> | DebouncedFunction<any>>
+  functions: Array<ThrottledFunction<any> | DebouncedFunction<any>>,
 ): void => {
-  functions.forEach(fn => fn.cancel());
+  functions.forEach((fn) => fn.cancel());
 };
 
 /**
  * Vue composable for automatic cleanup of throttled/debounced functions
  * @param functions - Array of throttled/debounced functions to auto-cleanup
- * 
+ *
  * @example
  * ```typescript
  * // In Vue component
  * const throttledSave = throttle(saveData, 300);
  * const debouncedSearch = debounce(search, 500);
- * 
+ *
  * // Automatic cleanup on component unmount
  * useThrottleDebounceCleanup([throttledSave, debouncedSearch]);
- * 
+ *
  * // Alternative manual approach:
  * onUnmounted(() => {
  *   throttledSave.cancel();
@@ -263,12 +263,12 @@ export const cancelAll = (
  * ```
  */
 export const useThrottleDebounceCleanup = (
-  functions: Array<ThrottledFunction<any> | DebouncedFunction<any>>
+  functions: Array<ThrottledFunction<any> | DebouncedFunction<any>>,
 ): void => {
   // Check if onUnmounted is available and is a function (for Vue environment)
-  if (typeof onUnmounted === 'function') {
+  if (typeof onUnmounted === "function") {
     onUnmounted(() => {
       cancelAll(functions);
     });
   }
-}; 
+};

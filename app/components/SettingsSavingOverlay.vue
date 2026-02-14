@@ -1,8 +1,5 @@
 <template>
-  <div
-    v-if="isSaving"
-    class="settings-saving-overlay"
-  >
+  <div v-if="isSaving" class="settings-saving-overlay">
     <!-- Spinner -->
     <div class="settings-saving-spinner">
       <div class="spinner-ring"></div>
@@ -56,4 +53,4 @@ defineProps<Props>();
     transform: rotate(360deg);
   }
 }
-</style> 
+</style>

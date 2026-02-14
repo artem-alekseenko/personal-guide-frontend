@@ -28,23 +28,19 @@ const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
 const mapInstance = shallowRef<mapboxgl.Map | null>(null);
 
 // Initialize composables with route creation configuration
-const { 
-  initializeDirections, 
+const {
+  initializeDirections,
   clearDirections,
   cleanup,
   setRoute,
-  isInitialized
+  isInitialized,
 } = useMapboxDirections(mapInstance, {
   enableBounds: true,
   interactive: false,
 });
 
-const { 
-  addMarker, 
-  addHighPlacesToMap, 
-  addWaypointMarkers, 
-  clearAllMarkers 
-} = useMarkers(mapInstance);
+const { addMarker, addHighPlacesToMap, addWaypointMarkers, clearAllMarkers } =
+  useMarkers(mapInstance);
 
 const handleMapInitialized = (map: mapboxgl.Map) => {
   mapInstance.value = map;
@@ -63,28 +59,28 @@ const limitWaypoints = (
 
 // Cleanup on component unmount
 onUnmounted(async () => {
-  logger.log('Component unmounting, cleaning up map...');
-  
+  logger.log("Component unmounting, cleaning up map...");
+
   // Give Vue time to update DOM before cleanup
   await nextTick();
-  
+
   try {
     // Check if map instance is still valid before cleanup
     if (mapInstance.value && mapInstance.value.getContainer()) {
       cleanup();
     } else {
-      logger.log('Map instance already destroyed, skipping directions cleanup');
+      logger.log("Map instance already destroyed, skipping directions cleanup");
     }
   } catch (error) {
-    logger.warn('Error during directions cleanup:', error);
+    logger.warn("Error during directions cleanup:", error);
   }
-  
+
   try {
     clearAllMarkers();
   } catch (error) {
-    logger.warn('Error during markers cleanup:', error);
+    logger.warn("Error during markers cleanup:", error);
   }
-  
+
   // Clear references
   mapInstance.value = null;
 });
@@ -105,19 +101,19 @@ watch(
 
     // Set the route using directions composable
     const routeSet = setRoute(trimmedCoordinates);
-    
+
     if (routeSet) {
       // Add high places markers
       const highPlaces = routeStore.routeSuggestion?.high_places;
       if (highPlaces?.length) {
         addHighPlacesToMap(highPlaces);
       }
-      
+
       // Add waypoint markers
       addWaypointMarkers(trimmedCoordinates);
     }
   },
-  { flush: 'post' }
+  { flush: "post" },
 );
 </script>
 

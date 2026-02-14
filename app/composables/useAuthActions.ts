@@ -60,7 +60,7 @@ export const useAuthActions = () => {
 
   const loginWithEmail = async (
     email: string,
-    password: string
+    password: string,
   ): Promise<AuthActionResult> => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -80,7 +80,7 @@ export const useAuthActions = () => {
 
   const registerWithEmail = async (
     email: string,
-    password: string
+    password: string,
   ): Promise<AuthActionResult> => {
     try {
       await createUserWithEmailAndPassword(auth, email, password);

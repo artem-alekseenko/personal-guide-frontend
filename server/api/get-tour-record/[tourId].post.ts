@@ -18,7 +18,12 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event);
 
   try {
-    return await useExternalApi(event, apiUrlForGettingTourRecord, body, "POST");
+    return await useExternalApi(
+      event,
+      apiUrlForGettingTourRecord,
+      body,
+      "POST",
+    );
   } catch (error) {
     console.error("Failed to fetch data from external", error);
   }

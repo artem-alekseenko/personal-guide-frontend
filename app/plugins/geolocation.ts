@@ -10,10 +10,14 @@ export default defineNuxtPlugin(async () => {
   }
 
   if (import.meta.client) {
-    window.addEventListener("beforeunload", () => {
-      if (geolocationStore.isWatching) {
-        geolocationStore.stopWatching();
-      }
-    }, { once: true });
+    window.addEventListener(
+      "beforeunload",
+      () => {
+        if (geolocationStore.isWatching) {
+          geolocationStore.stopWatching();
+        }
+      },
+      { once: true },
+    );
   }
 });

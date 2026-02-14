@@ -9,7 +9,7 @@ export const useUserApi = () => {
       "[useUserApi] $apiFetch is not ready yet, falling back to $fetch (no Authorization header).",
     );
   }
-  
+
   /**
    * Fetch user profile from server
    */
@@ -34,13 +34,16 @@ export const useUserApi = () => {
     language: string,
   ): Promise<IServerUserResponse> => {
     try {
-      const response = await apiFetch<IServerUserResponse>("/api/user-profile", {
-        method: "PUT",
-        body: {
-          name,
-          language,
+      const response = await apiFetch<IServerUserResponse>(
+        "/api/user-profile",
+        {
+          method: "PUT",
+          body: {
+            name,
+            language,
+          },
         },
-      });
+      );
       return response;
     } catch (error: any) {
       console.error("Error updating user profile:", error);
@@ -55,4 +58,4 @@ export const useUserApi = () => {
     fetchUserProfile,
     updateUserProfile,
   };
-}; 
+};

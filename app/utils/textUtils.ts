@@ -21,11 +21,11 @@ export const findCurrentSpokenSentence = (
 ): string => {
   // Clean text for consistent character counting
   const cleanText = text
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/\n\n/g, ' ') // Replace paragraph breaks with single space
-    .replace(/\s+/g, ' ') // Normalize whitespace
+    .replace(/<[^>]*>/g, "") // Remove HTML tags
+    .replace(/\n\n/g, " ") // Replace paragraph breaks with single space
+    .replace(/\s+/g, " ") // Normalize whitespace
     .trim();
-    
+
   const sentences = splitIntoSentences(cleanText);
   let accumulatedLength = 0;
 
@@ -43,25 +43,25 @@ export const findCurrentSpokenSentence = (
  */
 export const formatTextWithParagraphs = (text: string): string => {
   return text
-    .split('\n\n')
-    .map(paragraph => paragraph.trim())
-    .filter(paragraph => paragraph.length > 0)
-    .join('</p><p>');
+    .split("\n\n")
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0)
+    .join("</p><p>");
 };
 
 /**
  * Creates highlighted text with a specific sentence highlighted and proper paragraph formatting
  */
 export const createHighlightedText = (
-  text: string, 
-  highlightSentence: string
+  text: string,
+  highlightSentence: string,
 ): string => {
   // First, format paragraphs
   const formattedText = formatTextWithParagraphs(text);
-  
+
   // Split into sentences while preserving paragraph boundaries
   const sentences = splitIntoSentences(formattedText);
-  
+
   const highlightedText = sentences
     .map((sentence) =>
       sentence === highlightSentence
@@ -72,4 +72,4 @@ export const createHighlightedText = (
 
   // Wrap in paragraphs
   return `<p>${highlightedText}</p>`;
-}; 
+};

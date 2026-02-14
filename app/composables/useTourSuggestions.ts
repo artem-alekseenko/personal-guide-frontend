@@ -8,7 +8,7 @@ export const useTourSuggestions = async (
 ): Promise<IRouteSuggestionsResponseExtended> => {
   const { $apiFetch } = useNuxtApp();
   const apiFetch = $apiFetch as typeof $fetch;
-  
+
   try {
     const data = await apiFetch<IRouteSuggestionsResponseExtended>(
       "/api/route-suggestions",
@@ -26,7 +26,7 @@ export const useTourSuggestions = async (
   } catch (error) {
     throw createError({
       statusCode: (error as any)?.statusCode || 500,
-      statusMessage: `Could not fetch data about route suggestions: ${(error as any)?.message || 'Unknown error'}`,
+      statusMessage: `Could not fetch data about route suggestions: ${(error as any)?.message || "Unknown error"}`,
     });
   }
 };

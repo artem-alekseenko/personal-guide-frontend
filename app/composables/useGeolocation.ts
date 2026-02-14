@@ -63,7 +63,9 @@ export const useGeolocation = () => {
     message: string,
   ) => {
     if (retryCount < MAX_RETRIES) {
-      logger.log(`Retrying geolocation (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+      logger.log(
+        `Retrying geolocation (attempt ${retryCount + 1}/${MAX_RETRIES})...`,
+      );
       setTimeout(() => {
         getCurrentPosition(retryCount + 1)
           .then(resolve)

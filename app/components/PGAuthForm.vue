@@ -1,6 +1,6 @@
 <template>
   <div class="p-10 px-4">
-    <div class="flex flex-col gap-6 max-w-md mx-auto">
+    <div class="mx-auto flex max-w-md flex-col gap-6">
       <!-- Social auth (primary) -->
       <PGAuthSocialButtons
         :providers="socialProviders"
@@ -10,9 +10,11 @@
       />
 
       <div class="flex items-center gap-4">
-        <div class="flex-1 h-px bg-gray-300" />
-        <span class="text-sm text-gray-500">{{ $t("auth.orSignInWithEmail") }}</span>
-        <div class="flex-1 h-px bg-gray-300" />
+        <div class="h-px flex-1 bg-gray-300" />
+        <span class="text-sm text-gray-500">{{
+          $t("auth.orSignInWithEmail")
+        }}</span>
+        <div class="h-px flex-1 bg-gray-300" />
       </div>
 
       <!-- Email/password form -->
@@ -59,11 +61,15 @@
           </PGButton>
           <button
             :disabled="isFormLoading"
-            class="text-sm text-primary-600 underline underline-offset-2 cursor-pointer p-0 bg-transparent border-0 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-75 disabled:no-underline"
+            class="text-primary-600 hover:text-primary-700 cursor-pointer border-0 bg-transparent p-0 text-sm underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-75"
             type="button"
             @click="toggleMode"
           >
-            {{ mode === MODE.LOGIN ? $t("auth.noAccountRegister") : $t("auth.hasAccountLogin") }}
+            {{
+              mode === MODE.LOGIN
+                ? $t("auth.noAccountRegister")
+                : $t("auth.hasAccountLogin")
+            }}
           </button>
         </div>
       </form>
@@ -105,7 +111,11 @@ const { t } = useI18n();
 const isFormLoading = computed(() => state.value === STATE.REQUESTING_USER);
 
 const socialProviders = computed(() => [
-  { id: "google" as const, label: t("auth.continueWithGoogle"), icon: "i-logos-google-icon" },
+  {
+    id: "google" as const,
+    label: t("auth.continueWithGoogle"),
+    icon: "i-logos-google-icon",
+  },
 ]);
 
 const toggleMode = () => {
@@ -126,14 +136,16 @@ const errorKeyMap: Partial<Record<AuthErrorCode, string>> = {
   "auth/popup-closed-by-user": "auth.errors.popupClosed",
   "auth/cancelled-popup-request": "auth.errors.popupClosed",
   "auth/popup-blocked": "auth.errors.popupBlocked",
-  "auth/account-exists-with-different-credential": "auth.errors.accountExistsDifferentCredential",
+  "auth/account-exists-with-different-credential":
+    "auth.errors.accountExistsDifferentCredential",
   "auth/service-unavailable": "auth.errors.serviceUnavailable",
 };
 
 const getErrorMessage = (code: AuthErrorCode): string =>
   t(errorKeyMap[code] ?? "auth.loginError");
 
-const isAuthErrorCode = (c: string): c is AuthErrorCode => c.startsWith("auth/");
+const isAuthErrorCode = (c: string): c is AuthErrorCode =>
+  c.startsWith("auth/");
 
 const handleEmailSubmit = async () => {
   formError.value = "";

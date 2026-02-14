@@ -46,7 +46,7 @@
 </template>
 
 <script lang="ts" setup>
-import {nextTick, onMounted, ref, toRefs} from "vue";
+import { nextTick, onMounted, ref, toRefs } from "vue";
 
 const props = defineProps<{
   name: string;

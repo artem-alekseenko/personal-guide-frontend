@@ -84,10 +84,13 @@ export async function forwardAuthAndFetch<T>(
     if (import.meta.dev) {
       const hasAuth = headers.has("authorization");
       // Do not log token; only presence
-      console.warn(
-        "[forwardAuthAndFetch] Upstream error",
-        { url: finalUrl, statusCode, statusMessage, reqId, hasAuth },
-      );
+      console.warn("[forwardAuthAndFetch] Upstream error", {
+        url: finalUrl,
+        statusCode,
+        statusMessage,
+        reqId,
+        hasAuth,
+      });
     }
 
     throw createError({ statusCode, statusMessage, data });

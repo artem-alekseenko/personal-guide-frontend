@@ -1,4 +1,4 @@
-import type { ToastProps } from '@nuxt/ui';
+import type { ToastProps } from "@nuxt/ui";
 
 export const useToastNotifications = () => {
   const toast = useToast();
@@ -8,8 +8,8 @@ export const useToastNotifications = () => {
     toast.add({
       title,
       description,
-      color: 'success',
-      icon: 'i-lucide-check-circle',
+      color: "success",
+      icon: "i-lucide-check-circle",
     } as ToastProps);
   };
 
@@ -17,8 +17,8 @@ export const useToastNotifications = () => {
     toast.add({
       title,
       description,
-      color: 'error',
-      icon: 'i-lucide-alert-circle',
+      color: "error",
+      icon: "i-lucide-alert-circle",
     } as ToastProps);
   };
 
@@ -26,8 +26,8 @@ export const useToastNotifications = () => {
     toast.add({
       title,
       description,
-      color: 'warning',
-      icon: 'i-lucide-alert-triangle',
+      color: "warning",
+      icon: "i-lucide-alert-triangle",
     } as ToastProps);
   };
 
@@ -35,36 +35,35 @@ export const useToastNotifications = () => {
     toast.add({
       title,
       description,
-      color: 'info',
-      icon: 'i-lucide-info',
+      color: "info",
+      icon: "i-lucide-info",
     } as ToastProps);
   };
 
   const showSettingsSaved = () => {
     showSuccess(
-      t('toast.settings.saved'),
-      t('toast.settings.savedDescription')
+      t("toast.settings.saved"),
+      t("toast.settings.savedDescription"),
     );
   };
 
   const showSettingsError = (error?: string) => {
     showError(
-      t('toast.settings.error'),
-      error || t('toast.settings.errorDescription')
+      t("toast.settings.error"),
+      error || t("toast.settings.errorDescription"),
     );
   };
 
   const showNetworkError = () => {
-    showError(
-      t('toast.network.error'),
-      t('toast.network.errorDescription')
-    );
+    showError(t("toast.network.error"), t("toast.network.errorDescription"));
   };
 
   const showApiError = (error: any, context?: string) => {
-    const title = context ? `${context} failed` : t('toast.general.operationFailed');
-    const description = error?.message || t('toast.general.unexpectedError');
-    
+    const title = context
+      ? `${context} failed`
+      : t("toast.general.operationFailed");
+    const description = error?.message || t("toast.general.unexpectedError");
+
     showError(title, description);
   };
 
@@ -79,4 +78,4 @@ export const useToastNotifications = () => {
     showNetworkError,
     showApiError,
   };
-}; 
+};

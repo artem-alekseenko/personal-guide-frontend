@@ -15,7 +15,10 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, ref, watch } from "vue";
-import { createHighlightedText, formatTextWithParagraphs } from "~/utils/textUtils";
+import {
+  createHighlightedText,
+  formatTextWithParagraphs,
+} from "~/utils/textUtils";
 
 interface Props {
   show: boolean;
@@ -45,17 +48,17 @@ const isScrollingEnabled = computed({
 
 const toggleScrollText = computed(() => {
   return isScrollingEnabled.value
-    ? t('components.tourTextDisplay.scrollEnabled')
-    : t('components.tourTextDisplay.scrollDisabled');
+    ? t("components.tourTextDisplay.scrollEnabled")
+    : t("components.tourTextDisplay.scrollDisabled");
 });
 
 const displayText = computed(() => {
   if (!props.text) return "";
-  
+
   if (props.highlightSentence) {
     return createHighlightedText(props.text, props.highlightSentence);
   }
-  
+
   // Format text with proper paragraphs even without highlighting
   const formattedText = formatTextWithParagraphs(props.text);
   return `<p>${formattedText}</p>`;
@@ -63,7 +66,7 @@ const displayText = computed(() => {
 
 const scrollToHighlightedSentence = () => {
   if (!isScrollingEnabled.value || !textRef.value) return;
-  
+
   const highlightedEl = textRef.value.querySelector(".active-sentence");
   if (!highlightedEl) return;
 
@@ -89,7 +92,7 @@ watch(
         scrollToHighlightedSentence();
       });
     }
-  }
+  },
 );
 
 // Expose methods for parent component
@@ -97,4 +100,4 @@ defineExpose({
   scrollToHighlightedSentence,
   clearHighlights,
 });
-</script> 
+</script>
