@@ -517,3 +517,42 @@
     cursor: pointer;
   }
 }
+
+/* Phone frame: on viewports > 768px, app appears inside a phone-like frame */
+.phone-viewport {
+  min-block-size: 100dvh;
+}
+
+@media (min-width: 769px) {
+  .phone-viewport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: oklch(1 0 89);
+  }
+
+  .phone-viewport__frame {
+    display: flex;
+    flex-direction: column;
+    inline-size: 100%;
+    max-inline-size: 440px;
+    max-block-size: 800px;
+    overflow: hidden;
+    overflow-y: auto;
+    border-radius: 2.5rem;
+    border: 0.625rem solid oklch(0.22 0.02 260);
+    box-shadow:
+      0 0 0 0.125rem oklch(0.15 0.02 260),
+      0 1.5rem 3rem -0.5rem oklch(0 0 0 / 0.4),
+      0 0 0 0.0625rem oklch(0.3 0.02 260) inset;
+
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+  }
+}

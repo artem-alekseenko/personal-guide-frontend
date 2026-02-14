@@ -1,29 +1,33 @@
 <template>
   <UApp :toaster="{ position: 'top-right', duration: 4000 }">
-    <!-- Auth loader -->
-    <AuthLoader />
-    
-    <NuxtLayout>
-      <NuxtPage />
-    </NuxtLayout>
-    
-    <!-- Global notification modal -->
-    <NotificationModal
-      :open="notification.open"
-      :type="notification.type"
-      :title="notification.title"
-      :subtitle="notification.subtitle"
-      :message="notification.message"
-      :details="notification.details"
-      :primary-action-text="notification.primaryActionText"
-      :secondary-action-text="notification.secondaryActionText"
-      :show-secondary-action="notification.showSecondaryAction"
-      :close-on-overlay-click="notification.closeOnOverlayClick"
-      @update:open="handleOpenChange"
-      @close="handleModalClose"
-      @primary-action="handlePrimaryAction"
-      @secondary-action="handleSecondaryAction"
-    />
+    <div class="phone-viewport">
+      <div class="phone-viewport__frame">
+        <!-- Auth loader -->
+        <AuthLoader />
+
+        <NuxtLayout>
+          <NuxtPage />
+        </NuxtLayout>
+
+        <!-- Global notification modal -->
+        <NotificationModal
+          :close-on-overlay-click="notification.closeOnOverlayClick"
+          :details="notification.details"
+          :message="notification.message"
+          :open="notification.open"
+          :primary-action-text="notification.primaryActionText"
+          :secondary-action-text="notification.secondaryActionText"
+          :show-secondary-action="notification.showSecondaryAction"
+          :subtitle="notification.subtitle"
+          :title="notification.title"
+          :type="notification.type"
+          @close="handleModalClose"
+          @update:open="handleOpenChange"
+          @primary-action="handlePrimaryAction"
+          @secondary-action="handleSecondaryAction"
+        />
+      </div>
+    </div>
   </UApp>
 </template>
 
@@ -37,7 +41,6 @@ const handleOpenChange = (isOpen) => {
 };
 
 const handleModalClose = (reason) => {
-  // Call onClose callback if provided
   if (notification.value.onClose) {
     notification.value.onClose(reason);
   }
