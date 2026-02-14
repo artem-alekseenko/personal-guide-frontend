@@ -1,9 +1,9 @@
-import { defineStore } from "pinia";
-import { computed, ref } from "vue";
-import type { User } from "firebase/auth";
-import type { IUserPreferences, IUserProfile, IUserStats } from "~/types";
-import { DEFAULT_VOICE_TYPE } from "~/types/voice";
-import { useUserApi } from "~/composables/useUserApi";
+import {defineStore} from "pinia";
+import {computed, ref} from "vue";
+import type {User} from "firebase/auth";
+import type {IUserPreferences, IUserProfile, IUserStats} from "~/types";
+import {DEFAULT_VOICE_TYPE} from "~/types/voice";
+import {useUserApi} from "~/composables/useUserApi";
 
 export interface IUserStore {
   // State
@@ -85,6 +85,11 @@ export const useUserStore = defineStore(
     // Actions
     const setUser = (newUser: User | null): void => {
       user.value = newUser;
+
+      if (!newUser) {
+        profile.value = null;
+        stats.value = null;
+      }
 
       if (newUser && !profile.value) {
         // Create basic profile for new user

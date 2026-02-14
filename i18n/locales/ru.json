@@ -29,13 +29,32 @@
   },
   "auth": {
     "login": "Войти",
+    "register": "Регистрация",
     "email": "Электронная почта",
     "password": "Пароль",
+    "passwordConfirm": "Подтвердите пароль",
     "loginError": "Не удалось войти. Пожалуйста, проверьте ваши данные.",
     "logoutSuccess": "Вы успешно вышли из системы",
+    "orSignInWithEmail": "Или войдите по email",
+    "continueWithGoogle": "Войти через Google",
+    "noAccountRegister": "Нет аккаунта? Зарегистрироваться",
+    "hasAccountLogin": "Уже есть аккаунт? Войти",
     "loading": {
       "title": "Аутентификация...",
       "subtitle": "Пожалуйста, подождите, пока идет аутентификация..."
+    },
+    "errors": {
+      "invalidEmail": "Некорректный email",
+      "userDisabled": "Этот аккаунт отключен",
+      "userNotFound": "Аккаунт с таким email не найден",
+      "wrongPassword": "Неверный пароль",
+      "emailAlreadyInUse": "Аккаунт с таким email уже существует",
+      "weakPassword": "Пароль должен быть не менее 6 символов",
+      "invalidCredential": "Неверные данные. Попробуйте снова.",
+      "popupClosed": "Вход отменён",
+      "popupBlocked": "Всплывающее окно заблокировано. Разрешите всплывающие окна для этого сайта.",
+      "accountExistsDifferentCredential": "Аккаунт с таким email уже существует с другим способом входа",
+      "passwordMismatch": "Пароли не совпадают"
     }
   },
   "navigation": {
@@ -46,7 +65,8 @@
   },
   "pages": {
     "home": {
-      "title": "Главная страница Personal Guide"
+      "title": "Главная страница Personal Guide",
+      "titleLogin": "Вход"
     },
     "tours": {
       "title": "Маршруты",
