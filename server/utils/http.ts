@@ -1,11 +1,5 @@
-import { $fetch, type FetchOptions } from "ofetch";
-import {
-  getMethod,
-  getRequestHeader,
-  getRequestURL,
-  type H3Event,
-  setResponseHeader,
-} from "h3";
+import {$fetch, type FetchOptions} from "ofetch";
+import {getMethod, getRequestHeader, getRequestURL, type H3Event, setResponseHeader,} from "h3";
 
 export function buildServiceUrl(url: string) {
   const cfg = useRuntimeConfig();
@@ -13,7 +7,6 @@ export function buildServiceUrl(url: string) {
 
   try {
     if (!base) {
-      // Without base: forbid relative URLs (to avoid hitting Nuxt itself by mistake)
       const hasScheme = /^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(url);
       if (!hasScheme) {
         if (import.meta.dev)
@@ -30,7 +23,6 @@ export function buildServiceUrl(url: string) {
     }
 
     const final = new URL(url, base);
-    // SSRF: do not allow changing origin
     const baseOrigin = new URL(base).origin;
     if (final.origin !== baseOrigin) {
       throw createError({
@@ -49,14 +41,11 @@ export async function forwardAuthAndFetch<T>(
   url: string,
   init: FetchOptions<"json"> = {},
 ): Promise<T> {
-  // Normalize headers (supports Headers, string[][], Record<string,string>)
   const headers = new Headers(init.headers as HeadersInit | undefined);
 
-  // Forward Authorization from client (client header has priority)
   const clientAuth = getRequestHeader(event, "authorization");
   if (clientAuth) headers.set("authorization", clientAuth);
 
-  // Tracing: propagate/generate and echo back to client
   const existingReqId = getRequestHeader(event, "x-request-id");
   const generatedReqId = `${Date.now().toString(36)}-${Math.random()
     .toString(36)
@@ -75,7 +64,6 @@ export async function forwardAuthAndFetch<T>(
       timeout: init.timeout ?? 15_000,
     });
   } catch (err: any) {
-    // Best-effort error propagation from downstream
     const statusCode = err?.response?.status || err?.statusCode || 502;
     const statusMessage =
       err?.response?.statusText || err?.message || "Upstream fetch error";
@@ -83,7 +71,6 @@ export async function forwardAuthAndFetch<T>(
 
     if (import.meta.dev) {
       const hasAuth = headers.has("authorization");
-      // Do not log token; only presence
       console.warn("[forwardAuthAndFetch] Upstream error", {
         url: finalUrl,
         statusCode,
@@ -97,9 +84,7 @@ export async function forwardAuthAndFetch<T>(
   }
 }
 
-/** Require Authorization header on private /api/* endpoints (without token validation) */
 export function ensureAuthHeaderOnPrivateApi(event: H3Event) {
-  // Allow CORS preflight without auth
   if (getMethod(event).toUpperCase() === "OPTIONS") return;
 
   const cfg = useRuntimeConfig();
