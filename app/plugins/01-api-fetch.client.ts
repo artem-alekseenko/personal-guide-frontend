@@ -5,13 +5,11 @@ export default defineNuxtPlugin(() => {
   const logger = useLogger();
   // Create a custom $fetch instance that includes Firebase ID token in Authorization header
   // Note: This plugin is named with 01- to load after Firebase (00-) and before client code that might use $apiFetch.
-
   // Micro-cache for parallel requests to avoid multiple getIdToken() calls
   let pendingToken: Promise<string> | null = null;
 
   const apiFetch = $fetch.create({
     onRequest: async ({ request, options }) => {
-      // allow string | URL | Request
       const isApiPath =
         (typeof request === "string" && request.startsWith("/api/")) ||
         (request instanceof URL && request.pathname.startsWith("/api/")) ||
@@ -22,19 +20,16 @@ export default defineNuxtPlugin(() => {
 
       if (!isApiPath) return;
 
-      // Guard against rare early call before Firebase app is ready
       let user: any = null;
       try {
         const auth = getAuth();
         user = auth.currentUser;
       } catch {
-        // Firebase App not initialized yet — skip token injection
         return;
       }
       if (!user) return;
 
       try {
-        // Use cached token promise to avoid parallel getIdToken() calls
         const token =
           pendingToken ??
           (pendingToken = user.getIdToken().finally(() => {
@@ -44,7 +39,6 @@ export default defineNuxtPlugin(() => {
 
         console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Token:", tokenValue);
 
-        // normalize headers (HeadersInit)
         const h = options.headers;
         if (!h) {
           options.headers = new Headers([
@@ -53,7 +47,6 @@ export default defineNuxtPlugin(() => {
         } else if (h instanceof Headers) {
           h.set("Authorization", `Bearer ${tokenValue}`);
         } else if (Array.isArray(h)) {
-          // Convert array format to Headers instance
           const headers = new Headers(h);
           headers.set("Authorization", `Bearer ${tokenValue}`);
           options.headers = headers;
@@ -74,7 +67,6 @@ export default defineNuxtPlugin(() => {
           options.credentials = "include";
         }
       } catch {
-        // Silent catch - if token retrieval fails (race conditions, user logged out), proceed without it
         logger.warn("apiFetch: no token available");
       }
     },
@@ -82,15 +74,3 @@ export default defineNuxtPlugin(() => {
 
   return { provide: { apiFetch } };
 });
-
-// Type augmentation
-declare module "#app" {
-  interface NuxtApp {
-    $apiFetch: typeof $fetch;
-  }
-}
-declare module "vue" {
-  interface ComponentCustomProperties {
-    $apiFetch: typeof $fetch;
-  }
-}
