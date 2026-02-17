@@ -71,8 +71,8 @@
     <div v-if="state !== STATE.INITIAL" class="mx-4">
       <input
         v-model="userText"
-        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
         :placeholder="$t('components.tourPage.enterQuestion')"
+        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
         type="text"
       />
       <PGButton class="mx-auto mt-3 block" @click="addQuestion">
@@ -99,26 +99,14 @@ definePageMeta({});
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  shallowRef,
-  watch,
-} from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTourStore } from "#imports";
 import { useTourSpeech } from "@/composables/useTourSpeech";
 import { useMapboxDirections } from "@/composables/useMapboxDirections";
 import { useTourTextSync } from "@/composables/useTourTextSync";
 import { useLogger } from "@/composables/useLogger";
-import {
-  base64ToAudioBlob,
-  cleanupAudioUrl,
-  createAudioUrl,
-} from "~/utils/audioUtils";
+import { base64ToAudioBlob, cleanupAudioUrl, createAudioUrl } from "~/utils/audioUtils";
 import type { ICoordinate, IGeoJSONFeature, TypeFrom } from "~/types";
 import createPlacesMarkerElem from "~/utils/pages/createPlacesMarkerElem";
 import { useGeolocationStore } from "~/stores/geolocationStore";
@@ -162,10 +150,8 @@ type TState = TypeFrom<typeof STATE>;
 const userText = ref("");
 const isScrollingToHighlightTextEnabled = ref(true);
 
-// Position mode state with persistence
 const { positionMode, isManualMode } = usePositionMode();
 
-// Watch for position mode changes and manage markers
 watch(positionMode, (newMode, oldMode) => {
   logger.log(`Position mode changed from ${oldMode} to: ${newMode}`);
 
@@ -175,10 +161,8 @@ watch(positionMode, (newMode, oldMode) => {
   }
 
   if (newMode === "manual") {
-    // Switching to simulation mode
     logger.log("Switching to simulation mode");
 
-    // Add simulation marker at current GPS position if available
     if (geolocationStore.coordinates) {
       const coords = geolocationStore.coordinates;
       logger.log(
@@ -188,13 +172,11 @@ watch(positionMode, (newMode, oldMode) => {
       );
       addSimulationMarker(coords);
 
-      // Center map on the marker position
       mapInstance.flyTo({
         center: coords,
         duration: 1000,
       });
     } else {
-      // Fallback to center of map or default coordinates
       const center = mapInstance.getCenter();
       const fallbackCoords: [number, number] = [center.lng, center.lat];
       logger.log(
@@ -205,10 +187,8 @@ watch(positionMode, (newMode, oldMode) => {
       addSimulationMarker(fallbackCoords);
     }
   } else if (newMode === "gps") {
-    // Switching to GPS mode
     logger.log("Switching to GPS mode - removing simulation marker");
 
-    // Remove simulation marker
     if (simulationMarker.value) {
       simulationMarker.value.remove();
       simulationMarker.value = null;
@@ -227,7 +207,6 @@ const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 const { t } = useI18n();
 
-// Use persistent tour state (after route is available)
 const tourId = route.params.tourId as string;
 const {
   state,
@@ -237,11 +216,9 @@ const {
   getSavedAudioPosition,
 } = useTourState(tourId);
 
-// Audio resume constants
-const AUDIO_REWIND_SECONDS = 5; // Seconds to rewind when resuming
-const AUDIO_SYNC_DELAY_SECONDS = 2; // Delay to compensate for text highlighting being ahead
+const AUDIO_REWIND_SECONDS = 5;
+const AUDIO_SYNC_DELAY_SECONDS = 2;
 
-// Initialize text synchronization composable
 const { currentSpokenSentence, highlightSentence } = useTourTextSync();
 
 /* -------------------------------------------
@@ -253,7 +230,6 @@ const simulationMarker = ref<mapboxgl.Marker | null>(null); // Marker for positi
 const placesMarkerElems: mapboxgl.Marker[] = [] as mapboxgl.Marker[];
 const isMapFullyLoaded = ref(false);
 
-// Initialize directions composable for tour viewing
 const mapInstanceRef = shallowRef<mapboxgl.Map | null>(null);
 const { initializeDirections, addRouteToMap, cleanup } = useMapboxDirections(
   mapInstanceRef,
@@ -263,22 +239,18 @@ const { initializeDirections, addRouteToMap, cleanup } = useMapboxDirections(
   },
 );
 
-// Define marker type with event handling
 type MarkerWithEvents = mapboxgl.Marker & {
   on(event: string, handler: () => void): void;
 };
 
-// Helper function to get current coordinates based on position mode
 const getCurrentCoordinates = (): [number, number] | null => {
   if (positionMode.value === "gps") {
-    // Use real geolocation
     if (geolocationStore.coordinates) {
       return geolocationStore.coordinates;
     }
     logger.warn("GPS coordinates not available");
     return null;
   } else {
-    // Use simulation marker coordinates
     if (simulationMarker.value) {
       const lngLat = simulationMarker.value.getLngLat();
       return [lngLat.lng, lngLat.lat];
@@ -288,7 +260,6 @@ const getCurrentCoordinates = (): [number, number] | null => {
   }
 };
 
-// Helper function to add route with intelligent retry logic
 function tryAddRouteWithCheck(retries = 5, delay = 100) {
   if (!mapInstance || !tourStore.tour || !isMapFullyLoaded.value) {
     logger.warn("Prerequisites not met for route addition");
@@ -308,7 +279,6 @@ function tryAddRouteWithCheck(retries = 5, delay = 100) {
   }, delay);
 }
 
-// Backward compatibility - simple version for quick calls
 function tryAddRouteWithDelay(delay = 100) {
   tryAddRouteWithCheck(1, delay);
 }
@@ -342,18 +312,15 @@ const mainButtonText = computed(() => {
 const handleMapInitialized = (map: mapboxgl.Map) => {
   logger.log("Map initialized");
   mapInstance = map;
-  mapInstanceRef.value = map; // Sync with ref for composable
+  mapInstanceRef.value = map;
 
-  // Wait for map to be fully loaded before adding route
   mapInstance.on("load", () => {
     logger.log("Map fully loaded, ready for route");
     isMapFullyLoaded.value = true;
 
-    // Initialize directions after map is loaded
     try {
       initializeDirections();
 
-      // Add route if tour data is available
       if (tourStore.tour) {
         logger.log("Adding route after map load");
         tryAddRouteWithCheck(); // Use smart retry logic for initial load
@@ -362,7 +329,6 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
       logger.error("Failed to initialize directions:", error);
     }
 
-    // Check if simulation mode is already active and create marker if needed
     if (positionMode.value === "manual" && geolocationStore.coordinates) {
       logger.log(
         "Map loaded - simulation mode already active, creating marker at GPS position",
@@ -371,7 +337,6 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
     }
   });
 
-  // Add click handler for setting simulation marker (only in simulation mode)
   mapInstance.on("click", (e) => {
     if (positionMode.value === "manual") {
       const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
@@ -396,14 +361,12 @@ const addSimulationMarker = (coords: [number, number]) => {
     mapInstance.getCenter().lat,
   ]);
 
-  // Remove existing simulation marker if any
   if (simulationMarker.value) {
     logger.log("Removing existing simulation marker");
     simulationMarker.value.remove();
     simulationMarker.value = null;
   }
 
-  // Create simulation marker using same approach as in useMarkers (standard SVG teardrop)
   logger.log("Creating standard Mapbox marker (SVG teardrop)");
 
   try {
@@ -413,10 +376,8 @@ const addSimulationMarker = (coords: [number, number]) => {
       .setLngLat(coords)
       .addTo(mapInstance);
 
-    // Add drag end handler
     (newMarker as MarkerWithEvents).on("dragend", () => {
       logger.log("Simulation marker dragged to new position");
-      // Auto-fetch new record when marker position changes
       if (
         state.value !== STATE.RECORD_LOADING &&
         state.value !== STATE.RECORD_LOADING_WHEN_PAUSED
@@ -428,7 +389,6 @@ const addSimulationMarker = (coords: [number, number]) => {
     simulationMarker.value = newMarker;
     logger.log("Simulation marker successfully added to map at:", coords);
 
-    // Verify marker is actually on the map
     setTimeout(() => {
       const markerLngLat = newMarker.getLngLat();
       logger.log("Marker verification - position:", [
@@ -473,21 +433,17 @@ const removePlaces = () => {
   placesMarkerElems.forEach((m) => m.remove());
 };
 
-// Watch for position mode changes
 watch(positionMode, (newMode, oldMode) => {
   logger.log(`Position mode changed from ${oldMode} to ${newMode}`);
 
   if (newMode === "manual") {
-    // Switching to simulation mode
     if (!simulationMarker.value && geolocationStore.coordinates) {
       // Create simulation marker at current real GPS position
       logger.log("Creating simulation marker at real GPS position");
       addSimulationMarker(geolocationStore.coordinates);
     }
   } else {
-    // Switching to real geolocation mode
     if (simulationMarker.value) {
-      // Remove simulation marker
       logger.log("Removing simulation marker");
       simulationMarker.value.remove();
       simulationMarker.value = null;
@@ -512,11 +468,9 @@ function playAudio(startFromPosition?: number) {
   if (!audioElement.value) {
     audioElement.value = new Audio();
 
-    // Add event listener for timeupdate
     audioElement.value.addEventListener("timeupdate", () => {
       if (!audioElement.value) return;
 
-      // Calculate current character index based on audio progress
       const totalDuration = audioElement.value.duration;
       const currentTime = audioElement.value.currentTime;
 
@@ -525,11 +479,9 @@ function playAudio(startFromPosition?: number) {
         return;
       }
 
-      // Apply sync delay to compensate for text highlighting being ahead
       const adjustedTime = Math.max(0, currentTime - AUDIO_SYNC_DELAY_SECONDS);
       const progress = adjustedTime / totalDuration;
 
-      // Clean text from HTML tags, paragraph markers, and normalize whitespace for accurate character counting
       const cleanText = tourStore.textForSpeech
         .replace(/<[^>]*>/g, "") // Remove HTML tags
         .replace(/\n\n/g, " ") // Replace paragraph breaks with single space
@@ -544,28 +496,23 @@ function playAudio(startFromPosition?: number) {
 
       const currentCharIndex = Math.floor(progress * totalTextLength);
 
-      // Debug logging for sync analysis
       if (Math.floor(currentTime) % 5 === 0 && currentTime % 1 < 0.1) {
-        // Log every 5 seconds
         logger.log(
           `Sync Debug: Time=${currentTime.toFixed(1)}s/${totalDuration.toFixed(1)}s (${(progress * 100).toFixed(1)}%), CharIndex=${currentCharIndex}/${totalTextLength}, AdjustedTime=${adjustedTime.toFixed(1)}s, Text="${cleanText.substring(currentCharIndex - 10, currentCharIndex + 10)}"`,
         );
       }
 
-      // Create a temporary utterance to pass to highlightSentence
       const utterance = new SpeechSynthesisUtterance(tourStore.textForSpeech);
       highlightSentence(currentCharIndex, utterance);
     });
   }
 
-  // Convert base64 to blob using utility
   const blob = base64ToAudioBlob(audioData);
   const audioUrl = createAudioUrl(blob, currentAudioUrl.value ?? undefined);
 
   currentAudioUrl.value = audioUrl;
   audioElement.value.src = audioUrl;
 
-  // If we need to start from a specific position, wait for audio to load
   if (startFromPosition !== undefined) {
     const setPositionAndPlay = () => {
       if (audioElement.value) {
@@ -574,22 +521,18 @@ function playAudio(startFromPosition?: number) {
       }
     };
 
-    // Use loadeddata event for more reliable position setting
     audioElement.value.addEventListener("loadeddata", setPositionAndPlay, {
       once: true,
     });
 
-    // Fallback timeout in case event doesn't fire
     setTimeout(() => {
       if (audioElement.value && audioElement.value.currentTime === 0) {
         setPositionAndPlay();
       }
     }, 200);
 
-    // Start loading the audio
     audioElement.value.load();
   } else {
-    // Normal playback from the beginning
     audioElement.value.play();
   }
 }
@@ -614,7 +557,6 @@ function stopAudio() {
 }
 
 function canResumeAudio(): boolean {
-  // Check if audio element exists and has valid source
   return !!(
     audioElement.value &&
     audioElement.value.src &&
@@ -628,7 +570,6 @@ function resumeAudioFromSavedPosition() {
   const savedPosition = getSavedAudioPosition();
 
   if (savedPosition !== null) {
-    // Calculate rewind position (but don't go below 0)
     const rewindPosition = Math.max(0, savedPosition - AUDIO_REWIND_SECONDS);
     audioElement.value.currentTime = rewindPosition;
   }
@@ -652,15 +593,12 @@ function playChunkFromSavedPosition() {
     return;
   }
 
-  // Get saved position and calculate rewind position
   const savedPosition = getSavedAudioPosition();
   if (savedPosition !== null) {
     const rewindPosition = Math.max(0, savedPosition - AUDIO_REWIND_SECONDS);
 
-    // Use the enhanced playAudio with position
     playAudio(rewindPosition);
   } else {
-    // No saved position, play normally
     playAudio();
   }
 
@@ -668,7 +606,6 @@ function playChunkFromSavedPosition() {
 }
 
 function pauseTour() {
-  // Save current audio position before pausing
   const currentPosition = audioElement.value?.currentTime ?? 0;
   setState(STATE.RECORD_PAUSED, undefined, currentPosition);
   pauseAudio();
@@ -695,7 +632,6 @@ async function getRecord() {
       "No coordinates available for current position mode, trying fallback",
     );
 
-    // Fallback: try to set default coordinates
     let fallbackCoords: [number, number] | null = null;
 
     if (positionMode.value === "gps" && geolocationStore.coordinates) {
@@ -715,10 +651,8 @@ async function getRecord() {
     if (fallbackCoords) {
       if (positionMode.value === "manual") {
         addSimulationMarker(fallbackCoords);
-        // After creating simulation marker, get its coordinates
         coords = getCurrentCoordinates();
       } else {
-        // For GPS mode, use the fallback coordinates directly
         coords = fallbackCoords;
       }
     } else {
@@ -751,7 +685,6 @@ async function getRecord() {
   try {
     await tourStore.fetchTourStep(currentCoord);
   } catch (error) {
-    // Error is already handled in tourStore, just set the ERROR state
     setState(STATE.ERROR);
     logger.error("Tour step fetch failed, state set to ERROR");
   }
@@ -771,12 +704,9 @@ function handleTourButtonClick() {
       pauseTour();
       break;
     case STATE.RECORD_PAUSED:
-      // Check if audio is available to resume, otherwise start fresh
       if (tourStore.textForSpeech?.length && canResumeAudio()) {
         resumeTour();
       } else {
-        // Audio not available, but we might have saved position
-        // Start fresh but set position after audio loads
         playChunkFromSavedPosition();
       }
       break;
@@ -785,13 +715,12 @@ function handleTourButtonClick() {
 
 function handleCompleteTour() {
   setState(STATE.TOUR_FINISHED);
-  clearSavedState(); // Clear saved state when tour is completed
+  clearSavedState();
   tourStore.setUserText("");
   router.push({ name: "tours" });
 }
 
 async function addQuestion() {
-  // Save current audio position before pausing
   const currentPosition = audioElement.value?.currentTime ?? 0;
   setState(STATE.RECORD_PAUSED, undefined, currentPosition);
   pauseAudio();
@@ -804,7 +733,6 @@ async function addQuestion() {
   try {
     await getRecord();
   } catch (error) {
-    // Error handling is already done in getRecord
     logger.error("Failed to add question:", error);
   }
 }
@@ -827,7 +755,6 @@ watch(
   },
 );
 
-// Watch for tour data changes and add route when both map and tour are ready
 watch(
   () => tourStore.tour,
   (newTour) => {
@@ -859,11 +786,8 @@ onMounted(async () => {
   await tourStore.fetchGetTour(route.params.tourId as string);
   logger.log("Tour fetched:", tourStore.tour);
 
-  // Check if we should restore the tour state after fetching tour data
   if (shouldRestoreState.value && tourStore.textForDisplay) {
     logger.log("Restoring tour state:", state.value);
-    // The state is already restored from localStorage in the composable
-    // We just need to ensure the UI reflects the current state
   }
 
   window.addEventListener("beforeunload", stopAudio);
@@ -872,21 +796,17 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopSpeech();
 
-  // Cleanup audio URL to prevent memory leaks
   if (currentAudioUrl.value) {
     cleanupAudioUrl(currentAudioUrl.value);
     currentAudioUrl.value = null;
   }
 
-  // Cleanup simulation marker to prevent memory leaks
   simulationMarker.value?.remove();
   simulationMarker.value = null;
 
-  // Cleanup all places markers
   placesMarkerElems.forEach((m) => m.remove());
   placesMarkerElems.length = 0;
 
-  // Cleanup directions
   cleanup();
 
   window.removeEventListener("beforeunload", stopAudio);
@@ -894,7 +814,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Simulation marker - exactly same style as user marker */
 .simulation-marker {
   width: 20px;
   height: 20px;
@@ -914,7 +833,6 @@ onBeforeUnmount(() => {
   transform: scale(0.95);
 }
 
-/* Position mode toggle animations */
 .position-toggle-container {
   transition: all 0.3s ease;
 }

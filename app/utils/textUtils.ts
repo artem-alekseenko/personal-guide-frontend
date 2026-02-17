@@ -56,10 +56,8 @@ export const createHighlightedText = (
   text: string,
   highlightSentence: string,
 ): string => {
-  // First, format paragraphs
   const formattedText = formatTextWithParagraphs(text);
 
-  // Split into sentences while preserving paragraph boundaries
   const sentences = splitIntoSentences(formattedText);
 
   const highlightedText = sentences
@@ -70,6 +68,5 @@ export const createHighlightedText = (
     )
     .join("");
 
-  // Wrap in paragraphs
   return `<p>${highlightedText}</p>`;
 };
