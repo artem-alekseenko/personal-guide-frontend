@@ -1,6 +1,5 @@
 import { useCurrentUser } from "vuefire";
 import { useUserStore } from "~/stores/userStore";
-import type { User } from "firebase/auth";
 import type { IUserPreferences, IUserStats } from "~/types";
 
 export const useAuth = () => {
@@ -31,20 +30,17 @@ export const useAuth = () => {
   ) => {
     userStore.updatePreferences(preferences);
 
-    // Sync to server if requested
     if (syncToServer) {
       try {
         await userStore.syncPreferencesToServer();
       } catch (error) {
         console.error("Failed to sync preferences to server:", error);
-        // Don't throw error to avoid breaking the UI
       }
     }
   };
 
   const updateUserStats = (stats: Partial<IUserStats>) => {
     userStore.updateStats(stats);
-    // Server sync can be added here if needed
   };
 
   const loadServerPreferences = async () => {
@@ -56,13 +52,12 @@ export const useAuth = () => {
   };
 
   const logout = async () => {
-    // Firebase logout logic
     const { $firebaseAuth } = useNuxtApp();
     if ($firebaseAuth) {
       await $firebaseAuth.signOut();
     }
 
-    userStore.logout();
+    userStore.reset();
   };
 
   return {
