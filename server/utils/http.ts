@@ -1,5 +1,14 @@
 import {$fetch, type FetchOptions} from "ofetch";
-import {getMethod, getRequestHeader, getRequestURL, type H3Event, setResponseHeader,} from "h3";
+import {getRequestHeader, getRequestURL, type H3Event, setResponseHeader,} from "h3";
+
+const PUBLIC_API_PREFIXES = ["/api/health", "/api/public"] as const;
+
+const isPrefixMatch = (path: string, prefix: string) => {
+  return (
+    path === prefix ||
+    path.startsWith(prefix.endsWith("/") ? prefix : prefix + "/")
+  );
+};
 
 export function buildServiceUrl(url: string) {
   const cfg = useRuntimeConfig();
@@ -84,24 +93,23 @@ export async function forwardAuthAndFetch<T>(
   }
 }
 
-export function ensureAuthHeaderOnPrivateApi(event: H3Event) {
-  if (getMethod(event).toUpperCase() === "OPTIONS") return;
+export const ensureAuthHeaderOnPrivateApi = (event: H3Event) => {
+  if (event.method === "OPTIONS") return;
 
-  const cfg = useRuntimeConfig();
   const pathname = getRequestURL(event).pathname;
+
   if (!pathname.startsWith("/api/")) return;
+  if (PUBLIC_API_PREFIXES.some((p) => isPrefixMatch(pathname, p))) return;
 
-  const publicPrefixes = (cfg.publicApiPrefixes as string | undefined)
-    ?.split(",")
-    .map((s) => s.trim())
-    .filter(Boolean) ?? ["/api/health", "/api/public"];
-  if (publicPrefixes.some((prefix) => pathname.startsWith(prefix))) return;
+  const auth = getRequestHeader(event, "authorization") ?? "";
+  const token = auth.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
 
-  const auth = getRequestHeader(event, "authorization") || "";
-  if (!/^bearer\s+.+/i.test(auth)) {
+  if (!token) {
     throw createError({
       statusCode: 401,
       statusMessage: "Missing Authorization header",
     });
   }
-}
+
+  event.context.bearerToken = token;
+};
