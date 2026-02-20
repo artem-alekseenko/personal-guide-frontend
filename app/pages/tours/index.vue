@@ -63,9 +63,6 @@ const handleCreateTour = () => {
   justify-content: center;
   gap: 1rem;
   padding: 1rem;
-
-  @container (width >= 420px) {
-  }
 }
 
 .tours-page__empty {

@@ -1,6 +1,8 @@
 <template>
-  <!-- <PGTourCard> -->
-  <div :style="{ backgroundImage: `url(${imageUrl})` }" class="tour-card">
+  <div
+    :style="{ backgroundImage: `url(${imageUrl})` }"
+    class="tour-card"
+  >
     <div class="tour-card__overlay"></div>
     <div class="tour-card__content">
       <h2 class="tour-card__title">{{ name }}</h2>
@@ -76,7 +78,6 @@ const toggleExpanded = () => {
   isExpanded.value = !isExpanded.value;
 };
 
-// Check if description is long enough to warrant a toggle button
 onMounted(async () => {
   await nextTick();
 
@@ -103,8 +104,6 @@ onMounted(async () => {
 
 <style scoped>
 .tour-card {
-  container-type: inline-size;
-  container-name: tour-card;
   position: relative;
   display: grid;
   grid-template-columns: 1fr;
