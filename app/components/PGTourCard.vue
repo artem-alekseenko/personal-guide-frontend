@@ -1,8 +1,5 @@
 <template>
-  <div
-    :style="{ backgroundImage: `url(${imageUrl})` }"
-    class="tour-card"
-  >
+  <div :style="{ backgroundImage: `url(${imageUrl})` }" class="tour-card">
     <div class="tour-card__overlay"></div>
     <div class="tour-card__content">
       <h2 class="tour-card__title">{{ name }}</h2>

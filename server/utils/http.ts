@@ -1,5 +1,10 @@
-import {$fetch, type FetchOptions} from "ofetch";
-import {getRequestHeader, getRequestURL, type H3Event, setResponseHeader,} from "h3";
+import { $fetch, type FetchOptions } from "ofetch";
+import {
+  getRequestHeader,
+  getRequestURL,
+  type H3Event,
+  setResponseHeader,
+} from "h3";
 
 const PUBLIC_API_PREFIXES = ["/api/health", "/api/public"] as const;
 

@@ -46,15 +46,24 @@ export function useTourCoordinates(options: TourCoordinatesOptions) {
   const getFallbackCoordinates = (): [number, number] | null => {
     // Try geolocation store first (for GPS mode)
     if (positionMode.value === "gps" && geolocationStore.coordinates) {
-      logger.log("Using geolocation fallback coordinates:", geolocationStore.coordinates);
+      logger.log(
+        "Using geolocation fallback coordinates:",
+        geolocationStore.coordinates,
+      );
       return geolocationStore.coordinates;
     }
 
     // Try first point from tour route
-    if (tourStore.tour?.route?.points && tourStore.tour.route.points.length > 0) {
+    if (
+      tourStore.tour?.route?.points &&
+      tourStore.tour.route.points.length > 0
+    ) {
       const firstPoint = tourStore.tour.route.points[0];
       if (firstPoint) {
-        const coords: [number, number] = [Number(firstPoint.lng), Number(firstPoint.lat)];
+        const coords: [number, number] = [
+          Number(firstPoint.lng),
+          Number(firstPoint.lat),
+        ];
         logger.log("Using tour route fallback coordinates:", coords);
         return coords;
       }
@@ -73,7 +82,7 @@ export function useTourCoordinates(options: TourCoordinatesOptions) {
 
     if (!coords) {
       logger.warn(
-        "No coordinates available for current position mode, trying fallback"
+        "No coordinates available for current position mode, trying fallback",
       );
       coords = getFallbackCoordinates();
     }

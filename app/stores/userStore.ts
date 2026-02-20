@@ -1,9 +1,9 @@
-import {defineStore} from "pinia";
-import {computed, markRaw, ref, shallowRef} from "vue";
-import type {User} from "firebase/auth";
-import type {IUserPreferences, IUserProfile, IUserStats} from "~/types";
-import {DEFAULT_VOICE_TYPE} from "~/types/voice";
-import {useUserApi} from "~/composables/useUserApi";
+import { defineStore } from "pinia";
+import { computed, markRaw, ref, shallowRef } from "vue";
+import type { User } from "firebase/auth";
+import type { IUserPreferences, IUserProfile, IUserStats } from "~/types";
+import { DEFAULT_VOICE_TYPE } from "~/types/voice";
+import { useUserApi } from "~/composables/useUserApi";
 
 const makeDefaultPreferences = (): IUserPreferences => ({
   language: "en",

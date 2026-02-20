@@ -12,7 +12,7 @@ import createPlacesMarkerElem from "./pages/createPlacesMarkerElem";
 export const addMarkerElemToMap = (
   map: mapboxgl.Map | null,
   markerElem: HTMLElement,
-  feature: IGeoJSONFeature
+  feature: IGeoJSONFeature,
 ): mapboxgl.Marker | undefined => {
   if (!map) return;
 
@@ -33,7 +33,7 @@ export const addMarkerElemToMap = (
  */
 export const addPlaceMarkers = (
   map: mapboxgl.Map | null,
-  placesGeoJSON?: IGeoJSON | null
+  placesGeoJSON?: IGeoJSON | null,
 ): mapboxgl.Marker[] => {
   if (!map || !placesGeoJSON?.features) return [];
 

@@ -32,8 +32,8 @@
 </template>
 
 <script lang="ts" setup>
-import type {IGuide} from "~/types";
-import {useGuidesStore} from "~/stores/guidesStore";
+import type { IGuide } from "~/types";
+import { useGuidesStore } from "~/stores/guidesStore";
 
 interface Props {
   guide: IGuide;

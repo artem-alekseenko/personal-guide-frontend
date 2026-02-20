@@ -36,7 +36,9 @@ export default defineNuxtPlugin((nuxtApp) => {
       const userStore = useUserStore();
 
       if (!userStore.isAuthenticated) {
-        logger.log("🔥 Store not yet authenticated — syncing Firebase user to store");
+        logger.log(
+          "🔥 Store not yet authenticated — syncing Firebase user to store",
+        );
         userStore.setUser(user);
       }
 

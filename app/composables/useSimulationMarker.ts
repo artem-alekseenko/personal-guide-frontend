@@ -36,7 +36,7 @@ export function useSimulationMarker(options: SimulationMarkerOptions = {}) {
     logger.log(
       "Creating simulation marker at coordinates:",
       coords,
-      "[lng, lat]"
+      "[lng, lat]",
     );
     logger.log("Map center before adding marker:", [
       mapInstance.getCenter().lng,

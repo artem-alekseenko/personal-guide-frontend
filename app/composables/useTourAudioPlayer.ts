@@ -2,7 +2,11 @@ import { ref } from "vue";
 import { useTourStore } from "~/stores/tourStore";
 import { useTourTextSync } from "./useTourTextSync";
 import { useLogger } from "./useLogger";
-import { base64ToAudioBlob, cleanupAudioUrl, createAudioUrl } from "~/utils/audioUtils";
+import {
+  base64ToAudioBlob,
+  cleanupAudioUrl,
+  createAudioUrl,
+} from "~/utils/audioUtils";
 
 const AUDIO_REWIND_SECONDS = 5;
 const AUDIO_SYNC_DELAY_SECONDS = 2;
@@ -48,7 +52,10 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
           return;
         }
 
-        const adjustedTime = Math.max(0, currentTime - AUDIO_SYNC_DELAY_SECONDS);
+        const adjustedTime = Math.max(
+          0,
+          currentTime - AUDIO_SYNC_DELAY_SECONDS,
+        );
         const progress = adjustedTime / totalDuration;
 
         const cleanText = tourStore.textForSpeech
@@ -67,7 +74,7 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
 
         if (Math.floor(currentTime) % 5 === 0 && currentTime % 1 < 0.1) {
           logger.log(
-            `Sync Debug: Time=${currentTime.toFixed(1)}s/${totalDuration.toFixed(1)}s (${(progress * 100).toFixed(1)}%), CharIndex=${currentCharIndex}/${totalTextLength}, AdjustedTime=${adjustedTime.toFixed(1)}s, Text="${cleanText.substring(currentCharIndex - 10, currentCharIndex + 10)}"`
+            `Sync Debug: Time=${currentTime.toFixed(1)}s/${totalDuration.toFixed(1)}s (${(progress * 100).toFixed(1)}%), CharIndex=${currentCharIndex}/${totalTextLength}, AdjustedTime=${adjustedTime.toFixed(1)}s, Text="${cleanText.substring(currentCharIndex - 10, currentCharIndex + 10)}"`,
           );
         }
 

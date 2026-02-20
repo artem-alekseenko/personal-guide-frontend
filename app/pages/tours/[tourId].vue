@@ -99,7 +99,16 @@ definePageMeta({});
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Ref, shallowRef, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  type Ref,
+  shallowRef,
+  watch,
+} from "vue";
 import { useRoute } from "vue-router";
 import { useTourStore } from "#imports";
 import { useTourSpeech } from "@/composables/useTourSpeech";

@@ -72,7 +72,8 @@ export const useBackNavigation = () => {
     navigationHistory.value.push(routePath);
 
     if (navigationHistory.value.length > MAX_HISTORY_SIZE) {
-      navigationHistory.value = navigationHistory.value.slice(-MAX_HISTORY_SIZE);
+      navigationHistory.value =
+        navigationHistory.value.slice(-MAX_HISTORY_SIZE);
     }
 
     throttledSaveNavigationHistory();

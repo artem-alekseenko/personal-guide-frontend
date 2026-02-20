@@ -25,7 +25,11 @@ const AUDIO_REWIND_SECONDS = 5;
 
 export interface TourActionsOptions {
   state: Ref<TourState>;
-  setState: (newState: TourState, hasContent?: boolean, audioPosition?: number) => void;
+  setState: (
+    newState: TourState,
+    hasContent?: boolean,
+    audioPosition?: number,
+  ) => void;
   clearSavedState: () => void;
   getSavedAudioPosition: () => number | null;
   audioPlayer: ReturnType<typeof useTourAudioPlayer>;
@@ -119,7 +123,7 @@ export function useTourActions(options: TourActionsOptions) {
 
     if (!coords) {
       logger.warn(
-        "No coordinates available for current position mode, trying fallback"
+        "No coordinates available for current position mode, trying fallback",
       );
 
       const fallbackCoords = coordinates.getFallbackCoordinates();
@@ -155,7 +159,7 @@ export function useTourActions(options: TourActionsOptions) {
 
     logger.log(
       `Getting record for ${positionMode.value} position:`,
-      currentCoord
+      currentCoord,
     );
 
     try {
