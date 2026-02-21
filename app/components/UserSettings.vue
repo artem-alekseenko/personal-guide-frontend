@@ -1,19 +1,16 @@
 <template>
-  <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-    <!-- Settings saving overlay -->
+  <div class="user-settings">
     <SettingsSavingOverlay :is-saving="isSavingPreferences" />
-    <!-- User profile -->
-    <div class="mt-4 mb-8">
-      <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+    <div class="user-settings__profile">
+      <h3 class="user-settings__title">
         {{ $t("pages.settings.profile") }}
       </h3>
-
-      <div class="mb-4 flex items-center">
+      <div class="user-settings__profile-row">
         <div
           v-if="!userAvatar || userAvatar === '/default-avatar.png'"
-          class="mr-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-200"
+          class="user-settings__avatar-placeholder"
         >
-          <span class="text-2xl font-bold text-gray-600">
+          <span class="user-settings__initial">
             {{ userName.charAt(0).toUpperCase() }}
           </span>
         </div>
@@ -21,33 +18,30 @@
           v-else
           :alt="userName"
           :src="userAvatar"
-          class="mr-4 h-16 w-16 rounded-full"
+          class="user-settings__avatar-img"
         />
-        <div>
-          <h4 class="text-lg font-medium text-gray-900 dark:text-white">
+        <div class="user-settings__profile-info">
+          <h4 class="user-settings__name">
             {{ userName }}
           </h4>
-          <p class="text-gray-600 dark:text-gray-400">
+          <p class="user-settings__email">
             {{ profile?.email }}
           </p>
         </div>
       </div>
     </div>
 
-    <!-- Preferences -->
-    <div class="mb-8">
-      <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+    <div class="user-settings__preferences">
+      <h3 class="user-settings__title">
         {{ $t("pages.settings.preferences") }}
       </h3>
 
-      <div class="space-y-4">
-        <!-- Language -->
+      <div class="user-settings__preferences-list">
         <LanguageSelector
           :preferences="preferences"
           @update:preferences="handlePreferencesUpdate"
         />
 
-        <!-- Voice Type -->
         <VoiceTypeSelector
           :preferences="preferences"
           @update:preferences="handlePreferencesUpdate"
@@ -55,61 +49,61 @@
       </div>
     </div>
 
-    <!-- Statistics -->
-    <div v-if="stats" class="mb-8">
-      <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+    <div v-if="stats" class="user-settings__stats">
+      <h3 class="user-settings__title">
         {{ $t("pages.settings.statistics") }}
       </h3>
 
-      <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div class="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+      <div class="user-settings__stats-grid">
+        <div class="user-settings__stat-card user-settings__stat-card--blue">
+          <div class="user-settings__stat-value">
             {{ stats.totalTours }}
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
+          <div class="user-settings__stat-label">
             {{ $t("pages.settings.totalTours") }}
           </div>
         </div>
 
-        <div class="rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
-          <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+        <div class="user-settings__stat-card user-settings__stat-card--green">
+          <div class="user-settings__stat-value">
             {{ stats.completedTours }}
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
+          <div class="user-settings__stat-label">
             {{ $t("pages.settings.completed") }}
           </div>
         </div>
 
-        <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
-          <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
+        <div class="user-settings__stat-card user-settings__stat-card--purple">
+          <div class="user-settings__stat-value">
             {{ formatDistance(stats.totalDistance) }}
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
+          <div class="user-settings__stat-label">
             {{ $t("pages.settings.distance") }}
           </div>
         </div>
 
-        <div class="rounded-lg bg-orange-50 p-4 dark:bg-orange-900/20">
-          <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">
+        <div class="user-settings__stat-card user-settings__stat-card--orange">
+          <div class="user-settings__stat-value">
             {{ formatTime(stats.totalTime) }}
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
+          <div class="user-settings__stat-label">
             {{ $t("pages.settings.time") }}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex justify-end space-x-4">
+    <div class="user-settings__actions">
       <button
-        class="rounded-md border border-gray-300 px-4 py-2 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+        class="user-settings__btn user-settings__btn--reset"
+        type="button"
         @click="resetSettings"
       >
         {{ $t("common.reset") }}
       </button>
       <button
-        class="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+        class="user-settings__btn user-settings__btn--logout"
+        type="button"
         @click="logout"
       >
         {{ $t("common.logout") }}
@@ -137,10 +131,8 @@ const {
 const { isSavingPreferences } = useAuth();
 const { showSettingsSaved, showSettingsError } = useToastNotifications();
 
-// Local copy of preferences for form reactivity
 const preferences = ref<IUserPreferences>({ ...userPreferences.value });
 
-// Sync with store when changes occur
 watch(
   userPreferences,
   (newPrefs) => {
@@ -158,7 +150,6 @@ const updatePreferences = async () => {
   }
 };
 
-// Handle preferences update from LanguageSelector
 const handlePreferencesUpdate = async (newPreferences: IUserPreferences) => {
   preferences.value = newPreferences;
   await updatePreferences();
@@ -202,3 +193,231 @@ const formatTime = (minutes: number): string => {
   });
 };
 </script>
+
+<style scoped>
+.user-settings {
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--fill-white);
+  box-shadow:
+    0 1px 3px 0 oklch(0 0 0 / 0.1),
+    0 1px 2px -1px oklch(0 0 0 / 0.1);
+}
+
+.dark .user-settings {
+  background-color: var(--fill-gray-800);
+}
+
+.user-settings__profile {
+  margin-block-start: 1rem;
+  margin-block-end: 2rem;
+}
+
+.user-settings__title {
+  margin-block-end: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--fill-gray-900);
+}
+
+.dark .user-settings__title {
+  color: var(--fill-white);
+}
+
+.user-settings__profile-row {
+  display: flex;
+  align-items: center;
+  margin-block-end: 1rem;
+}
+
+.user-settings__avatar-placeholder {
+  display: flex;
+  height: 4rem;
+  width: 4rem;
+  margin-inline-end: 1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: var(--fill-slate-200);
+}
+
+.user-settings__initial {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--fill-gray-600);
+}
+
+.user-settings__avatar-img {
+  height: 4rem;
+  width: 4rem;
+  margin-inline-end: 1rem;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.user-settings__name {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--fill-gray-900);
+}
+
+.dark .user-settings__name {
+  color: var(--fill-white);
+}
+
+.user-settings__email {
+  font-size: 1rem;
+  color: var(--fill-gray-600);
+}
+
+.dark .user-settings__email {
+  color: var(--fill-gray-400);
+}
+
+.user-settings__preferences {
+  margin-block-end: 2rem;
+}
+
+.user-settings__preferences-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-settings__stats {
+  margin-block-end: 2rem;
+}
+
+.user-settings__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.user-settings__stat-card {
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.user-settings__stat-card--blue {
+  background-color: var(--fill-blue-50);
+}
+
+.dark .user-settings__stat-card--blue {
+  background-color: oklch(0.379 0.146 265.522 / 0.2);
+}
+
+.user-settings__stat-card--green {
+  background-color: var(--fill-green-50);
+}
+
+.dark .user-settings__stat-card--green {
+  background-color: oklch(0.393 0.095 152.535 / 0.2);
+}
+
+.user-settings__stat-card--purple {
+  background-color: var(--fill-purple-50);
+}
+
+.dark .user-settings__stat-card--purple {
+  background-color: oklch(0.381 0.176 304.987 / 0.2);
+}
+
+.user-settings__stat-card--orange {
+  background-color: var(--fill-orange-50);
+}
+
+.dark .user-settings__stat-card--orange {
+  background-color: oklch(0.408 0.123 38.172 / 0.2);
+}
+
+.user-settings__stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.user-settings__stat-card--blue .user-settings__stat-value {
+  color: var(--fill-blue-600);
+}
+
+.dark .user-settings__stat-card--blue .user-settings__stat-value {
+  color: var(--fill-blue-400);
+}
+
+.user-settings__stat-card--green .user-settings__stat-value {
+  color: var(--fill-green-600);
+}
+
+.dark .user-settings__stat-card--green .user-settings__stat-value {
+  color: var(--fill-green-400);
+}
+
+.user-settings__stat-card--purple .user-settings__stat-value {
+  color: var(--fill-purple-600);
+}
+
+.dark .user-settings__stat-card--purple .user-settings__stat-value {
+  color: var(--fill-purple-400);
+}
+
+.user-settings__stat-card--orange .user-settings__stat-value {
+  color: var(--fill-orange-600);
+}
+
+.dark .user-settings__stat-card--orange .user-settings__stat-value {
+  color: var(--fill-orange-400);
+}
+
+.user-settings__stat-label {
+  font-size: 0.875rem;
+  color: var(--fill-gray-600);
+}
+
+.dark .user-settings__stat-label {
+  color: var(--fill-gray-400);
+}
+
+.user-settings__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.user-settings__btn {
+  padding-block: 0.5rem;
+  padding-inline: 1rem;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.user-settings__btn--reset {
+  border: 1px solid var(--fill-gray-300);
+  background-color: transparent;
+  color: var(--fill-gray-600);
+}
+
+.user-settings__btn--reset:hover {
+  background-color: var(--fill-gray-50);
+}
+
+.dark .user-settings__btn--reset {
+  border-color: var(--fill-gray-600);
+  color: var(--fill-gray-400);
+}
+
+.dark .user-settings__btn--reset:hover {
+  background-color: var(--fill-gray-700);
+}
+
+.user-settings__btn--logout {
+  border: none;
+  background-color: var(--fill-red-600);
+  color: var(--fill-white);
+}
+
+.user-settings__btn--logout:hover {
+  background-color: var(--fill-red-700);
+}
+</style>

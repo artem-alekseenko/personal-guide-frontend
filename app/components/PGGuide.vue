@@ -54,8 +54,6 @@ const selectGuide = () => {
 
 <style scoped>
 .pg-guide {
-  container-type: inline-size;
-  container-name: guide-card;
   display: grid;
   grid-template-columns: 1fr;
   align-items: center;
@@ -71,14 +69,6 @@ const selectGuide = () => {
   transition:
     border-color 0.15s,
     background-color 0.15s;
-
-  @container (width > 768px) {
-    width: 100%;
-    grid-row: span 3;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: repeat(3, auto);
-    padding: 2rem;
-  }
 }
 
 .pg-guide:hover {

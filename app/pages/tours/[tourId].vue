@@ -1,5 +1,5 @@
 <template>
-  <main
+  <div
     v-if="tourStore.tour"
     class="container mx-auto flex grow flex-col gap-y-4 py-4"
   >
@@ -90,7 +90,7 @@
         {{ $t("components.tourPage.completeTour") }}
       </PGButton>
     </div>
-  </main>
+  </div>
 </template>
 
 <script lang="ts" setup>

@@ -1,5 +1,5 @@
 <template>
-  <section class="container mx-auto px-4 pb-8 md:px-12">
+  <section class="settings-page">
     <UserSettings />
   </section>
 </template>
@@ -17,3 +17,15 @@ onMounted(() => {
   }
 });
 </script>
+
+<style scoped>
+.settings-page {
+  width: 100%;
+  padding-inline: 1rem;
+  padding-block-end: 2rem;
+
+  @container main (width > 414px) {
+    padding-block-end: 1rem;
+  }
+}
+</style>

@@ -1,5 +1,4 @@
 <template>
-  <!-- <Guides> -->
   <section class="guides-page">
     <div v-if="isGuidesListLoading" class="guides-page__loading">
       <p class="guides-page__message">{{ $t("pages.guides.loadingGuides") }}</p>
@@ -8,7 +7,6 @@
       <PGGuide v-for="guide in guidesList" :key="guide.id" :guide="guide" />
     </div>
   </section>
-  <!-- </Guides> -->
 </template>
 
 <script lang="ts" setup>
@@ -28,8 +26,6 @@ if (!isGuidesListLoading.value) {
 
 <style scoped>
 .guides-page {
-  container-type: inline-size;
-  container-name: guides-list;
   width: 100%;
   max-width: 80rem;
   margin-inline: auto;

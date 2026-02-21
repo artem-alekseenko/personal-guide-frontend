@@ -1,12 +1,11 @@
 <template>
-  <div class="flex h-full min-h-screen w-full flex-col">
+  <div class="default-layout">
     <AppHeader />
-    <main class="flex flex-1 flex-col items-center">
+    <main class="default-layout__main">
       <slot />
     </main>
     <PGButton
       v-if="isAuthenticated"
-      class="mx-auto mt-auto"
       variant="ghost"
       @click="logout"
     >
@@ -28,3 +27,23 @@ const logout = async () => {
   router.push({ name: "index" });
 };
 </script>
+
+<style scoped>
+.default-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+}
+
+.default-layout__main {
+  width: 100%;
+  container: main / inline-size;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+}
+</style>

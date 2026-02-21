@@ -56,8 +56,6 @@ const handleCreateTour = () => {
 }
 
 .tours-page__list {
-  container-type: inline-size;
-  container-name: tours-list;
   display: flex;
   flex-direction: column;
   justify-content: center;
