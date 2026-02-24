@@ -1,19 +1,15 @@
 <template>
-  <header
-    class="w-full border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
-  >
-    <div
-      class="container mx-auto flex items-center justify-between p-4 md:px-12"
-    >
-      <div class="flex items-center space-x-3">
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="app-header__start">
         <AppBackButton />
 
-        <h1 class="text-2xl font-extrabold text-gray-900 dark:text-white">
+        <h1 class="app-header__title">
           {{ pageTitle }}
         </h1>
       </div>
 
-      <div v-if="isAuthenticated" class="flex items-center space-x-4">
+      <div v-if="isAuthenticated" class="app-header__end">
         <UButton
           v-if="route.name !== 'settings'"
           :aria-label="$t('common.settings')"
@@ -23,12 +19,12 @@
           @click="goToSettings"
         />
 
-        <div class="flex items-center">
+        <div class="app-header__user">
           <div
             v-if="!userAvatar || userAvatar === '/default-avatar.png'"
-            class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200"
+            class="app-header__avatar-placeholder"
           >
-            <span class="text-sm font-medium text-gray-600">
+            <span class="app-header__initial">
               {{ userName.charAt(0).toUpperCase() }}
             </span>
           </div>
@@ -53,3 +49,75 @@ const goToSettings = (): void => {
   router.push("/settings");
 };
 </script>
+
+<style scoped>
+.app-header {
+  width: 100%;
+  border-block-end: 1px solid var(--fill-gray-200);
+  background-color: var(--fill-white);
+}
+
+.dark .app-header {
+  border-block-end-color: var(--fill-gray-700);
+  background-color: var(--fill-gray-900);
+}
+
+.app-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .app-header__inner {
+    padding-inline: 3rem;
+  }
+}
+
+.app-header__start {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-header__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--fill-gray-900);
+}
+
+.dark .app-header__title {
+  color: var(--fill-white);
+}
+
+.app-header__end {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-header__user {
+  display: flex;
+  align-items: center;
+}
+
+.app-header__avatar-placeholder {
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: var(--fill-slate-200);
+}
+
+.app-header__initial {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--fill-gray-600);
+}
+</style>
