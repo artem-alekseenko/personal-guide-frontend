@@ -72,12 +72,6 @@ const goToSettings = (): void => {
   padding: 1rem;
 }
 
-@media (min-width: 768px) {
-  .app-header__inner {
-    padding-inline: 3rem;
-  }
-}
-
 .app-header__start {
   display: flex;
   align-items: center;
