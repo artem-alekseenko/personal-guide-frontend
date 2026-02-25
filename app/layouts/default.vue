@@ -4,11 +4,7 @@
     <main class="default-layout__main">
       <slot />
     </main>
-    <PGButton
-      v-if="isAuthenticated"
-      variant="ghost"
-      @click="logout"
-    >
+    <PGButton v-if="isAuthenticated" variant="ghost" @click="logout">
       {{ $t("common.logout") }}
     </PGButton>
   </div>

@@ -3,9 +3,6 @@ import { useLogger } from "@/composables/useLogger";
 
 export default defineNuxtPlugin(() => {
   const logger = useLogger();
-  // Create a custom $fetch instance that includes Firebase ID token in Authorization header
-  // Note: This plugin is named with 01- to load after Firebase (00-) and before client code that might use $apiFetch.
-  // Micro-cache for parallel requests to avoid multiple getIdToken() calls
   let pendingToken: Promise<string> | null = null;
 
   const apiFetch = $fetch.create({
@@ -37,8 +34,6 @@ export default defineNuxtPlugin(() => {
           }));
         const tokenValue = await token;
 
-        console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Token:", tokenValue);
-
         const h = options.headers;
         if (!h) {
           options.headers = new Headers([
@@ -54,7 +49,6 @@ export default defineNuxtPlugin(() => {
           (options.headers as any).Authorization = `Bearer ${tokenValue}`;
         }
 
-        // Check same-origin before setting credentials to avoid sending cookies to different domains
         const origin =
           typeof request === "string"
             ? location.origin

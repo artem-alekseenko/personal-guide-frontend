@@ -1,13 +1,11 @@
 import { useGeolocationStore } from "~/stores/geolocationStore";
 
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   const geolocationStore = useGeolocationStore();
 
-  try {
-    await geolocationStore.initialize();
-  } catch (e) {
+  geolocationStore.initialize().catch((e) => {
     console.warn("Failed to initialize geolocation:", e);
-  }
+  });
 
   if (import.meta.client) {
     window.addEventListener(
