@@ -1,4 +1,4 @@
-import { throttle } from "~/utils/throttleDebounce";
+import {throttle} from "~/utils/throttleDebounce";
 
 type NavigationHistoryEntry = string;
 
@@ -64,7 +64,7 @@ export const useBackNavigation = () => {
   };
 
   const addToNavigationHistory = (routePath: NavigationHistoryEntry): void => {
-    if (routePath.includes("/settings")) return;
+    if (routePath.includes("/settings") || routePath === "/") return;
 
     const last = navigationHistory.value[navigationHistory.value.length - 1];
     if (last === routePath) return;
