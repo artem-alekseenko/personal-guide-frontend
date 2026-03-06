@@ -36,8 +36,8 @@
 </template>
 
 <script lang="ts" setup>
-import { useAuth } from "~/composables/useAuth";
-import { usePageTitle } from "~/composables/usePageTitle";
+import { useAuth } from "~/composables/auth/useAuth";
+import { usePageTitle } from "~/composables/ui/usePageTitle";
 import AppBackButton from "~/components/AppBackButton.vue";
 
 const route = useRoute();

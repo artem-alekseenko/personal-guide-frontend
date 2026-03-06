@@ -1,7 +1,7 @@
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import { ref, readonly, type Ref, type ShallowRef } from "vue";
-import { useLogger } from "@/composables/useLogger";
+import { useLogger } from "@/composables/utils/useLogger";
 import type { ICreatedTour } from "~/types";
 
 interface RouteEvent {

@@ -113,8 +113,8 @@
 </template>
 
 <script lang="ts" setup>
-import { useAuth } from "~/composables/useAuth";
-import { useToastNotifications } from "~/composables/useToastNotifications";
+import { useAuth } from "~/composables/auth/useAuth";
+import { useToastNotifications } from "~/composables/ui/useToastNotifications";
 import type { IUserPreferences } from "~/types";
 
 const {

@@ -5,7 +5,10 @@ import type {
   ITourRecord,
   ITourRecordRequest,
 } from "~/types";
-import { useGetTourRecord } from "~/composables/useGetTourRecord";
+import { useGetTourRecord } from "~/composables/api/tours/useGetTourRecord";
+import { useGetTour } from "~/composables/api/tours/useGetTour";
+import { useNotification } from "~/composables/ui/useNotification";
+import { useAuth } from "~/composables/auth/useAuth";
 import ensureSentenceEndsProperly from "~/utils/pages/ensureSentenceEndsProperly";
 
 export const useTourStore = defineStore("tourStore", () => {

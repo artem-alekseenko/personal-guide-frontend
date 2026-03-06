@@ -32,6 +32,8 @@
 </template>
 
 <script setup>
+import { useNotification } from "~/composables/ui/useNotification";
+
 const {
   notification,
   handlePrimaryAction,

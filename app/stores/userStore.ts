@@ -3,7 +3,7 @@ import { computed, markRaw, ref, shallowRef } from "vue";
 import type { User } from "firebase/auth";
 import type { IUserPreferences, IUserProfile, IUserStats } from "~/types";
 import { DEFAULT_VOICE_TYPE } from "~/types/voice";
-import { useUserApi } from "~/composables/useUserApi";
+import { useUserApi } from "~/composables/api/useUserApi";
 
 const makeDefaultPreferences = (): IUserPreferences => ({
   language: "en",

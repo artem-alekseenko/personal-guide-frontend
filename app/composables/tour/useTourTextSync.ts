@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { useTourStore } from "~/stores/tourStore";
-import { useLogger } from "@/composables/useLogger";
+import { useLogger } from "@/composables/utils/useLogger";
 import { findCurrentSpokenSentence, getSentenceIndex } from "~/utils/textUtils";
 
 export function useTourTextSync() {

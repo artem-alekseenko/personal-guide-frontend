@@ -1,4 +1,4 @@
-import { useAuth } from "~/composables/useAuth";
+import { useAuth } from "~/composables/auth/useAuth";
 
 export const useAuthState = () => {
   const { isAuthenticated, isLoading } = useAuth();

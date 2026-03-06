@@ -1,7 +1,7 @@
-import { usePositionMode } from "./usePositionMode";
+import { usePositionMode } from "~/composables/map/usePositionMode";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useTourStore } from "~/stores/tourStore";
-import { useLogger } from "./useLogger";
+import { useLogger } from "~/composables/utils/useLogger";
 
 export interface TourCoordinatesOptions {
   getSimulationMarkerPosition: () => [number, number] | null;

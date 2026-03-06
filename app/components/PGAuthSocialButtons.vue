@@ -17,7 +17,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useAuthActions } from "~/composables/useAuthActions";
+import { useAuthActions } from "~/composables/auth/useAuthActions";
 
 defineProps<{
   providers: Array<{

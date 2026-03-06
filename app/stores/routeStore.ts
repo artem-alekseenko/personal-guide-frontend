@@ -5,6 +5,9 @@ import type {
   IRouteSuggestionsResponseExtended,
   ITourTag,
 } from "~/types";
+import { useListTours } from "~/composables/api/tours/useListTours";
+import { useCreateTour } from "~/composables/api/tours/useCreateTour";
+import { useTourSuggestions } from "~/composables/api/useTourSuggestions";
 
 export const useRouteStore = defineStore("routeStore", () => {
   // State

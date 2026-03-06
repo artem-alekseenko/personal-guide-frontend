@@ -78,8 +78,8 @@
 </template>
 
 <script lang="ts" setup>
-import type { AuthErrorCode } from "~/composables/useAuthActions";
-import { useAuthActions } from "~/composables/useAuthActions";
+import type { AuthErrorCode } from "~/composables/auth/useAuthActions";
+import { useAuthActions } from "~/composables/auth/useAuthActions";
 import type { TypeFrom } from "~/types";
 
 const MODE = {

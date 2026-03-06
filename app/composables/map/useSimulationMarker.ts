@@ -1,6 +1,6 @@
 import { ref, type Ref } from "vue";
 import mapboxgl from "mapbox-gl";
-import { useLogger } from "./useLogger";
+import { useLogger } from "~/composables/utils/useLogger";
 import { usePositionMode } from "./usePositionMode";
 
 type MarkerWithEvents = mapboxgl.Marker & {

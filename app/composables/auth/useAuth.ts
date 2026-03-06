@@ -1,18 +1,16 @@
-import { useCurrentUser } from "vuefire";
-import { useUserStore } from "~/stores/userStore";
-import type { IUserPreferences, IUserStats } from "~/types";
+import {useCurrentUser} from "vuefire";
+import {useUserStore} from "~/stores/userStore";
+import type {IUserPreferences, IUserStats} from "~/types";
 
 export const useAuth = () => {
   const userStore = useUserStore();
   const firebaseUser = useCurrentUser();
 
-  // Sync Firebase user with Pinia store
   watch(
     firebaseUser,
     (newUser) => {
       userStore.setUser(newUser ?? null);
 
-      // Update last login time when user logs in
       if (newUser && userStore.profile) {
         const updatedProfile = {
           ...userStore.profile,

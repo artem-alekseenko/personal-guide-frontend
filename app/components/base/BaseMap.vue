@@ -6,7 +6,7 @@
 import mapboxgl from "mapbox-gl";
 import { onMounted, onUnmounted, readonly, ref, watch } from "vue";
 import { useGeolocationStore } from "~/stores/geolocationStore";
-import { useLogger } from "~/composables/useLogger";
+import { useLogger } from "~/composables/utils/useLogger";
 
 const props = defineProps<{
   initialCenter?: [number, number];

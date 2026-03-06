@@ -19,7 +19,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useAuthState } from "~/composables/useAuthState";
+import { useAuthState } from "~/composables/auth/useAuthState";
 
 const { shouldShowAuthLoader } = useAuthState();
 </script>

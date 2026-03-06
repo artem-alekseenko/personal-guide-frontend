@@ -1,7 +1,7 @@
 import mapboxgl, { type LngLatLike } from "mapbox-gl";
 import createHighPlacesMarkerElem from "~/utils/pages/createHighPlacesMarkerElem";
 import type { ShallowRef } from "vue";
-import { useLogger } from "~/composables/useLogger";
+import { useLogger } from "~/composables/utils/useLogger";
 
 export interface HighPlace {
   name: string;

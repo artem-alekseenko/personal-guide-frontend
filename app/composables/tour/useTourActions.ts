@@ -1,13 +1,13 @@
 import type { Ref } from "vue";
 import { useRouter } from "vue-router";
 import { useTourStore } from "~/stores/tourStore";
-import { usePositionMode } from "./usePositionMode";
-import { useLogger } from "./useLogger";
+import { usePositionMode } from "~/composables/map/usePositionMode";
+import { useLogger } from "~/composables/utils/useLogger";
 import type { ICoordinate } from "~/types";
 import type { TourState } from "./useTourState";
 import type { useTourAudioPlayer } from "./useTourAudioPlayer";
 import type { useTourCoordinates } from "./useTourCoordinates";
-import type { useSimulationMarker } from "./useSimulationMarker";
+import type { useSimulationMarker } from "~/composables/map/useSimulationMarker";
 
 const STATE = {
   INITIAL: "INITIAL",

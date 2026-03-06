@@ -1,3 +1,5 @@
+import { useAuth } from "~/composables/auth/useAuth";
+
 export const usePageTitle = () => {
   const { t } = useI18n();
   const route = useRoute();

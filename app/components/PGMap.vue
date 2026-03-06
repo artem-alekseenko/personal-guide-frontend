@@ -13,8 +13,9 @@ import { ref, shallowRef, watch, onUnmounted, nextTick } from "#imports";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useRouteStore } from "~/stores/routeStore";
 import BaseMap from "~/components/base/BaseMap.vue";
-import { useMapboxDirections } from "~/composables/useMapboxDirections";
-import { useLogger } from "@/composables/useLogger";
+import { useMapboxDirections } from "~/composables/map/useMapboxDirections";
+import { useMarkers } from "~/composables/map/useMarkers";
+import { useLogger } from "@/composables/utils/useLogger";
 
 const WAYPOINTS_MAX_COUNT = 25;
 

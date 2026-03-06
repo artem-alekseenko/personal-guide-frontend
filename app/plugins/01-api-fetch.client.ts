@@ -1,5 +1,5 @@
 import { getAuth } from "firebase/auth";
-import { useLogger } from "@/composables/useLogger";
+import { useLogger } from "@/composables/utils/useLogger";
 
 export default defineNuxtPlugin(() => {
   const logger = useLogger();

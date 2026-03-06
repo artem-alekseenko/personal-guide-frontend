@@ -1,5 +1,5 @@
 import { readonly, ref } from "vue";
-import { useLogger } from "./useLogger";
+import { useLogger } from "~/composables/utils/useLogger";
 
 interface IGeolocationState {
   latitude: number | null;

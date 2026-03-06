@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
-import { useGeolocation } from "~/composables/useGeolocation";
-import { useLogger } from "~/composables/useLogger";
+import { useGeolocation } from "~/composables/map/useGeolocation";
+import { useLogger } from "~/composables/utils/useLogger";
 import { computed, ref } from "vue";
 
 export interface IGeolocationStore {

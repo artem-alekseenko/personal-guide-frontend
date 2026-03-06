@@ -1,5 +1,5 @@
-import { useAuth } from "~/composables/useAuth";
-import { useLogger } from "~/composables/useLogger";
+import { useAuth } from "~/composables/auth/useAuth";
+import { useLogger } from "~/composables/utils/useLogger";
 
 let isLoadingPreferences = false;
 

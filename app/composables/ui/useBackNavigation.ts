@@ -1,4 +1,5 @@
-import {throttle} from "~/utils/throttleDebounce";
+import { throttle } from "~/utils/throttleDebounce";
+import { useAuth } from "~/composables/auth/useAuth";
 
 type NavigationHistoryEntry = string;
 

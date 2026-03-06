@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import type { IGuide } from "~/types";
 import { ref } from "vue";
-import { useGuides } from "~/composables/useGuides";
+import { useGuides } from "~/composables/api/useGuides";
 
 const GUIDES_CACHE_TTL_MS = 1000 * 60 * 60;
 

@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { useTourStore } from "~/stores/tourStore";
 import { useTourTextSync } from "./useTourTextSync";
-import { useLogger } from "./useLogger";
+import { useLogger } from "~/composables/utils/useLogger";
 import {
   base64ToAudioBlob,
   cleanupAudioUrl,

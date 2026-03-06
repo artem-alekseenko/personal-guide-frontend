@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useBackNavigation } from "~/composables/useBackNavigation";
+import { useBackNavigation } from "~/composables/ui/useBackNavigation";
 
 const { shouldShow, goBack } = useBackNavigation();
 </script>

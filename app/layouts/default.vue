@@ -12,7 +12,7 @@
 
 <script lang="ts" setup>
 import { getAuth, signOut } from "firebase/auth";
-import { useAuth } from "~/composables/useAuth";
+import { useAuth } from "~/composables/auth/useAuth";
 
 const auth = getAuth();
 const { isAuthenticated } = useAuth();
