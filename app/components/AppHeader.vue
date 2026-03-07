@@ -18,31 +18,19 @@
           variant="ghost"
           @click="goToSettings"
         />
-
-        <div class="app-header__user">
-          <div
-            v-if="!userAvatar || userAvatar === '/default-avatar.png'"
-            class="app-header__avatar-placeholder"
-          >
-            <span class="app-header__initial">
-              {{ userName.charAt(0).toUpperCase() }}
-            </span>
-          </div>
-          <UAvatar v-else :alt="userName" :src="userAvatar" size="sm" />
-        </div>
       </div>
     </div>
   </header>
 </template>
 
 <script lang="ts" setup>
-import { useAuth } from "~/composables/auth/useAuth";
-import { usePageTitle } from "~/composables/ui/usePageTitle";
+import {useAuth} from "~/composables/auth/useAuth";
+import {usePageTitle} from "~/composables/ui/usePageTitle";
 import AppBackButton from "~/components/AppBackButton.vue";
 
 const route = useRoute();
 const router = useRouter();
-const { userName, userAvatar, isAuthenticated } = useAuth();
+const { isAuthenticated } = useAuth();
 const { pageTitle } = usePageTitle();
 
 const goToSettings = (): void => {
@@ -79,39 +67,12 @@ const goToSettings = (): void => {
 }
 
 .app-header__title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--fill-gray-900);
 }
 
 .dark .app-header__title {
   color: var(--fill-white);
-}
-
-.app-header__end {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.app-header__user {
-  display: flex;
-  align-items: center;
-}
-
-.app-header__avatar-placeholder {
-  display: flex;
-  height: 2rem;
-  width: 2rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  background-color: var(--fill-slate-200);
-}
-
-.app-header__initial {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--fill-gray-600);
 }
 </style>
