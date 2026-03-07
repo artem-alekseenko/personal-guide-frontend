@@ -20,11 +20,11 @@
     "@pinia/nuxt": "0.11.3",
     "@tailwindcss/typography": "0.5.19",
     "@types/mapbox-gl": "3.5.0",
-    "@types/node": "25.3.3",
+    "@types/node": "25.3.5",
     "@vueuse/core": "14.2.1",
     "@vueuse/nuxt": "14.2.1",
     "firebase-admin": "13.7.0",
-    "firebase-functions": "7.0.6",
+    "firebase-functions": "7.1.0",
     "nuxt": "4.3.1",
     "nuxt-vuefire": "1.1.0",
     "pinia": "3.0.4",
@@ -37,7 +37,7 @@
   "dependencies": {
     "@mapbox/mapbox-gl-directions": "4.3.1",
     "firebase": "12.10.0",
-    "mapbox-gl": "3.19.0",
+    "mapbox-gl": "3.19.1",
     "pinia-plugin-persistedstate": "4.7.1",
     "vue": "3.5.29",
     "vue-router": "5.0.3"
