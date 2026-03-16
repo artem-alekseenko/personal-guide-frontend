@@ -67,6 +67,11 @@ export default defineNuxtConfig({
       }),
     },
   },
+  vite: {
+    optimizeDeps: {
+      include: ["vuefire"],
+    },
+  },
   css: ["~/assets/css/main.css"],
   i18n: {
     restructureDir: "i18n",
