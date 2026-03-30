@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@firebase/app-types": "0.9.3",
-    "@iconify-json/logos": "1.2.10",
+    "@iconify-json/logos": "1.2.11",
     "@iconify-json/svg-spinners": "1.2.4",
     "@nuxt/ui": "4.6.0",
     "@nuxtjs/i18n": "10.2.4",
