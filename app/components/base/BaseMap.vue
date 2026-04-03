@@ -26,9 +26,8 @@ const DEFAULT_ZOOM = 16;
 const DEFAULT_BEARING = 0;
 const DEFAULT_CENTER: [number, number] = [-79.3832, 43.6532];
 
-const { map_config } = useAppConfig();
-const mapboxglAccessToken = unref(map_config.mapbox_gl_access_token);
-mapboxgl.accessToken = mapboxglAccessToken;
+const { public: publicConfig } = useRuntimeConfig();
+mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
 
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();

@@ -34,9 +34,8 @@ export function useMapboxDirections(
   options: MapboxDirectionsOptions = {},
 ) {
   const logger = useLogger();
-  const {
-    map_config: { mapbox_gl_access_token },
-  } = useAppConfig();
+  const { public: publicConfig } = useRuntimeConfig();
+  const mapboxGlAccessToken = publicConfig.mapboxGlAccessToken;
 
   const defaultOptions: MapboxDirectionsOptions = {
     enableBounds: true,
@@ -69,7 +68,7 @@ export function useMapboxDirections(
       logger.log("Initializing MapboxDirections...");
 
       directions = new MapboxDirections({
-        accessToken: mapbox_gl_access_token,
+        accessToken: mapboxGlAccessToken,
         unit: "metric",
         profile: config.profile,
         controls: config.controls,

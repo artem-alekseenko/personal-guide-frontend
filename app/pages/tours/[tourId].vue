@@ -142,10 +142,8 @@ useHead({
   ],
 });
 
-const {
-  map_config: { mapbox_gl_access_token },
-} = useAppConfig();
-mapboxgl.accessToken = mapbox_gl_access_token as string;
+const { public: publicConfig } = useRuntimeConfig();
+mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
 
 /* -------------------------------------------
    Setup and initialization
