@@ -7,7 +7,7 @@
       v-html="displayText"
     />
     <div class="flex items-baseline justify-items-start gap-x-2">
-      <USwitch v-model="isScrollingEnabled" size="xs" />
+      <PGSwitch v-model="isScrollingEnabled" size="xs" />
       <p class="text-sm">{{ toggleScrollText }}</p>
     </div>
   </div>

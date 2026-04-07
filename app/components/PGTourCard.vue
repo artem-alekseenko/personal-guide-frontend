@@ -30,7 +30,19 @@
         {{ $t("components.tourCard.guide") }} {{ guideName }}
       </p>
       <p v-if="generatingPercent !== 100" class="tour-card__progress-wrap">
-        <UProgress :value="generatingPercent" indicator />
+        <span
+          :aria-valuenow="generatingPercent"
+          aria-valuemax="100"
+          aria-valuemin="0"
+          class="tour-card__progress"
+          role="progressbar"
+        >
+          <span
+            :style="{ width: `${generatingPercent}%` }"
+            class="tour-card__progress-bar"
+          />
+          <span class="tour-card__progress-label">{{ generatingPercent }}%</span>
+        </span>
       </p>
       <p class="tour-card__generating-text">{{ generatingText }}</p>
       <NuxtLink
@@ -197,6 +209,35 @@ onMounted(async () => {
 
 .tour-card__progress-wrap {
   margin: 0;
+}
+
+.tour-card__progress {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  block-size: 1.25rem;
+  border-radius: 9999px;
+  background-color: oklch(1 0 0 / 0.2);
+}
+
+.tour-card__progress-bar {
+  display: block;
+  block-size: 100%;
+  border-radius: 9999px;
+  background-color: var(--fill-green-500);
+  transition: width 0.4s ease;
+}
+
+.tour-card__progress-label {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: oklch(1 0 0);
+  line-height: 1;
+  pointer-events: none;
 }
 
 .tour-card__generating-text {

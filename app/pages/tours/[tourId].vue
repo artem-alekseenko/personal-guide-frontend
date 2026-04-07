@@ -23,8 +23,7 @@
           {{ $t("components.tourPage.realGeolocation") }}
         </span>
 
-        <!-- USwitch toggle -->
-        <USwitch v-model="isManualMode" size="lg" />
+        <PGSwitch v-model="isManualMode" size="lg" />
 
         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ $t("components.tourPage.geolocationSimulation") }}

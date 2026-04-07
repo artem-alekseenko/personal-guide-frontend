@@ -5,7 +5,7 @@
         {{ guide.name?.charAt(0).toUpperCase() }}
       </span>
     </div>
-    <UAvatar v-else :alt="guide.name" :src="guide.avatar" size="3xl" />
+    <img v-else :alt="guide.name" :src="guide.avatar" class="pg-guide__avatar" />
     <div class="pg-guide__header">
       <h2 class="pg-guide__name">{{ guide.name }}</h2>
       <div class="pg-guide__context">{{ guide.context }}</div>
@@ -76,14 +76,23 @@ const selectGuide = () => {
   background-color: var(--fill-neutral-100);
 }
 
+.pg-guide__avatar {
+  inline-size: 6rem;
+  block-size: 6rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .pg-guide__avatar-placeholder {
   display: flex;
-  height: 6rem;
-  width: 6rem;
+  inline-size: 6rem;
+  block-size: 6rem;
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
   background-color: var(--fill-slate-200);
+  flex-shrink: 0;
 }
 
 .pg-guide__initial {

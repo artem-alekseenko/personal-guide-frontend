@@ -90,11 +90,11 @@
           {{ guidesStore.selectedGuide?.name?.charAt(0).toUpperCase() }}
         </span>
       </div>
-      <UAvatar
+      <img
         v-else
         :alt="guidesStore.selectedGuide?.name"
         :src="guidesStore.selectedGuide?.avatar"
-        size="3xl"
+        class="h-24 w-24 rounded-full object-cover"
       />
     </div>
   </section>
