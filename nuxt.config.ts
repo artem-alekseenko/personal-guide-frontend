@@ -31,7 +31,6 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
     "@nuxt/ui",
     "nuxt-vuefire",
-    "pinia-plugin-persistedstate/nuxt",
     "@nuxtjs/i18n",
   ],
   future: {

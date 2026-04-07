@@ -30,15 +30,13 @@ const makeProfileFromFirebaseUser = (u: User): IUserProfile => ({
   preferences: makeDefaultPreferences(),
 });
 
-export const useUserStore = defineStore(
-  "userStore",
-  () => {
+export const useUserStore = defineStore("userStore", () => {
     // State
     const user = shallowRef<User | null>(null);
     const profile = ref<IUserProfile | null>(null);
     const stats = ref<IUserStats | null>(null);
 
-    const guestLanguage = ref<string>("en");
+    const guestLanguage = useLocalStorage<string>("personal-guide-user-lang", "en");
 
     const isLoading = ref(false);
     const isSavingPreferences = ref(false);
@@ -185,11 +183,5 @@ export const useUserStore = defineStore(
       syncPreferencesToServer,
       reset,
     };
-  },
-  {
-    persist: {
-      key: "personal-guide-user",
-      pick: ["guestLanguage"],
-    },
   },
 );
