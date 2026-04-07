@@ -1,3 +1,5 @@
+import { defineStore } from "pinia";
+import { computed, ref, unref } from "vue";
 import type {
   ICoordinate,
   ICreatedTour,
@@ -14,7 +16,6 @@ export const useRouteStore = defineStore("routeStore", () => {
   const _startPoint = ref<ICoordinate | null>(null);
   const _duration = ref<string>("5");
   const _routeSuggestion = ref<IRouteSuggestionsResponseExtended | null>(null);
-  const currentRoute = ref<ICreatedTour | null>(null);
   const _actualTour = ref<ICreatedTour | null>(null);
   const _allTours = ref<ICreatedTour[]>([]);
   const _tags = ref<ITourTag[]>([
@@ -27,6 +28,7 @@ export const useRouteStore = defineStore("routeStore", () => {
     { name: "Art", is_selected: false },
   ]);
   const _interval = ref<NodeJS.Timeout | null>(null);
+  const error = ref<string | null>(null);
 
   // Getters
   const startPoint = computed((): ICoordinate | null => _startPoint.value);
@@ -41,6 +43,36 @@ export const useRouteStore = defineStore("routeStore", () => {
   // Setters
   const setTags = (newTags: ITourTag[]): void => {
     _tags.value = newTags;
+  };
+
+  const setStartPoint = (newPoint: ICoordinate): void => {
+    _startPoint.value = newPoint;
+  };
+
+  const setDuration = (newDuration: string): void => {
+    _duration.value = newDuration;
+  };
+
+  const setRouteSuggestion = (
+    newRoutes: IRouteSuggestionsResponseExtended,
+  ): void => {
+    _routeSuggestion.value = newRoutes;
+  };
+
+  const setActualTour = (newRoute: ICreatedTour): void => {
+    _actualTour.value = newRoute;
+  };
+
+  const setAllTours = (newTours: ICreatedTour[]): void => {
+    _allTours.value = newTours;
+  };
+
+  // Polling control
+  const stopPolling = (): void => {
+    if (_interval.value) {
+      clearInterval(_interval.value);
+      _interval.value = null;
+    }
   };
 
   // Actions
@@ -93,90 +125,59 @@ export const useRouteStore = defineStore("routeStore", () => {
     };
 
     try {
+      error.value = null;
       const tour = await useCreateTour(payload);
       setActualTour(tour);
-    } catch (error) {
-      console.error("Error creating route", error);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Failed to create route";
     }
   };
 
   const fetchListTours = async (): Promise<void> => {
-    const tours = await useListTours();
+    try {
+      error.value = null;
+      const tours = await useListTours();
 
-    if (!tours || !tours.length) {
-      return;
-    }
-
-    setAllTours(tours);
-    setActualTour(tours[0] as ICreatedTour);
-
-    const isNotGeneratedTourExist = tours.some(
-      (tour) => tour.generating_percent !== 100,
-    );
-
-    if (import.meta.client) {
-      if (_interval.value) {
-        clearInterval(_interval.value);
+      if (!tours || !tours.length) {
+        return;
       }
 
-      if (isNotGeneratedTourExist) {
-        _interval.value = setInterval(async () => {
-          await fetchListTours();
-        }, 5000);
+      setAllTours(tours);
+      setActualTour(tours[0] as ICreatedTour);
+
+      const isNotGeneratedTourExist = tours.some(
+        (tour) => tour.generating_percent !== 100,
+      );
+
+      if (import.meta.client) {
+        stopPolling();
+
+        if (isNotGeneratedTourExist) {
+          _interval.value = setInterval(async () => {
+            await fetchListTours();
+          }, 5000);
+        }
       }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Failed to load tours";
     }
   };
-
-  const setStartPoint = (newPoint: ICoordinate): void => {
-    _startPoint.value = newPoint;
-  };
-
-  const setDuration = (newDuration: string): void => {
-    _duration.value = newDuration;
-  };
-
-  const setRouteSuggestion = (
-    newRoutes: IRouteSuggestionsResponseExtended,
-  ): void => {
-    _routeSuggestion.value = newRoutes;
-  };
-
-  const setCurrentRoute = (newRoute: ICreatedTour): void => {
-    currentRoute.value = newRoute;
-  };
-
-  const setActualTour = (newRoute: ICreatedTour): void => {
-    _actualTour.value = newRoute;
-  };
-
-  const setAllTours = (newTours: ICreatedTour[]): void => {
-    _allTours.value = newTours;
-  };
-
-  onUnmounted(() => {
-    if (_interval.value) {
-      clearInterval(_interval.value);
-      _interval.value = null;
-    }
-  });
 
   return {
-    // State as computed properties (read-only)
     startPoint,
     duration,
     routeSuggestion,
     actualTour,
-    _actualTour,
+    allTours,
     tags,
-    // Setters
+    error,
     setStartPoint,
     setDuration,
     setRouteSuggestion,
     setTags,
-    // Actions
+    stopPolling,
     fetchRoutesSuggestions,
     fetchCreateRoute,
     fetchListTours,
-    allTours,
   };
 });

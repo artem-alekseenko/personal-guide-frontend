@@ -1,3 +1,4 @@
+import { defineStore } from "pinia";
 import type {
   ICoordinate,
   ICreatedTour,
@@ -13,6 +14,8 @@ import ensureSentenceEndsProperly from "~/utils/pages/ensureSentenceEndsProperly
 
 export const useTourStore = defineStore("tourStore", () => {
   // State
+  // useState keeps the tour in Nuxt's shared SSR/hydration payload so it
+  // survives navigation without a re-fetch on the client.
   const _tour = useState<ICreatedTour | null>(`tour`, () => null);
   const _currentTourRecord = ref<ITourRecord | null>(null);
   const _textForDisplay = ref<string>("");
@@ -59,7 +62,6 @@ export const useTourStore = defineStore("tourStore", () => {
   };
 
   const setTextForDisplay = (text: string): void => {
-    console.log("setTextForDisplay", text);
     _textForDisplay.value = text;
   };
 
@@ -92,7 +94,6 @@ export const useTourStore = defineStore("tourStore", () => {
     } catch (error) {
       console.error("Error fetching tour:", error);
 
-      // Use notification system for errors
       const { showApiError } = useNotification();
       showApiError(error, "Failed to fetch tour data");
     }
@@ -102,7 +103,6 @@ export const useTourStore = defineStore("tourStore", () => {
     if (!tour.value) return;
 
     try {
-      // Get user preferences for voice type
       const { userPreferences } = useAuth();
 
       const params: ITourRecordRequest = {
@@ -114,14 +114,13 @@ export const useTourStore = defineStore("tourStore", () => {
         user_text: userText.value,
         pace: "1",
         type_llm: "DEFAULT",
-        type_voice: "MOCK",
+        type_voice: userPreferences.value.voiceType,
       };
 
       const tourId = tour.value.id;
       const tourRecord = await useGetTourRecord(tourId, params);
 
       if (!tourRecord) {
-        // Use notification system for errors
         const { showError } = useNotification();
         showError({
           title: "No Data Received",
@@ -141,7 +140,6 @@ export const useTourStore = defineStore("tourStore", () => {
     } catch (error) {
       console.error("Error fetching tour step:", error);
 
-      // Use notification system for errors
       const { showApiError } = useNotification();
       showApiError(error, "Failed to fetch tour step");
 

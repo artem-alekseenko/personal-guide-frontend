@@ -168,6 +168,8 @@ export interface ITourTag {
 
 export type TypeFrom<T> = T[keyof T];
 
+export type { IGeolocationStore } from "./geolocation";
+
 export type TRequestMethod =
   | "GET"
   | "POST"
