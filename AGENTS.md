@@ -18,7 +18,7 @@ Read these backend sources for integration work:
 - `../personal-guide.ai/app/api/v1/endpoints/`: guide, user, and tour handlers.
 - `../personal-guide.ai/app/models/`: request/response validation; especially `tour_next_request.py`, `tour.py`, and `language.py`.
 
-Treat executable code as authoritative when documentation and types disagree. The observations below describe the source reviewed on 2026-09-28; they do not establish that a live deployment works.
+Treat executable code as authoritative when documentation and types disagree. The observations below describe the source reviewed on 2026-09-29; they do not establish that a live deployment works.
 
 ## Stack and commands
 
@@ -44,6 +44,20 @@ Regression tests cover stores, proxy behavior, authentication boundaries, playba
 `docker-compose.yml` builds the frontend service `proto`, reads `.env`, and publishes port 3000. The Dockerfile builds Nuxt and starts the generated Nitro server. It uses Node 24.21.0, installs from the lockfile, passes public Firebase/Mapbox build arguments through Compose, and runs the production server as the node user. `.dockerignore` excludes local secrets and generated output. `.nvmrc` selects Node 24. If pnpm is not installed globally, use `corepack pnpm` with your NVM Node environment.
 
 The backend's separate Compose stack publishes the API on port 3001 and MongoDB on host port 27018. It includes bootstrap and preparation, generation, enrichment, and account-deletion workers. Follow its setup documentation; running only an API process does not perform queued preparation. Its business routes have no version prefix by default (`API_V1_STR=""`).
+
+## Local setup
+
+Run from this repository:
+
+```sh
+source "$HOME/.nvm/nvm.sh"
+nvm use
+corepack pnpm install --frozen-lockfile
+# Create .env from .env.example only if .env does not already exist.
+corepack pnpm dev
+```
+
+Before starting the app, configure `.env` as described below and start the backend and its workers using the sibling repository's setup guide. Do not overwrite an existing `.env`. The frontend needs no local MongoDB connection; it reaches persistence through the backend. `.npmrc` enables hoisting and pre/post scripts. Preserve these settings when investigating dependency or Nuxt auto-import failures.
 
 ## Application structure
 
@@ -83,7 +97,8 @@ The UI uses a mobile layout; above 768px the app sits inside a phone-style frame
 2. `app/middleware/auth.global.ts` redirects unauthenticated private-page requests to `/` with a `next` query. Authenticated visitors normally enter `/tours`; pages can declare `meta.public`.
 3. `app/plugins/01-api-fetch.client.ts` provides `$apiFetch`, adding the current Firebase ID token to `/api/*` requests. Use this authenticated client in API composables.
 4. `server/middleware/require-auth.ts` requires a nonempty Bearer header for private `/api/*` requests. It checks header presence, not token validity. `/api/health` and `/api/public` prefixes are exempt, but the checkout does not implement matching handlers.
-5. `useExternalApi` delegates to `forwardAuthAndFetch`, which forwards Authorization and an incoming or generated `X-Request-ID`. The backend validates the token and enforces ownership.
+5. The client attaches tokens only to same-origin `/api/` requests, shares concurrent token retrieval for the same UID, and rejects a request if the identity changes while awaiting its token. Preserve this boundary when adding API clients.
+6. `useExternalApi` delegates to `forwardAuthAndFetch`, which forwards Authorization and an incoming or generated `X-Request-ID`. The backend validates the token and enforces ownership.
 
 The proxy defaults to a 120-second timeout, one retry for reads, and no automatic retry for mutations. It forwards `Idempotency-Key` for narration retries. When a base URL is configured, it rejects upstream URLs from other origins. Keep upstream API URLs private. Do not log credentials, profile bodies, or visitor messages.
 
@@ -117,25 +132,70 @@ Supply config-time values when building; changing only the runtime environment d
 ## Data and behavior conventions
 
 - API coordinates use `{ lat, lng }` strings. Mapbox/GeoJSON uses numeric `[longitude, latitude]`. Convert at the boundary and preserve order.
-- Route suggestion duration is total tour minutes (backend range 5–480). `/next` duration is narration seconds (0–300), and pace is metres per second (0–15).
+- Route suggestion duration is total tour minutes (backend range 5–480; current creation slider 5–60). `/next` duration is narration seconds (0–300), and pace is metres per second (0–15).
 - Route suggestions validate bounds and translate `lat`/`lng` into `curr_lat`/`curr_lng`; the proxy derives map coordinates from the first route. Creation sends that route's points, selected `guide_id`, and selected tags as `{ name, value }` settings.
-- Guide and tour list proxies unwrap `{ guides }` and `{ tours }` into arrays. `useGetTourRecord` combines `record` with response-level `places` and `audio_data`.
-- `routeStore` polls lists every five seconds while a tour has status `GENERATING` without a preparation error. The list page stops polling on exit and distinguishes loading, empty, and failed states.
+- Guide and tour list proxies unwrap `{ guides }` and `{ tours }` into arrays. `useGetTourRecord` combines `record` with response-level `places`, `audio_data`, and `route_points`. The tour store applies returned route points to the active route.
+- `routeStore` polls lists every five seconds while a tour has status `GENERATING` without a preparation error, and retries list failures on the same schedule. The list page stops polling on exit and distinguishes loading, empty, and failed states.
 - `tourStore` caches the current tour and manages narration text, visitor questions, and places. Its `/next` request uses duration 100, the selected `type_llm` (default `DEFAULT`), and the selected voice type. GPS requests include available accuracy and fix timestamp; unknown pace is omitted. Uncertain narration failures retain the original request payload and operation ID even if GPS changes. Definitive input/auth rejections discard that pending operation.
 - `useTourState` saves state/audio position under `tour-state-{tourId}` with a 24-hour expiry. Audio resume rewinds five seconds. Restoration requires the matching in-memory audio record and restores paused state, never an active player after a page reload.
 - `useTourAudioPlayer` plays base64 audio through an HTML audio element and estimates text highlighting from playback progress. Clean up object URLs, audio, Mapbox objects/listeners, timers, and geolocation watchers when modifying lifecycle code.
 - GPS is the default position mode; manual mode uses a draggable simulation marker. `usePositionMode` shares the choice through Nuxt state and persists it under `tour-position-mode`. Missing GPS must not fall back to a landmark; route-point fallback is for manual simulation only. Maps initialize even if location permission is denied.
 - `userStore` keeps guest language under `personal-guide-user-lang`. The preferences plugin loads the backend profile after authentication. The current update proxy sends only `name` and `language`; voice choice persists locally under `personal-guide-voice`. Statistics remain hidden until populated. Firebase identity changes reset owner-specific tour/guide state and invalidate in-flight responses.
 
+## State, preferences, and navigation
+
+- `guidesStore` holds the guide catalog and selected guide in memory with a one-hour cache TTL. Catalog responses include owner-specific tours; do not restore the old persistent guide cache. Creation redirects to `/guides` when no guide is selected.
+- `routeStore` owns the start point, duration, suggested route, tags, newly created tour, and tour list. Creation uses the first suggested route and navigates to `/tours` after success. Request versions prevent stale responses from repopulating reset stores.
+- `tourStore` owns the active tour, playable record, accumulated transcript, pending visitor message, and playback recovery. Switching tours resets transcript and playback state. `useTourActions` coordinates requests, audio, acknowledgements, and completion; keep page event handlers thin.
+- `geolocationStore` owns coordinates, accuracy, ISO fix timestamp, and the browser watch. The client plugin initializes location at startup and stops the watch on unload. Geolocation requests use high accuracy with a ten-second timeout; permission denial fails without retrying, while timeout/unavailable errors allow up to three retries.
+- `useAuth.updateUserPreferences` applies settings locally and sends a profile update when language changes. Failed saves restore previous preferences if the same user remains signed in. `SettingsSavingOverlay` covers pending saves. Voice/model-only changes remain local.
+- Model type is selectable in Settings (`DEFAULT`, `SIMPLE`, `OPENAI`, `GEMINI`, `MOCK`, `PERPLEXITY`, matching backend `TypeLLm`). New narration/control requests include the selection as `type_llm`; uncertain retries retain their original model and payload. Changing the selection does not request narration. Reset settings restores English and `DEFAULT` voice/model. Enum support does not establish that a provider has working credentials.
+- `settings-navigation.global.ts` remembers the entry route. `useBackNavigation` maintains up to ten prior paths, excludes login/settings entries, and clears its history on logout. Preserve return-to-tour behavior when editing settings navigation.
+
+Browser storage reference:
+
+| Key                               | Storage | Purpose and lifetime                                                                                          |
+| --------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
+| `personal-guide-user-lang`        | Local   | Language fallback; backend profile can replace it after login                                                 |
+| `personal-guide-voice`            | Local   | Device voice preference                                                                                       |
+| `personal-guide-llm`              | Local   | Device model preference                                                                                       |
+| `tour-position-mode`              | Local   | Shared GPS/manual choice                                                                                      |
+| `tour-state-{tourId}`             | Local   | UI state and audio position; expires after 24 hours and needs matching in-memory audio                        |
+| `pg-playback-{user_id}-{tour_id}` | Local   | Segment checkpoint and pending narration/control payloads and operation keys; removed after successful finish |
+| `navigationHistory`               | Local   | Bounded back-navigation history                                                                               |
+| `settingsReturnRoute`             | Session | Route to return to from settings                                                                              |
+| `i18n_redirected`                 | Cookie  | Locale selection                                                                                              |
+
+Playback recovery can include location and pending visitor text. It contains no bearer token or audio; do not copy it into logs or diagnostics without redaction. The preferences plugin clears `tour-state-*` and obsolete `pg-guides-*` cache keys on UID changes. Account-scoped playback recovery survives reloads separately from UI/audio state; do not conflate their lifetimes.
+
 ## Playback and remaining product scope
 
 - Supported languages are English and Russian, matching the backend `Language` enum. French translation files alone do not establish backend narration support.
 - Voice choices are `DEFAULT`, `CARTESIA`, and `MOCK`; default selection delegates to backend configuration. MOCK means sample audio, not generated speech or browser TTS. Real speech requires a configured backend provider.
 - The tour page handles nullable audio and intentional `WAIT` responses without appending empty text or starting playback. Text highlighting uses shared state. Autoplay rejection leaves a Play action available.
+- Narration is request-driven. The main button starts/continues narration, pauses active audio, or resumes a paused segment. Visitor questions request a new turn. Dragging the simulation marker requests a turn only in `RECORD_FINISHED`. GPS watches update position but do not schedule `/next`; audio completion acknowledges the segment without requesting the next one. The map's route timer only retries route rendering.
+- `useTourActions.isBusy` blocks overlapping user actions. `onAudioEnded` sends `COMPLETED`; starting another turn or finishing interrupts an unfinished segment. `dispose()` stops local audio and ignores late UI work. Do not assume browser unload can deliver an acknowledgement; preserve durable recovery.
+- Backend guidance actions include `ARRIVE`, `CONTINUE`, `WALK`, `ANSWER`, `LOCATE`, `COMPLETE`, and `WAIT`. `requires_resume` determines the paused state for silent records. Backend `COMPLETE` guidance is distinct from the explicit `/finish` mutation. `useTourSpeech` contains a browser speech helper, but the current tour action flow uses backend audio through `useTourAudioPlayer`.
 - Pause/resume send persistent backend controls using duration-zero requests. These requests do not replace the current playable record. Segment start/completion/interruption acknowledgements are serialized. Account/tour-scoped `pg-playback-{user_id}-{tour_id}` recovery records retain segment delivery state and pending request payloads/keys across reloads, and are removed after successful completion. They contain no bearer tokens or audio. Completion calls `/finish` and navigates only on success.
 - The backend supports generation history/status, regeneration, cancellation, acceptance, private artifacts, enrichment inspection, and account deletion. Adding screens for these is deferred by user instruction; keep existing tour flows compatible without implying those screens exist.
 - The backend supports additional route options (destination, interests, wheelchair routing, stop time) beyond the current UI. Frontend types are handwritten; compare against Python models when extending them.
 - Browser authentication, real Mapbox rendering/GPS, and provider-backed speech need valid configuration and interactive verification. Unit tests and a build do not establish end-to-end provider behavior.
+
+## Tests and verification boundaries
+
+Vitest runs in a Node environment with aliases for `~` and `@`; it does not launch Nuxt or a real browser. `tests/setup.ts` stubs auto-imported Vue/Nuxt helpers, storage, and request utilities and creates isolated Pinia state.
+
+| Source                      | Coverage                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/regressions.test.ts` | Shared position mode, missing GPS, text highlighting, transcript reset, accepted voice, silence, empty lists, creation errors, stale profile responses        |
+| `tests/auth.test.ts`        | Failed settings-save rollback                                                                                                                                 |
+| `tests/client-auth.test.ts` | Token origin boundary and identity changes during token retrieval                                                                                             |
+| `tests/proxy.test.ts`       | Missing upstream config, upstream errors, authentication, origin checks, idempotency forwarding, mutation retry policy                                        |
+| `tests/playback.test.ts`    | Finish-before-navigation, failed finish, silent audio, persistent pause, safe reload restoration                                                              |
+| `tests/audio.test.ts`       | Blocked autoplay and ended events                                                                                                                             |
+| `scripts/smoke.mjs`         | SPA response, auth rejection before upstream, proxy mapping, request IDs, idempotency, silent narration, finish, upstream errors against a local HTTP fixture |
+
+For code changes, use the commands in Stack and commands. Run `test:smoke` after `build`; run `test:dev` separately to avoid concurrent `.nuxt` writes. Both smoke modes create temporary local listeners and use a fixture token, so they cannot verify Firebase validation or live provider behavior. For documentation-only changes, review the diff, check referenced paths, and run focused Prettier checks; application builds are unnecessary unless the documented change also changes code or configuration.
 
 ## Validation and change discipline
 
@@ -146,5 +206,3 @@ For UI or playback changes, exercise login/redirect, guide selection, route crea
 Keep changes within the requested scope and check each repository's working tree before editing. Do not modify the backend merely to hide a frontend contract mismatch. Do not edit generated `.nuxt/`, `.output/`, or dependency files by hand. Keep this guide current when architecture, commands, environment variables, or contracts change.
 
 Node is installed through NVM. Noninteractive shells may need `source "$HOME/.nvm/nvm.sh"` before using Node/Corepack. See README for local setup. The regression suite uses controlled dependencies; live provider behavior still requires browser testing.
-
-Model type is selectable in Settings (`DEFAULT`, `SIMPLE`, `OPENAI`, `GEMINI`, `MOCK`, `PERPLEXITY`, matching backend `TypeLLm`). It persists locally under `personal-guide-llm` and is sent as `type_llm` on new narration/control requests. Uncertain retries retain their original model and payload. Reset settings restores `DEFAULT`; changing the selection does not generate narration immediately.
