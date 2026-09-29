@@ -1,39 +1,53 @@
-import { useAuth } from "~/composables/auth/useAuth";
-import { useLogger } from "~/composables/utils/useLogger";
+import { useCurrentUser } from "vuefire";
+import { useUserStore } from "~/stores/userStore";
+import { useGuidesStore } from "~/stores/guidesStore";
+import { useRouteStore } from "~/stores/routeStore";
+import { useTourStore } from "~/stores/tourStore";
 
-let isLoadingPreferences = false;
-
-export default defineNuxtPlugin(() => {
-  const { isAuthenticated, loadServerPreferences } = useAuth();
-  const logger = useLogger();
-
-  if (!import.meta.client) {
-    return;
-  }
-
-  logger.log("🔧 User preferences plugin initialized");
-
-  watch(isAuthenticated, async (newValue, oldValue) => {
-    if (newValue && !oldValue) {
-      logger.log("🔧 User authenticated — loading server preferences");
-
-      if (isLoadingPreferences) {
-        logger.log("🔧 Preferences load already in progress, skipping");
-        return;
+export default defineNuxtPlugin((nuxtApp) => {
+  const firebaseUser = useCurrentUser();
+  const users = useUserStore();
+  const guides = useGuidesStore();
+  const routes = useRouteStore();
+  const tours = useTourStore();
+  watch(
+    () => firebaseUser.value?.uid ?? null,
+    async (uid, previous) => {
+      if (uid !== previous) {
+        guides.reset();
+        routes.reset();
+        tours.reset();
+        // Audio state is account-specific; do not revive another user's session.
+        try {
+          for (const key of Object.keys(localStorage)) {
+            if (
+              key.startsWith("tour-state-") ||
+              [
+                "pg-guides-list",
+                "pg-selected-guide",
+                "pg-guides-fetched-at",
+              ].includes(key)
+            )
+              localStorage.removeItem(key);
+          }
+        } catch {
+          /* Storage may be unavailable in private browsing. */
+        }
       }
-
-      isLoadingPreferences = true;
-      try {
-        await loadServerPreferences();
-        logger.log("🔧 Server preferences loaded successfully");
-      } catch (error) {
-        logger.warn("🔧 Failed to load user preferences after login:", error);
-      } finally {
-        isLoadingPreferences = false;
-      }
-    } else if (!newValue && oldValue) {
-      logger.log("🔧 User logged out — resetting preferences load state");
-      isLoadingPreferences = false;
-    }
-  });
+      users.setUser(firebaseUser.value ?? null);
+      if (uid)
+        await nuxtApp.runWithContext(() => users.loadServerPreferences());
+    },
+    { immediate: true },
+  );
+  watch(
+    () => users.userPreferences.language,
+    (language) => {
+      const i18n = nuxtApp.$i18n as {
+        setLocale: (locale: "en" | "ru") => Promise<void>;
+      };
+      if (language === "en" || language === "ru") void i18n.setLocale(language);
+    },
+    { immediate: true },
+  );
 });

@@ -7,12 +7,15 @@ export function useTourTextSync() {
   const tourStore = useTourStore();
   const logger = useLogger();
 
-  const currentSpokenSentence = ref("");
+  const currentSpokenSentence = useState<string>(
+    "tour-spoken-sentence",
+    () => "",
+  );
 
   // Highlighting the current spoken sentence
   const highlightSentence = (
     charIndex: number,
-    utterance: SpeechSynthesisUtterance | null,
+    utterance: { text: string } | null,
   ): void => {
     if (!utterance || !utterance.text) {
       logger.warn("Invalid utterance for highlighting");

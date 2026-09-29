@@ -11,16 +11,6 @@ export default defineNuxtConfig({
           type: "image/svg+xml",
           href: "/favicon.svg",
         },
-        {
-          rel: "stylesheet",
-          href: "https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css",
-          type: "text/css",
-        },
-        {
-          rel: "stylesheet",
-          href: "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css",
-          type: "text/css",
-        },
       ],
     },
   },
@@ -58,29 +48,32 @@ export default defineNuxtConfig({
       messagingSenderId: process.env.VUEFIRE_MESSAGING_SENDER_ID,
       appId: process.env.VUEFIRE_APP_ID,
     },
-    appCheck: {
-      debug: process.env.NODE_ENV !== "production",
-      isTokenAutoRefreshEnabled: true,
-      provider: "ReCaptchaEnterprise",
-      key: process.env.RECAPTCHA_KEY,
-      // Disable for localhost to avoid 401 errors that slow down auth
-      ...(process.env.NODE_ENV === "development" && {
-        provider: "debug" as any,
-      }),
-    },
+    ...(process.env.RECAPTCHA_KEY
+      ? {
+          appCheck: {
+            debug: process.env.NODE_ENV !== "production",
+            isTokenAutoRefreshEnabled: true,
+            provider: "ReCaptchaEnterprise" as const,
+            key: process.env.RECAPTCHA_KEY,
+          },
+        }
+      : {}),
   },
   vite: {
     optimizeDeps: {
       include: ["vuefire"],
     },
   },
-  css: ["~/assets/css/main.css"],
+  css: [
+    "mapbox-gl/dist/mapbox-gl.css",
+    "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css",
+    "~/assets/css/main.css",
+  ],
   i18n: {
     restructureDir: "i18n",
     locales: [
       { code: "en", file: "en.json", name: "English" },
       { code: "ru", file: "ru.json", name: "Русский" },
-      { code: "fr", file: "fr.json", name: "Français" },
     ],
     defaultLocale: "en",
     langDir: "locales",

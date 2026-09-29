@@ -7,6 +7,7 @@ import type { IGeolocationStore } from "~/types";
 export const useGeolocationStore = defineStore("geolocation", () => {
   const latitude = ref<number | null>(null);
   const longitude = ref<number | null>(null);
+  const recordedAt = ref<string | null>(null);
   const accuracy = ref<number | null>(null);
   const error = ref<string | null>(null);
   const watchId = ref<number | null>(null);
@@ -40,12 +41,16 @@ export const useGeolocationStore = defineStore("geolocation", () => {
       latitude.value = position.coords.latitude;
       longitude.value = position.coords.longitude;
       accuracy.value = position.coords.accuracy;
+      recordedAt.value = new Date(position.timestamp).toISOString();
+      error.value = null;
 
       const id = watchPosition(
         (position) => {
           latitude.value = position.coords.latitude;
           longitude.value = position.coords.longitude;
           accuracy.value = position.coords.accuracy;
+          recordedAt.value = new Date(position.timestamp).toISOString();
+          error.value = null;
         },
         (err) => {
           error.value = err.message;
@@ -53,6 +58,7 @@ export const useGeolocationStore = defineStore("geolocation", () => {
       );
       watchId.value = id ?? null;
     } catch (err) {
+      isInitialized.value = false;
       logger.warn("Error obtaining geolocation:", err);
       if (err instanceof Error) {
         error.value = err.message;
@@ -74,6 +80,7 @@ export const useGeolocationStore = defineStore("geolocation", () => {
     latitude.value = null;
     longitude.value = null;
     accuracy.value = null;
+    recordedAt.value = null;
     error.value = null;
     stopWatching();
     isInitialized.value = false;
@@ -85,6 +92,8 @@ export const useGeolocationStore = defineStore("geolocation", () => {
       latitude.value = position.coords.latitude;
       longitude.value = position.coords.longitude;
       accuracy.value = position.coords.accuracy;
+      recordedAt.value = new Date(position.timestamp).toISOString();
+      error.value = null;
       error.value = null;
     } catch (err) {
       logger.warn("Failed to refresh geolocation:", err);
@@ -100,6 +109,7 @@ export const useGeolocationStore = defineStore("geolocation", () => {
     latitude,
     longitude,
     accuracy,
+    recordedAt,
     error,
     isLoading,
     watchId,

@@ -4,6 +4,7 @@ export interface IGeolocationStore {
   latitude: Ref<number | null>;
   longitude: Ref<number | null>;
   accuracy: Ref<number | null>;
+  recordedAt: Ref<string | null>;
   error: Ref<string | null>;
   isLoading: Ref<boolean>;
   watchId: Ref<number | null>;

@@ -1,54 +1,23 @@
-import type { IServerUserResponse } from "~/types";
 import { useExternalApi } from "~/composables/server/useExternalApi";
-
+import { serviceEndpoint } from "../utils/http";
+import type { IServerUserResponse } from "~/types";
 export default defineEventHandler(async (event) => {
-  const apiUrl = process.env.PG_API_UPDATE_ME;
-
-  if (!apiUrl) {
+  const body = await readBody(event);
+  if (
+    !body ||
+    typeof body.name !== "string" ||
+    !body.name.trim() ||
+    !["en", "ru"].includes(body.language)
+  ) {
     throw createError({
-      statusCode: 500,
-      statusMessage: "API URL for update user profile is not configured",
+      statusCode: 400,
+      statusMessage: "A name and supported language are required",
     });
   }
-
-  try {
-    const body = await readBody(event);
-
-    if (!body || typeof body !== "object") {
-      throw createError({
-        statusCode: 400,
-        statusMessage: "Invalid request body",
-      });
-    }
-
-    const { name, language } = body as Record<string, unknown>;
-
-    if (!name || !language) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: "Name and language are required",
-      });
-    }
-
-    const requestParams = {
-      name: String(name),
-      language: String(language),
-    };
-
-    const response = await useExternalApi<IServerUserResponse>(
-      event,
-      apiUrl,
-      requestParams,
-      "PUT",
-    );
-
-    return response;
-  } catch (error: any) {
-    console.error("Error updating user profile:", error);
-
-    throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.message || "Failed to update user profile",
-    });
-  }
+  return useExternalApi<IServerUserResponse>(
+    event,
+    serviceEndpoint("PG_API_UPDATE_ME", "/users/me/"),
+    { name: body.name.trim(), language: body.language },
+    "PUT",
+  );
 });

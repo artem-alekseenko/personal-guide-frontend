@@ -1,5 +1,7 @@
 # Ignore build output directories
 .nuxt/
+.output/
+pnpm-lock.yaml
 dist/
 
 # Ignore node modules

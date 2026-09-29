@@ -1,13 +1,19 @@
+import { DEFAULT_LLM_TYPE, isValidLlmType, type LlmType } from "~/types/llm";
 import { defineStore } from "pinia";
 import { computed, markRaw, ref, shallowRef } from "vue";
 import type { User } from "firebase/auth";
 import type { IUserPreferences, IUserProfile, IUserStats } from "~/types";
-import { DEFAULT_VOICE_TYPE } from "~/types/voice";
+import {
+  DEFAULT_VOICE_TYPE,
+  isValidVoiceType,
+  type VoiceType,
+} from "~/types/voice";
 import { useUserApi } from "~/composables/api/useUserApi";
 
 const makeDefaultPreferences = (): IUserPreferences => ({
   language: "en",
   voiceType: DEFAULT_VOICE_TYPE,
+  llmType: DEFAULT_LLM_TYPE,
 });
 
 const makeDefaultStats = (): IUserStats => ({
@@ -31,157 +37,192 @@ const makeProfileFromFirebaseUser = (u: User): IUserProfile => ({
 });
 
 export const useUserStore = defineStore("userStore", () => {
-    // State
-    const user = shallowRef<User | null>(null);
-    const profile = ref<IUserProfile | null>(null);
-    const stats = ref<IUserStats | null>(null);
+  // State
+  const user = shallowRef<User | null>(null);
+  const profile = ref<IUserProfile | null>(null);
+  const stats = ref<IUserStats | null>(null);
 
-    const guestLanguage = useLocalStorage<string>("personal-guide-user-lang", "en");
+  const guestLanguage = useLocalStorage<string>(
+    "personal-guide-user-lang",
+    "en",
+  );
 
-    const isLoading = ref(false);
-    const isSavingPreferences = ref(false);
+  const savedVoice = useLocalStorage<VoiceType>(
+    "personal-guide-voice",
+    DEFAULT_VOICE_TYPE,
+  );
+  if (!isValidVoiceType(savedVoice.value))
+    savedVoice.value = DEFAULT_VOICE_TYPE;
+  const savedLlm = useLocalStorage<LlmType>(
+    "personal-guide-llm",
+    DEFAULT_LLM_TYPE,
+  );
+  if (!isValidLlmType(savedLlm.value)) savedLlm.value = DEFAULT_LLM_TYPE;
+  let profileRequest = 0;
+  const isLoading = ref(false);
+  const isSavingPreferences = ref(false);
 
-    // Getters
-    const isAuthenticated = computed(() => !!user.value);
+  // Getters
+  const isAuthenticated = computed(() => !!user.value);
 
-    const userPreferences = computed<IUserPreferences>(() => {
-      if (profile.value) return profile.value.preferences;
-      return { ...makeDefaultPreferences(), language: guestLanguage.value };
-    });
-
-    const userName = computed(() => {
-      if (profile.value?.displayName) return profile.value.displayName;
-      if (user.value?.displayName) return user.value.displayName;
-      if (profile.value?.email)
-        return profile.value.email.split("@")[0] || "User";
-      return "User";
-    });
-
-    const userAvatar = computed(() => {
-      return (
-        profile.value?.photoURL ?? user.value?.photoURL ?? "/default-avatar.png"
-      );
-    });
-
-    const ensureStats = () => {
-      if (!stats.value) stats.value = makeDefaultStats();
+  const userPreferences = computed<IUserPreferences>(() => {
+    if (profile.value) return profile.value.preferences;
+    return {
+      ...makeDefaultPreferences(),
+      llmType: savedLlm.value,
+      language: ["en", "ru"].includes(guestLanguage.value)
+        ? guestLanguage.value
+        : "en",
     };
+  });
 
-    // Actions
-    const setUser = (newUser: User | null) => {
-      if (newUser && profile.value && profile.value.id !== newUser.uid) {
-        profile.value = null;
-        stats.value = null;
-      }
+  const userName = computed(() => {
+    if (profile.value?.displayName) return profile.value.displayName;
+    if (user.value?.displayName) return user.value.displayName;
+    if (profile.value?.email)
+      return profile.value.email.split("@")[0] || "User";
+    return "User";
+  });
 
-      user.value = newUser ? markRaw(newUser) : null;
+  const userAvatar = computed(() => {
+    return (
+      profile.value?.photoURL ?? user.value?.photoURL ?? "/default-avatar.png"
+    );
+  });
 
-      if (!newUser) {
-        profile.value = null;
-        stats.value = null;
-        return;
-      }
+  const ensureStats = () => {
+    if (!stats.value) stats.value = makeDefaultStats();
+  };
 
-      if (!profile.value) {
-        profile.value = makeProfileFromFirebaseUser(newUser);
-      }
-
-      ensureStats();
-    };
-
-    const setProfile = (newProfile: IUserProfile) => {
-      profile.value = {
-        ...newProfile,
-        preferences: { ...makeDefaultPreferences(), ...newProfile.preferences },
-      };
-      ensureStats();
-    };
-
-    const updatePreferences = (patch: Partial<IUserPreferences>) => {
-      if (patch.language) guestLanguage.value = patch.language;
-
-      if (!profile.value) return;
-      profile.value.preferences = { ...profile.value.preferences, ...patch };
-    };
-
-    const updateStats = (patch: Partial<IUserStats>) => {
-      stats.value = { ...(stats.value ?? makeDefaultStats()), ...patch };
-    };
-
-    const loadServerPreferences = async () => {
-      if (!isAuthenticated.value || isLoading.value) return;
-
-      isLoading.value = true;
-      try {
-        const { fetchUserProfile } = useUserApi();
-        const serverProfile = await fetchUserProfile();
-
-        if (user.value && !profile.value)
-          profile.value = makeProfileFromFirebaseUser(user.value);
-
-        if (serverProfile.language && profile.value) {
-          profile.value.preferences = {
-            ...profile.value.preferences,
-            language: serverProfile.language,
-          };
-          guestLanguage.value = serverProfile.language;
-        }
-      } catch (e) {
-        if (import.meta.dev)
-          console.error("Failed to load server preferences:", e);
-      } finally {
-        isLoading.value = false;
-      }
-    };
-
-    const syncPreferencesToServer = async () => {
-      if (!isAuthenticated.value || isSavingPreferences.value) return;
-
-      isSavingPreferences.value = true;
-      try {
-        const { updateUserProfile } = useUserApi();
-
-        const name = userName.value;
-        const language = userPreferences.value.language;
-
-        await updateUserProfile(name, language);
-
-        if (import.meta.dev) {
-          console.log("Preferences synced:", { name, language });
-        }
-      } finally {
-        isSavingPreferences.value = false;
-      }
-    };
-
-    const reset = () => {
-      user.value = null;
+  // Actions
+  const setUser = (newUser: User | null) => {
+    if (newUser && profile.value && profile.value.id !== newUser.uid) {
       profile.value = null;
       stats.value = null;
+    }
+
+    if (user.value?.uid !== newUser?.uid) {
+      profileRequest++;
       isLoading.value = false;
       isSavingPreferences.value = false;
+    }
+    user.value = newUser ? markRaw(newUser) : null;
+
+    if (!newUser) {
+      profile.value = null;
+      stats.value = null;
+      return;
+    }
+
+    if (!profile.value) {
+      profile.value = makeProfileFromFirebaseUser(newUser);
+      profile.value.preferences.voiceType = savedVoice.value;
+      profile.value.preferences.llmType = savedLlm.value;
+    }
+  };
+
+  const setProfile = (newProfile: IUserProfile) => {
+    profile.value = {
+      ...newProfile,
+      preferences: { ...makeDefaultPreferences(), ...newProfile.preferences },
     };
+  };
 
-    return {
-      user,
-      profile,
-      stats,
-      guestLanguage,
-      isLoading,
-      isSavingPreferences,
+  const updatePreferences = (patch: Partial<IUserPreferences>) => {
+    if (patch.llmType !== undefined && !isValidLlmType(patch.llmType))
+      throw new Error("Unsupported model type");
+    if (patch.llmType) savedLlm.value = patch.llmType;
+    if (patch.language) guestLanguage.value = patch.language;
+    if (patch.voiceType && isValidVoiceType(patch.voiceType))
+      savedVoice.value = patch.voiceType;
 
-      isAuthenticated,
-      userPreferences,
-      userName,
-      userAvatar,
+    if (!profile.value) return;
+    profile.value.preferences = { ...profile.value.preferences, ...patch };
+  };
 
-      setUser,
-      setProfile,
-      updatePreferences,
-      updateStats,
-      loadServerPreferences,
-      syncPreferencesToServer,
-      reset,
-    };
-  },
-);
+  const updateStats = (patch: Partial<IUserStats>) => {
+    stats.value = { ...(stats.value ?? makeDefaultStats()), ...patch };
+  };
+
+  const loadServerPreferences = async () => {
+    if (!isAuthenticated.value || isLoading.value) return;
+
+    isLoading.value = true;
+    const uid = user.value?.uid;
+    const request = ++profileRequest;
+    try {
+      const { fetchUserProfile } = useUserApi();
+      const serverProfile = await fetchUserProfile();
+      if (user.value?.uid !== uid || request !== profileRequest) return;
+
+      if (user.value && !profile.value)
+        profile.value = makeProfileFromFirebaseUser(user.value);
+
+      if (["en", "ru"].includes(serverProfile.language) && profile.value) {
+        profile.value.preferences = {
+          ...profile.value.preferences,
+          language: serverProfile.language,
+        };
+        guestLanguage.value = serverProfile.language;
+      }
+    } catch (e) {
+      if (import.meta.dev)
+        console.error("Failed to load server preferences:", e);
+    } finally {
+      if (request === profileRequest) isLoading.value = false;
+    }
+  };
+
+  const syncPreferencesToServer = async () => {
+    if (!isAuthenticated.value) throw new Error("Sign in to save preferences");
+    if (isSavingPreferences.value)
+      throw new Error("Preferences are already being saved");
+
+    isSavingPreferences.value = true;
+    try {
+      const { updateUserProfile } = useUserApi();
+
+      const name = userName.value;
+      const language = userPreferences.value.language;
+
+      await updateUserProfile(name, language);
+
+      if (import.meta.dev) {
+        console.log("Preferences synced:", { name, language });
+      }
+    } finally {
+      isSavingPreferences.value = false;
+    }
+  };
+
+  const reset = () => {
+    profileRequest++;
+    user.value = null;
+    profile.value = null;
+    stats.value = null;
+    isLoading.value = false;
+    isSavingPreferences.value = false;
+  };
+
+  return {
+    user,
+    profile,
+    stats,
+    guestLanguage,
+    isLoading,
+    isSavingPreferences,
+
+    isAuthenticated,
+    userPreferences,
+    userName,
+    userAvatar,
+
+    setUser,
+    setProfile,
+    updatePreferences,
+    updateStats,
+    loadServerPreferences,
+    syncPreferencesToServer,
+    reset,
+  };
+});

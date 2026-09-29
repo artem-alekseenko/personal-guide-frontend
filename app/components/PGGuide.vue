@@ -5,7 +5,12 @@
         {{ guide.name?.charAt(0).toUpperCase() }}
       </span>
     </div>
-    <img v-else :alt="guide.name" :src="guide.avatar" class="pg-guide__avatar" />
+    <img
+      v-else
+      :alt="guide.name"
+      :src="guide.avatar"
+      class="pg-guide__avatar"
+    />
     <div class="pg-guide__header">
       <h2 class="pg-guide__name">{{ guide.name }}</h2>
       <div class="pg-guide__context">{{ guide.context }}</div>
@@ -46,6 +51,7 @@ const router = useRouter();
 const guidesStore = useGuidesStore();
 
 const selectGuide = () => {
+  useRouteStore().reset();
   guidesStore.setSelectedGuide(guide);
 
   router.push("/create-route");

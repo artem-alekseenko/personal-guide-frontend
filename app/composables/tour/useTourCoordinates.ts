@@ -53,7 +53,9 @@ export function useTourCoordinates(options: TourCoordinatesOptions) {
       return geolocationStore.coordinates;
     }
 
-    // Try first point from tour route
+    if (positionMode.value === "gps") return null;
+
+    // Only manual simulation may start at a route point.
     if (
       tourStore.tour?.route?.points &&
       tourStore.tour.route.points.length > 0

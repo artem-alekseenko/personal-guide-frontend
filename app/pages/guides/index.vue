@@ -3,6 +3,12 @@
     <div v-if="isGuidesListLoading" class="guides-page__loading">
       <p class="guides-page__message">{{ $t("pages.guides.loadingGuides") }}</p>
     </div>
+    <div v-else-if="guidesStore.error" class="p-4 text-center" role="alert">
+      <p>{{ $t("common.loadFailed") }}</p>
+      <PGButton @click="fetchGuidesList()">{{
+        $t("buttons.tryAgain")
+      }}</PGButton>
+    </div>
     <div v-else class="guides-page__list">
       <PGGuide v-for="guide in guidesList" :key="guide.id" :guide="guide" />
     </div>

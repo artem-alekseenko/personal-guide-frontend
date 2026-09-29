@@ -1,74 +1,51 @@
-import { createError, defineEventHandler, getQuery, H3Event } from "h3";
 import { useExternalApi } from "~/composables/server/useExternalApi";
+import { serviceEndpoint } from "../utils/http";
 import type {
-  IRoute,
-  IRoutePoint,
-  IRouteSuggestionsParams,
-  IRouteSuggestionsResponse,
   IRouteSuggestionsResponseExtended,
+  IRouteSuggestionsResponse,
 } from "~/types";
-
-const validateRouteSuggestionsParams = (params: IRouteSuggestionsParams) => {
-  if (!params.lng || !params.lat || !params.duration || !params.guideId) {
-    throw createError({
-      statusCode: 400,
-      statusMessage:
-        "Missing required parameters: lng, lat, duration or guideId",
-    });
-  }
-};
-
-const convertRouteToCoordinates = (route: IRoute): [number, number][] => {
-  return route.points.map((point: IRoutePoint) => {
-    const lng = parseFloat(point.lng);
-    const lat = parseFloat(point.lat);
-    return [lng, lat];
-  });
-};
-
 export default defineEventHandler(
-  async (event: H3Event): Promise<IRouteSuggestionsResponseExtended> => {
-    const params = getQuery(event) as IRouteSuggestionsParams;
-    const routeSuggestionApiUrl = process.env.PG_API_ROUTE_SUGGESTION_URL;
-
-    validateRouteSuggestionsParams(params);
-
-    const { guideId, ...restParams } = params;
-
-    const externalApiUrl = `${routeSuggestionApiUrl}${guideId}`;
-
-    try {
-      const response = await useExternalApi<IRouteSuggestionsResponse>(
-        event,
-        externalApiUrl,
-        {
-          curr_lat: restParams.lat,
-          curr_lng: restParams.lng,
-          duration: restParams.duration,
-        },
-      );
-
-      const firstRoute = response.routes[0];
-      if (!firstRoute) {
-        throw createError({
-          statusCode: 500,
-          statusMessage: "No route found in the response",
-        });
-      }
-
-      return {
-        ...response,
-        coordinates: convertRouteToCoordinates(firstRoute),
-      };
-    } catch (error) {
-      console.error(
-        "Failed to fetch data about tour suggestions from external API",
-        error,
-      );
+  async (event): Promise<IRouteSuggestionsResponseExtended> => {
+    const query = getQuery(event);
+    const { lat, lng, duration, guideId } = query;
+    if (
+      ![lat, lng, duration, guideId].every(
+        (value) => typeof value === "string" && value.trim() !== "",
+      ) ||
+      !Number.isFinite(Number(lat)) ||
+      Math.abs(Number(lat)) > 90 ||
+      !Number.isFinite(Number(lng)) ||
+      Math.abs(Number(lng)) > 180 ||
+      !Number.isInteger(Number(duration)) ||
+      Number(duration) < 5 ||
+      Number(duration) > 480
+    ) {
       throw createError({
-        statusCode: 500,
-        statusMessage: "Internal Server Error",
+        statusCode: 400,
+        statusMessage: "Invalid route suggestion parameters",
       });
     }
+    const response = await useExternalApi<IRouteSuggestionsResponse>(
+      event,
+      serviceEndpoint(
+        "PG_API_ROUTE_SUGGESTION_URL",
+        "/guides/route_suggestions/",
+        encodeURIComponent(String(guideId)),
+      ),
+      { curr_lat: lat, curr_lng: lng, duration },
+    );
+    const first = response.routes[0];
+    if (!first)
+      throw createError({
+        statusCode: 502,
+        statusMessage: "No route returned by the service",
+      });
+    return {
+      ...response,
+      coordinates: first.points.map((point) => [
+        Number(point.lng),
+        Number(point.lat),
+      ]),
+    };
   },
 );

@@ -43,10 +43,12 @@
     <div>
       <PGButton
         :disabled="
+          actions.isBusy.value ||
           state === STATE.RECORD_LOADING ||
           state === STATE.RECORD_LOADING_WHEN_PAUSED
         "
         :loading="
+          actions.isBusy.value ||
           state === STATE.RECORD_LOADING ||
           state === STATE.RECORD_LOADING_WHEN_PAUSED
         "
@@ -72,9 +74,14 @@
         v-model="userText"
         :placeholder="$t('components.tourPage.enterQuestion')"
         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+        maxlength="4000"
         type="text"
       />
-      <PGButton class="mx-auto mt-3 block" @click="addQuestion">
+      <PGButton
+        :disabled="actions.isBusy.value || !userText.trim()"
+        class="mx-auto mt-3 block"
+        @click="addQuestion"
+      >
         {{ $t("components.tourPage.sendQuestion") }}
       </PGButton>
     </div>
@@ -84,6 +91,7 @@
       <PGButton
         class="prose mx-auto flex ring-green-400"
         color="neutral"
+        :disabled="actions.isBusy.value"
         @click="handleCompleteTour"
       >
         {{ $t("components.tourPage.completeTour") }}
@@ -93,8 +101,9 @@
 </template>
 
 <script lang="ts" setup>
-definePageMeta({});
+definePageMeta({ key: (route) => route.fullPath });
 
+import { useNotification } from "~/composables/ui/useNotification";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -110,7 +119,6 @@ import {
 } from "vue";
 import { useRoute } from "vue-router";
 import { useTourStore } from "#imports";
-import { useTourSpeech } from "@/composables/tour/useTourSpeech";
 import { useTourState } from "@/composables/tour/useTourState";
 import { useMapboxDirections } from "@/composables/map/useMapboxDirections";
 import { useTourTextSync } from "@/composables/tour/useTourTextSync";
@@ -125,21 +133,6 @@ import { addPlaceMarkers, removePlaceMarkers } from "~/utils/mapMarkers";
 import type { TypeFrom } from "~/types";
 import BaseMap from "~/components/base/BaseMap.vue";
 import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
-
-useHead({
-  link: [
-    {
-      rel: "stylesheet",
-      href: "https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css",
-      type: "text/css",
-    },
-    {
-      rel: "stylesheet",
-      href: "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css",
-      type: "text/css",
-    },
-  ],
-});
 
 const { public: publicConfig } = useRuntimeConfig();
 mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
@@ -177,6 +170,13 @@ const coordinates = useTourCoordinates({
 // Audio player
 const audioPlayer = useTourAudioPlayer({
   getSavedAudioPosition,
+  onEnded: () => {
+    void actions.onAudioEnded();
+  },
+  onError: (error) => {
+    setState("ERROR");
+    useNotification().showApiError(error, "Audio playback failed");
+  },
 });
 
 // Tour actions
@@ -191,10 +191,7 @@ const actions = useTourActions({
 });
 
 simulationMarker.setDragEndCallback(() => {
-  if (
-    state.value !== "LOADING_RECORD" &&
-    state.value !== "LOADING_RECORD_WHEN_PAUSED"
-  ) {
+  if (state.value === STATE.RECORD_FINISHED) {
     actions.getRecord();
   }
 });
@@ -228,6 +225,7 @@ const { initializeDirections, addRouteToMap, cleanup } = useMapboxDirections(
   },
 );
 
+let routeTimer: ReturnType<typeof setInterval> | undefined;
 function tryAddRouteWithCheck(retries = 5, delay = 100) {
   if (!mapInstance || !tourStore.tour || !isMapFullyLoaded.value) {
     logger.warn("Prerequisites not met for route addition");
@@ -235,7 +233,8 @@ function tryAddRouteWithCheck(retries = 5, delay = 100) {
   }
 
   let attempts = retries;
-  const interval = setInterval(() => {
+  if (routeTimer) clearInterval(routeTimer);
+  const interval = (routeTimer = setInterval(() => {
     if (mapInstance && tourStore.tour && isMapFullyLoaded.value) {
       logger.log(`Adding route, attempt ${retries - attempts + 1}`);
       addRouteToMap(tourStore.tour, isMapFullyLoaded);
@@ -244,7 +243,7 @@ function tryAddRouteWithCheck(retries = 5, delay = 100) {
       clearInterval(interval);
       logger.warn("Unable to add route after multiple attempts");
     }
-  }, delay);
+  }, delay));
 }
 
 function tryAddRouteWithDelay(delay = 100) {
@@ -313,7 +312,6 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
 /* -------------------------------------------
    Speech cleanup
 ------------------------------------------- */
-const { stopSpeech } = useTourSpeech();
 
 /* -------------------------------------------
    Actions (delegated to useTourActions)
@@ -322,9 +320,8 @@ const handleTourButtonClick = () => actions.handleTourButtonClick();
 const handleCompleteTour = () => actions.handleCompleteTour();
 
 async function addQuestion() {
-  const question = userText.value;
-  userText.value = "";
-  await actions.addQuestion(question);
+  await actions.addQuestion(userText.value);
+  if (state.value !== STATE.ERROR) userText.value = "";
 }
 
 /* -------------------------------------------
@@ -377,16 +374,11 @@ watch(
   (newRecord) => {
     if (!newRecord) return;
 
-    const isPaused = state.value === STATE.RECORD_LOADING_WHEN_PAUSED;
-    setState(isPaused ? STATE.RECORD_PAUSED : STATE.RECORD_RECEIVED);
-
     removePlaceMarkers(placesMarkers.value);
     placesMarkers.value = addPlaceMarkers(
       mapInstance,
       tourStore.currentPlacesGeoJSON,
     );
-
-    if (!isPaused) actions.playChunk();
   },
 );
 
@@ -418,7 +410,11 @@ onMounted(async () => {
     return;
   }
   logger.log("Fetching tour with ID:", route.params.tourId);
-  await tourStore.fetchGetTour(route.params.tourId as string);
+  try {
+    await tourStore.fetchGetTour(route.params.tourId as string);
+  } catch {
+    return;
+  }
   logger.log("Tour fetched:", tourStore.tour);
 
   if (shouldRestoreState.value && tourStore.textForDisplay) {
@@ -429,7 +425,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  stopSpeech();
+  if (routeTimer) clearInterval(routeTimer);
+  actions.dispose();
 
   audioPlayer.cleanup();
 

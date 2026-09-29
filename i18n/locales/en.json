@@ -25,7 +25,8 @@
     "distanceFormat": {
       "meters": "{count} m",
       "kilometers": "{count} km"
-    }
+    },
+    "loadFailed": "Could not load data. Please try again."
   },
   "auth": {
     "login": "Login",
@@ -72,7 +73,9 @@
     "tours": {
       "title": "Routes",
       "createNewTour": "Create new tour",
-      "noTours": "No tours available"
+      "noTours": "No tours available",
+      "empty": "No tours yet. Create your first tour.",
+      "preparationFailed": "Tour preparation failed. Please create a new tour."
     },
     "guides": {
       "title": "Guides",
@@ -99,7 +102,8 @@
       "totalTours": "Total tours",
       "completed": "Completed",
       "distance": "Distance",
-      "time": "Time"
+      "time": "Time",
+      "llmType": "Model type"
     }
   },
   "components": {
@@ -150,7 +154,6 @@
       "error": "Settings error",
       "errorDescription": "Failed to save your preferences. Please try again."
     },
-
     "network": {
       "error": "Network error",
       "errorDescription": "Unable to connect to the server. Please check your internet connection."
@@ -164,5 +167,18 @@
     "en": "English",
     "ru": "Русский",
     "fr": "Français"
+  },
+  "voiceOptions": {
+    "DEFAULT": "Default voice",
+    "CARTESIA": "Cartesia",
+    "MOCK": "Sample audio"
+  },
+  "llmOptions": {
+    "DEFAULT": "Backend default",
+    "SIMPLE": "Simple",
+    "OPENAI": "OpenAI",
+    "GEMINI": "Gemini",
+    "MOCK": "Sample responses",
+    "PERPLEXITY": "Perplexity"
   }
 }

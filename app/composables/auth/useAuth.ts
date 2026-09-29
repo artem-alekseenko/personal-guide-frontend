@@ -1,38 +1,27 @@
-import {useCurrentUser} from "vuefire";
-import {useUserStore} from "~/stores/userStore";
-import type {IUserPreferences, IUserStats} from "~/types";
+import { getAuth, signOut } from "firebase/auth";
+import { useUserStore } from "~/stores/userStore";
+import type { IUserPreferences, IUserStats } from "~/types";
 
 export const useAuth = () => {
   const userStore = useUserStore();
-  const firebaseUser = useCurrentUser();
-
-  watch(
-    firebaseUser,
-    (newUser) => {
-      userStore.setUser(newUser ?? null);
-
-      if (newUser && userStore.profile) {
-        const updatedProfile = {
-          ...userStore.profile,
-          lastLoginAt: new Date().toISOString(),
-        };
-        userStore.setProfile(updatedProfile);
-      }
-    },
-    { immediate: true },
-  );
-
   const updateUserPreferences = async (
     preferences: Partial<IUserPreferences>,
     syncToServer: boolean = true,
   ) => {
+    const previous = { ...userStore.userPreferences };
+    const uid = userStore.user?.uid;
     userStore.updatePreferences(preferences);
 
-    if (syncToServer) {
+    if (
+      syncToServer &&
+      preferences.language !== undefined &&
+      preferences.language !== previous.language
+    ) {
       try {
         await userStore.syncPreferencesToServer();
       } catch (error) {
-        console.error("Failed to sync preferences to server:", error);
+        if (userStore.user?.uid === uid) userStore.updatePreferences(previous);
+        throw error;
       }
     }
   };
@@ -50,10 +39,7 @@ export const useAuth = () => {
   };
 
   const logout = async () => {
-    const { $firebaseAuth } = useNuxtApp();
-    if ($firebaseAuth) {
-      await $firebaseAuth.signOut();
-    }
+    await signOut(getAuth());
 
     userStore.reset();
   };

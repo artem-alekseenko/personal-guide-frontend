@@ -1,14 +1,7 @@
 import type { IServerUserResponse } from "~/types";
 
 export const useUserApi = () => {
-  const nuxtApp = useNuxtApp();
-  const apiFetch = (nuxtApp.$apiFetch ?? $fetch) as typeof $fetch;
-
-  if (!("$apiFetch" in nuxtApp) && import.meta.dev) {
-    console.warn(
-      "[useUserApi] $apiFetch is not ready yet, falling back to $fetch (no Authorization header).",
-    );
-  }
+  const apiFetch = useNuxtApp().$apiFetch as typeof $fetch;
 
   /**
    * Fetch user profile from server

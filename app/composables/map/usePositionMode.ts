@@ -29,7 +29,7 @@ export const usePositionMode = () => {
   };
 
   // Reactive position mode state
-  const positionMode = ref<PositionMode>(loadInitialMode());
+  const positionMode = useState<PositionMode>(STORAGE_KEY, loadInitialMode);
 
   // Computed for easy toggle binding (manual mode = simulation mode)
   const isManualMode = computed({

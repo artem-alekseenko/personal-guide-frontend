@@ -16,38 +16,44 @@ const isPrefixMatch = (path: string, prefix: string) => {
 };
 
 export function buildServiceUrl(url: string) {
-  const cfg = useRuntimeConfig();
-  const base = cfg.pgApiBaseUrl || "";
-
-  try {
-    if (!base) {
-      const hasScheme = /^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(url);
-      if (!hasScheme) {
-        if (import.meta.dev)
-          console.warn(
-            "[buildServiceUrl] Relative URL without pgApiBaseUrl:",
-            url,
-          );
-        throw createError({
-          statusCode: 500,
-          statusMessage: "Service base URL not configured",
-        });
-      }
-      return url;
-    }
-
-    const final = new URL(url, base);
-    const baseOrigin = new URL(base).origin;
-    if (final.origin !== baseOrigin) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: "Disallowed target host",
-      });
-    }
-    return final.toString();
-  } catch (e) {
-    throw createError({ statusCode: 400, statusMessage: "Invalid target URL" });
+  const base = useRuntimeConfig().pgApiBaseUrl;
+  if (!base && !/^https?:\/\//.test(url)) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Service base URL not configured",
+    });
   }
+  let target: URL;
+  try {
+    target = base ? new URL(url, base) : new URL(url);
+  } catch {
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Invalid service URL configuration",
+    });
+  }
+  if (
+    !["http:", "https:"].includes(target.protocol) ||
+    target.username ||
+    target.password ||
+    (base && target.origin !== new URL(base).origin)
+  ) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: "Disallowed target host",
+    });
+  }
+  return target.toString();
+}
+
+/** Endpoint overrides support existing deployments; defaults follow the backend routers. */
+export function serviceEndpoint(
+  variable: string,
+  fallback: string,
+  suffix = "",
+) {
+  const path = process.env[variable] || fallback;
+  return suffix ? `${path.replace(/\/+$/, "")}/${suffix}` : path;
 }
 
 export async function forwardAuthAndFetch<T>(
@@ -59,6 +65,9 @@ export async function forwardAuthAndFetch<T>(
 
   const clientAuth = getRequestHeader(event, "authorization");
   if (clientAuth) headers.set("authorization", clientAuth);
+
+  const idempotencyKey = getRequestHeader(event, "idempotency-key");
+  if (idempotencyKey) headers.set("idempotency-key", idempotencyKey);
 
   const existingReqId = getRequestHeader(event, "x-request-id");
   const generatedReqId = `${Date.now().toString(36)}-${Math.random()
@@ -74,8 +83,12 @@ export async function forwardAuthAndFetch<T>(
     return await $fetch<T>(finalUrl, {
       ...init,
       headers,
-      retry: init.retry ?? 1,
-      timeout: init.timeout ?? 15_000,
+      retry:
+        init.retry ??
+        (["GET", "HEAD"].includes(String(init.method || "GET").toUpperCase())
+          ? 1
+          : 0),
+      timeout: init.timeout ?? 120_000,
     });
   } catch (err: any) {
     const statusCode = err?.response?.status || err?.statusCode || 502;

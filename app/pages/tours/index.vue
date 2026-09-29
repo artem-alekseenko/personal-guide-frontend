@@ -5,21 +5,47 @@
         {{ $t("pages.tours.createNewTour") }}
       </PGButton>
     </div>
+    <div
+      v-if="routeStore.error && routeStore.allTours.length"
+      class="p-4 text-center"
+      role="alert"
+    >
+      <p>{{ $t("common.loadFailed") }}</p>
+      <PGButton @click="routeStore.fetchListTours()">{{
+        $t("buttons.tryAgain")
+      }}</PGButton>
+    </div>
     <div v-if="routeStore.allTours.length" class="tours-page__list">
       <PGTourCard
         v-for="tour in routeStore.allTours"
         :key="tour.id"
         :description="tour.description"
         :generatingPercent="tour.generating_percent"
-        :generatingText="tour.generating_string"
+        :generatingText="
+          tour.preparation_error
+            ? $t('pages.tours.preparationFailed')
+            : tour.generating_string
+        "
+        :status="tour.status"
+        :preparationError="tour.preparation_error"
         :guideName="tour.guide.name"
         :imageUrl="tour.image"
         :name="tour.name"
         :tourId="tour.id"
       />
     </div>
-    <div v-else class="tours-page__empty">
+    <div v-else-if="routeStore.isLoading" class="tours-page__empty">
       <UIcon class="tours-page__loader" name="svg-spinners:6-dots-scale" />
+    </div>
+    <div v-else class="p-4 text-center" role="status">
+      <p>
+        {{
+          routeStore.error ? $t("common.loadFailed") : $t("pages.tours.empty")
+        }}
+      </p>
+      <PGButton v-if="routeStore.error" @click="routeStore.fetchListTours()">{{
+        $t("buttons.tryAgain")
+      }}</PGButton>
     </div>
   </section>
 </template>
@@ -30,7 +56,8 @@ import { definePageMeta } from "#imports";
 definePageMeta({});
 
 const routeStore = useRouteStore();
-routeStore.fetchListTours();
+void routeStore.fetchListTours();
+onBeforeUnmount(() => routeStore.stopPolling());
 
 const router = useRouter();
 

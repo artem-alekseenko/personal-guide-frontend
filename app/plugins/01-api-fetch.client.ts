@@ -3,19 +3,20 @@ import { useLogger } from "@/composables/utils/useLogger";
 
 export default defineNuxtPlugin(() => {
   const logger = useLogger();
-  let pendingToken: Promise<string> | null = null;
+  let pendingToken: { uid: string; promise: Promise<string> } | null = null;
 
   const apiFetch = $fetch.create({
     onRequest: async ({ request, options }) => {
-      const isApiPath =
-        (typeof request === "string" && request.startsWith("/api/")) ||
-        (request instanceof URL && request.pathname.startsWith("/api/")) ||
-        // @ts-ignore: Request may not be in lib.dom types in some tsconfigs
-        (typeof Request !== "undefined" &&
-          request instanceof Request &&
-          new URL(request.url).pathname.startsWith("/api/"));
-
-      if (!isApiPath) return;
+      const url = new URL(
+        typeof request === "string"
+          ? request
+          : request instanceof URL
+            ? request.href
+            : request.url,
+        location.origin,
+      );
+      if (url.origin !== location.origin || !url.pathname.startsWith("/api/"))
+        return;
 
       let user: any = null;
       try {
@@ -27,12 +28,21 @@ export default defineNuxtPlugin(() => {
       if (!user) return;
 
       try {
-        const token =
-          pendingToken ??
-          (pendingToken = user.getIdToken().finally(() => {
-            pendingToken = null;
-          }));
-        const tokenValue = await token;
+        if (!pendingToken || pendingToken.uid !== user.uid) {
+          const pending = {
+            uid: user.uid,
+            promise: user.getIdToken() as Promise<string>,
+          };
+          pendingToken = pending;
+          void pending.promise
+            .finally(() => {
+              if (pendingToken === pending) pendingToken = null;
+            })
+            .catch(() => {});
+        }
+        const tokenValue = await pendingToken.promise;
+        if (getAuth().currentUser?.uid !== user.uid)
+          throw new Error("Authentication changed during request");
 
         const h = options.headers;
         if (!h) {
@@ -49,19 +59,10 @@ export default defineNuxtPlugin(() => {
           (options.headers as any).Authorization = `Bearer ${tokenValue}`;
         }
 
-        const origin =
-          typeof request === "string"
-            ? location.origin
-            : request instanceof URL
-              ? request.origin
-              : // @ts-ignore
-                new URL(request.url).origin;
-
-        if (origin === location.origin) {
-          options.credentials = "include";
-        }
-      } catch {
+        options.credentials = "include";
+      } catch (error) {
         logger.warn("apiFetch: no token available");
+        throw error;
       }
     },
   });

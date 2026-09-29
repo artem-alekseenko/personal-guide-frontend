@@ -1,9 +1,10 @@
-import type { Ref } from "vue";
+import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import { useTourStore } from "~/stores/tourStore";
 import { usePositionMode } from "~/composables/map/usePositionMode";
-import { useLogger } from "~/composables/utils/useLogger";
-import type { ICoordinate } from "~/types";
+import { useGeolocationStore } from "~/stores/geolocationStore";
+import { useNotification } from "~/composables/ui/useNotification";
+import type { ITourRecordRequest } from "~/types";
 import type { TourState } from "./useTourState";
 import type { useTourAudioPlayer } from "./useTourAudioPlayer";
 import type { useTourCoordinates } from "./useTourCoordinates";
@@ -20,13 +21,10 @@ const STATE = {
   TOUR_FINISHED: "TOUR_FINISHED",
   ERROR: "ERROR",
 } as const;
-
-const AUDIO_REWIND_SECONDS = 5;
-
 export interface TourActionsOptions {
   state: Ref<TourState>;
   setState: (
-    newState: TourState,
+    state: TourState,
     hasContent?: boolean,
     audioPosition?: number,
   ) => void;
@@ -36,11 +34,6 @@ export interface TourActionsOptions {
   coordinates: ReturnType<typeof useTourCoordinates>;
   simulationMarker: ReturnType<typeof useSimulationMarker>;
 }
-
-/**
- * Composable for tour user actions
- * Handles tour playback control, record fetching, questions, and completion
- */
 export function useTourActions(options: TourActionsOptions) {
   const {
     state,
@@ -51,191 +44,194 @@ export function useTourActions(options: TourActionsOptions) {
     coordinates,
     simulationMarker,
   } = options;
-
   const router = useRouter();
   const tourStore = useTourStore();
   const { positionMode } = usePositionMode();
-  const logger = useLogger();
-
-  /**
-   * Play audio chunk
-   */
-  const playChunk = (): void => {
-    if (!tourStore.textForSpeech.length) {
-      setState(STATE.RECORD_FINISHED);
-      return;
-    }
-
-    audioPlayer.playAudio();
-    setState(STATE.RECORD_ACTIVE);
+  const notifications = useNotification();
+  const isBusy = ref(false);
+  let disposed = false;
+  const fail = (error: unknown) => {
+    if (disposed) return;
+    setState(STATE.ERROR);
+    notifications.showApiError(error, "Tour request failed");
   };
-
-  /**
-   * Play audio chunk from saved position with rewind
-   */
-  const playChunkFromSavedPosition = (): void => {
-    if (!tourStore.textForSpeech.length) {
-      setState(STATE.RECORD_FINISHED);
-      return;
-    }
-
-    const savedPosition = getSavedAudioPosition();
-    if (savedPosition !== null) {
-      const rewindPosition = Math.max(0, savedPosition - AUDIO_REWIND_SECONDS);
-      audioPlayer.playAudio(rewindPosition);
-    } else {
-      audioPlayer.playAudio();
-    }
-
-    setState(STATE.RECORD_ACTIVE);
-  };
-
-  /**
-   * Pause tour playback
-   */
-  const pauseTour = (): void => {
-    const currentPosition = audioPlayer.getCurrentPosition();
-    setState(STATE.RECORD_PAUSED, undefined, currentPosition);
-    audioPlayer.pauseAudio();
-  };
-
-  /**
-   * Resume tour playback from saved position
-   */
-  const resumeTour = (): void => {
-    setState(STATE.RECORD_ACTIVE);
-    audioPlayer.resumeAudioFromSavedPosition();
-  };
-
-  /**
-   * Force stop playback
-   */
-  const forceStopPlayback = (): void => {
-    audioPlayer.stopAudio();
-    setState(STATE.RECORD_FINISHED);
-  };
-
-  /**
-   * Get tour record for current position
-   */
-  const getRecord = async (): Promise<void> => {
-    let coords = coordinates.getCurrentCoordinates();
-
-    if (!coords) {
-      logger.warn(
-        "No coordinates available for current position mode, trying fallback",
+  const acknowledge = (delivery: "STARTED" | "COMPLETED" | "INTERRUPTED") =>
+    tourStore.acknowledgePlayback(delivery);
+  const playChunk = async (position?: number) => {
+    if (!tourStore.textForSpeech || !tourStore.currentTourRecord?.audio_data) {
+      setState(
+        tourStore.currentTourRecord?.guidance?.requires_resume
+          ? STATE.RECORD_PAUSED
+          : STATE.RECORD_FINISHED,
       );
-
-      const fallbackCoords = coordinates.getFallbackCoordinates();
-
-      if (fallbackCoords) {
-        if (positionMode.value === "manual") {
-          simulationMarker.addSimulationMarker(fallbackCoords);
-          coords = coordinates.getCurrentCoordinates();
-        } else {
-          coords = fallbackCoords;
-        }
-      } else {
-        logger.error("No fallback coordinates available");
+      return;
+    }
+    try {
+      const played = await audioPlayer.playAudio(position);
+      if (disposed) return;
+      if (!played) {
+        setState(STATE.RECORD_RECEIVED);
         return;
       }
-    }
-
-    if (!coords) {
-      logger.error("Still unable to get coordinates after fallback");
-      return;
-    }
-
-    if (state.value === STATE.RECORD_PAUSED) {
-      setState(STATE.RECORD_LOADING_WHEN_PAUSED);
-    } else {
-      setState(STATE.RECORD_LOADING);
-    }
-
-    const currentCoord: ICoordinate = {
-      lat: String(coords[1]),
-      lng: String(coords[0]),
-    };
-
-    logger.log(
-      `Getting record for ${positionMode.value} position:`,
-      currentCoord,
-    );
-
-    try {
-      await tourStore.fetchTourStep(currentCoord);
+      setState(STATE.RECORD_ACTIVE);
+      await acknowledge("STARTED");
     } catch (error) {
-      setState(STATE.ERROR);
-      logger.error("Tour step fetch failed, state set to ERROR");
+      audioPlayer.pauseAudio();
+      fail(error);
     }
   };
-
-  /**
-   * Handle main tour button click (play/pause/resume)
-   */
-  const handleTourButtonClick = (): void => {
+  const playChunkFromSavedPosition = () =>
+    playChunk(Math.max(0, (getSavedAudioPosition() ?? 5) - 5));
+  const pauseTour = async () => {
+    if (isBusy.value) return;
+    isBusy.value = true;
+    audioPlayer.pauseAudio();
+    setState(STATE.RECORD_PAUSED, undefined, audioPlayer.getCurrentPosition());
+    try {
+      await tourStore.sendPlaybackControl({ paused: true });
+    } catch (error) {
+      notifications.showApiError(error, "Could not pause the tour");
+    } finally {
+      isBusy.value = false;
+    }
+  };
+  const getRecord = async (explicitResume = false) => {
+    if (disposed || isBusy.value) return;
+    let coords = coordinates.getCurrentCoordinates();
+    if (!coords && positionMode.value === "manual") {
+      const fallback = coordinates.getFallbackCoordinates();
+      if (fallback) {
+        simulationMarker.addSimulationMarker(fallback);
+        coords = coordinates.getCurrentCoordinates();
+      }
+    }
+    if (!coords) {
+      notifications.showError({
+        message:
+          "Location is unavailable. Enable GPS or choose a manual position on the map.",
+      });
+      return;
+    }
+    isBusy.value = true;
+    audioPlayer.stopAudio();
+    setState(STATE.RECORD_LOADING);
+    try {
+      await acknowledge("INTERRUPTED");
+      if (disposed) return;
+      const gps: Partial<ITourRecordRequest> = {};
+      if (positionMode.value === "gps") {
+        const location = useGeolocationStore();
+        if (location.accuracy !== null && Number.isFinite(location.accuracy))
+          gps.location_accuracy_meters = Math.max(
+            0,
+            Math.min(10000, location.accuracy),
+          );
+        if (location.recordedAt) gps.location_recorded_at = location.recordedAt;
+      }
+      const record = await tourStore.fetchTourStep(
+        { lat: String(coords[1]), lng: String(coords[0]) },
+        { ...gps, ...(explicitResume ? { resume: true } : {}) },
+      );
+      if (!record || disposed) return;
+      setState(STATE.RECORD_RECEIVED);
+      await playChunk();
+    } catch (error) {
+      fail(error);
+    } finally {
+      isBusy.value = false;
+    }
+  };
+  const resumeTour = async () => {
+    if (isBusy.value) return;
+    if (!tourStore.currentTourRecord?.audio_data || !tourStore.textForSpeech)
+      return getRecord(true);
+    isBusy.value = true;
+    try {
+      await tourStore.sendPlaybackControl({ resume: true });
+      if (audioPlayer.canResumeAudio()) {
+        const played = await audioPlayer.resumeAudioFromSavedPosition();
+        if (!disposed)
+          setState(played ? STATE.RECORD_ACTIVE : STATE.RECORD_RECEIVED);
+      } else await playChunkFromSavedPosition();
+    } catch (error) {
+      fail(error);
+    } finally {
+      isBusy.value = false;
+    }
+  };
+  const onAudioEnded = async () => {
+    if (disposed) return;
+    setState(STATE.RECORD_FINISHED);
+    try {
+      await acknowledge("COMPLETED");
+    } catch (error) {
+      fail(error);
+    }
+  };
+  const forceStopPlayback = async () => {
+    audioPlayer.stopAudio();
+    setState(STATE.RECORD_FINISHED);
+    try {
+      await acknowledge("INTERRUPTED");
+    } catch (error) {
+      fail(error);
+    }
+  };
+  const handleTourButtonClick = async () => {
+    if (isBusy.value) return;
     switch (state.value) {
       case STATE.INITIAL:
       case STATE.RECORD_FINISHED:
       case STATE.ERROR:
-        getRecord();
-        break;
+        return getRecord(true);
       case STATE.RECORD_RECEIVED:
-        playChunk();
-        break;
+        return playChunk();
       case STATE.RECORD_ACTIVE:
-        pauseTour();
-        break;
+        return pauseTour();
       case STATE.RECORD_PAUSED:
-        if (tourStore.textForSpeech?.length && audioPlayer.canResumeAudio()) {
-          resumeTour();
-        } else {
-          playChunkFromSavedPosition();
-        }
-        break;
+        return resumeTour();
     }
   };
-
-  /**
-   * Handle tour completion
-   */
-  const handleCompleteTour = (): void => {
-    setState(STATE.TOUR_FINISHED);
-    clearSavedState();
-    tourStore.setUserText("");
-    router.push({ name: "tours" });
-  };
-
-  /**
-   * Add user question to the tour
-   * @param questionText - User's question text
-   */
-  const addQuestion = async (questionText: string): Promise<void> => {
-    const currentPosition = audioPlayer.getCurrentPosition();
-    setState(STATE.RECORD_PAUSED, undefined, currentPosition);
-    audioPlayer.pauseAudio();
-
-    tourStore.setUserText(questionText);
-
+  const handleCompleteTour = async () => {
+    if (isBusy.value) return;
+    isBusy.value = true;
     audioPlayer.stopAudio();
-
     try {
-      await getRecord();
+      await acknowledge("INTERRUPTED");
+      await tourStore.finishTour();
+      if (disposed) return;
+      setState(STATE.TOUR_FINISHED);
+      clearSavedState();
+      tourStore.setUserText("");
+      await router.push({ name: "tours" });
     } catch (error) {
-      logger.error("Failed to add question:", error);
+      fail(error);
+    } finally {
+      isBusy.value = false;
     }
   };
-
+  const addQuestion = async (text: string) => {
+    if (!text.trim() || isBusy.value) return;
+    tourStore.setUserText(text.trim());
+    await getRecord(true);
+  };
+  const dispose = () => {
+    disposed = true;
+    audioPlayer.stopAudio();
+  };
   return {
+    STATE,
+    isBusy,
     playChunk,
     playChunkFromSavedPosition,
     pauseTour,
     resumeTour,
-    forceStopPlayback,
     getRecord,
+    onAudioEnded,
+    forceStopPlayback,
     handleTourButtonClick,
     handleCompleteTour,
     addQuestion,
-    STATE,
+    dispose,
   };
 }

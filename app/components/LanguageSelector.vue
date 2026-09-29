@@ -48,7 +48,6 @@ const handleLanguageChange = async (value: string) => {
     language: value,
   };
   emit("update:preferences", updatedPreferences);
-  await setLocale(value as LocaleCode);
 };
 
 watch(

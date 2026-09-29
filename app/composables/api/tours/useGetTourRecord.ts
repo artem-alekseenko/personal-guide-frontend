@@ -7,16 +7,19 @@ import type {
 export const useGetTourRecord = async (
   tourId: string,
   params: ITourRecordRequest,
+  operationId: string = crypto.randomUUID(),
 ): Promise<ITourRecord> => {
   const { $apiFetch } = useNuxtApp();
   const apiFetch = $apiFetch as typeof $fetch;
 
   try {
     const data = await apiFetch<ITourRecordResponse>(
-      `/api/get-tour-record/${tourId}`,
+      `/api/get-tour-record/${encodeURIComponent(tourId)}`,
       {
         body: params,
         method: "POST",
+        retry: 0,
+        headers: { "Idempotency-Key": operationId },
       },
     );
 
@@ -30,6 +33,7 @@ export const useGetTourRecord = async (
       ...data.record,
       places: data.places,
       audio_data: data.audio_data,
+      route_points: data.route_points,
     };
   } catch (error) {
     if (error instanceof Error) {

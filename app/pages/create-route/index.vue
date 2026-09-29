@@ -26,7 +26,9 @@
     </div>
 
     <!-- Description -->
-    <div v-if="isShowDescription" class="prose p-4"></div>
+    <div v-if="isShowDescription" class="prose p-4">
+      {{ routeStore.routeSuggestion?.description }}
+    </div>
 
     <!-- Chips -->
     <div v-if="isShowChips" class="px-4 py-4">
@@ -101,6 +103,7 @@
 </template>
 
 <script lang="ts" setup>
+import { useNotification } from "~/composables/ui/useNotification";
 import formatMinToHours from "~/utils/formatMinToHours";
 import type { ICoordinate, TypeFrom } from "~/types";
 import PGMap from "~/components/PGMap.vue";
@@ -130,6 +133,9 @@ const duration = ref(MIN_DURATION_TOUR_MINUTES);
 // Stores
 const guidesStore = useGuidesStore();
 const routeStore = useRouteStore();
+onMounted(() => {
+  if (!guidesStore.selectedGuide) void navigateTo("/guides");
+});
 
 // Computed
 const formattedTime = computed(() => formatMinToHours(duration.value));
@@ -157,7 +163,12 @@ const isShowChips = computed(() => state.value === STATE.ROUTE_RECEIVED);
 const getRouteSuggestions = async () => {
   state.value = STATE.ROUTE_REQUESTING;
 
-  await routeStore.fetchRoutesSuggestions();
+  try {
+    await routeStore.fetchRoutesSuggestions();
+  } catch (error) {
+    state.value = STATE.DATA_ENTRY_COMPLETED;
+    useNotification().showApiError(error, "Could not plan the route");
+  }
 };
 
 const approveRoute = async () => {
@@ -167,7 +178,7 @@ const approveRoute = async () => {
   } catch (error) {
     // Reset state on error so user can try again
     state.value = STATE.ROUTE_RECEIVED;
-    console.error("Failed to approve tour:", error);
+    useNotification().showApiError(error, "Could not create the tour");
   }
 };
 

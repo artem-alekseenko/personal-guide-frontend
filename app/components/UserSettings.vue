@@ -42,6 +42,11 @@
           @update:preferences="handlePreferencesUpdate"
         />
 
+        <LlmTypeSelector
+          :preferences="preferences"
+          @update:preferences="handlePreferencesUpdate"
+        />
+
         <VoiceTypeSelector
           :preferences="preferences"
           @update:preferences="handlePreferencesUpdate"
@@ -125,7 +130,6 @@ const {
   userAvatar,
   updateUserPreferences,
   logout: authLogout,
-  reset,
 } = useAuth();
 
 const { isSavingPreferences } = useAuth();
@@ -146,6 +150,7 @@ const updatePreferences = async () => {
     await updateUserPreferences(preferences.value);
     showSettingsSaved();
   } catch (error) {
+    preferences.value = { ...userPreferences.value };
     showSettingsError();
   }
 };
@@ -155,9 +160,13 @@ const handlePreferencesUpdate = async (newPreferences: IUserPreferences) => {
   await updatePreferences();
 };
 
-const resetSettings = () => {
-  reset();
-  preferences.value = { ...userPreferences.value };
+const resetSettings = async () => {
+  preferences.value = {
+    language: "en",
+    voiceType: "DEFAULT",
+    llmType: "DEFAULT",
+  };
+  await updatePreferences();
 };
 
 const logout = async () => {

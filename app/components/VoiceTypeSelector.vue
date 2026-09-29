@@ -23,7 +23,13 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const voiceTypeOptions = computed(() => VOICE_TYPE_OPTIONS);
+const { t } = useI18n();
+const voiceTypeOptions = computed(() =>
+  VOICE_TYPE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(`voiceOptions.${option.value}`),
+  })),
+);
 
 const currentVoiceType = computed(() => props.preferences.voiceType);
 

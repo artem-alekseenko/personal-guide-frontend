@@ -40,16 +40,26 @@ const state = ref<TState>(STATE.INITIAL);
 const user = useCurrentUser();
 const auth = getAuth();
 const router = useRouter();
+const route = useRoute();
 
 const logout = async () => {
   await signOut(auth).catch((e) => console.error("Error when exiting", e));
 };
 
+let unsubscribe: (() => void) | undefined;
+onBeforeUnmount(() => unsubscribe?.());
 onMounted(() => {
-  onAuthStateChanged(auth, (user) => {
+  unsubscribe = onAuthStateChanged(auth, (user) => {
     if (user) {
       state.value = STATE.USER_ENTERED;
-      router.push({ name: "tours" });
+      const next = route.query.next;
+      router.push(
+        typeof next === "string" &&
+          /^\/(?![\/\\])/.test(next) &&
+          !/[\\\r\n]/.test(next)
+          ? next
+          : "/tours",
+      );
     } else {
       state.value = STATE.USER_NOT_ENTERED;
     }

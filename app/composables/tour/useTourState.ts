@@ -54,6 +54,16 @@ export const useTourState = (tourId: string) => {
         return "INITIAL";
       }
 
+      const store = useTourStore();
+      if (store.tour?.id !== tourId || !store.currentTourRecord?.audio_data)
+        return "INITIAL";
+      if (
+        ["RECORD_ACTIVE", "RECORD_RECEIVED", "RECORD_PAUSED"].includes(
+          data.state,
+        )
+      )
+        return "RECORD_PAUSED";
+
       // Don't restore transient states - convert them to appropriate states
       if (
         data.state === "LOADING_RECORD" ||
@@ -72,7 +82,7 @@ export const useTourState = (tourId: string) => {
         return "INITIAL";
       }
 
-      return data.state;
+      return "INITIAL";
     } catch (error) {
       console.warn("Failed to load tour state from localStorage:", error);
       return "INITIAL";
@@ -147,7 +157,12 @@ export const useTourState = (tourId: string) => {
       if (!saved) return null;
 
       const data: TourStateData = JSON.parse(saved);
-      return data.audioPosition ?? null;
+      return data.tourId === tourId &&
+        Date.now() - data.lastUpdated <= STATE_EXPIRY_MS &&
+        Number.isFinite(data.audioPosition) &&
+        data.audioPosition! >= 0
+        ? data.audioPosition!
+        : null;
     } catch (error) {
       console.warn("Failed to get saved audio position:", error);
       return null;

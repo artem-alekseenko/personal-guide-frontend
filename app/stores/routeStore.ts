@@ -28,6 +28,9 @@ export const useRouteStore = defineStore("routeStore", () => {
     { name: "Art", is_selected: false },
   ]);
   const _interval = ref<NodeJS.Timeout | null>(null);
+  const isLoading = ref(false);
+  let pollingEnabled = true;
+  let requestVersion = 0;
   const error = ref<string | null>(null);
 
   // Getters
@@ -69,6 +72,7 @@ export const useRouteStore = defineStore("routeStore", () => {
 
   // Polling control
   const stopPolling = (): void => {
+    pollingEnabled = false;
     if (_interval.value) {
       clearInterval(_interval.value);
       _interval.value = null;
@@ -95,8 +99,9 @@ export const useRouteStore = defineStore("routeStore", () => {
       guideId: guidesStore.selectedGuide?.id!,
     };
 
+    const version = requestVersion;
     const routeSuggestions = await useTourSuggestions(params);
-    setRouteSuggestion(routeSuggestions);
+    if (version === requestVersion) setRouteSuggestion(routeSuggestions);
   };
 
   const fetchCreateRoute = async (): Promise<void> => {
@@ -106,7 +111,7 @@ export const useRouteStore = defineStore("routeStore", () => {
     }));
 
     if (!route || !route.length) {
-      return;
+      throw new Error("Select a route first");
     }
 
     const guidesStore = useGuidesStore();
@@ -118,6 +123,8 @@ export const useRouteStore = defineStore("routeStore", () => {
         value: tag.name,
       }));
 
+    if (!guidesStore.selectedGuide?.id) throw new Error("Select a guide first");
+    const version = requestVersion;
     const payload: ICreateTourRequest = {
       guide_id: guidesStore.selectedGuide?.id || "",
       route,
@@ -127,40 +134,53 @@ export const useRouteStore = defineStore("routeStore", () => {
     try {
       error.value = null;
       const tour = await useCreateTour(payload);
-      setActualTour(tour);
+      if (version === requestVersion) setActualTour(tour);
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Failed to create route";
+      throw e;
     }
   };
 
   const fetchListTours = async (): Promise<void> => {
+    if (isLoading.value) return;
+    pollingEnabled = true;
+    const version = requestVersion;
+    isLoading.value = true;
     try {
       error.value = null;
       const tours = await useListTours();
-
-      if (!tours || !tours.length) {
-        return;
-      }
-
-      setAllTours(tours);
-      setActualTour(tours[0] as ICreatedTour);
-
-      const isNotGeneratedTourExist = tours.some(
-        (tour) => tour.generating_percent !== 100,
-      );
-
-      if (import.meta.client) {
-        stopPolling();
-
-        if (isNotGeneratedTourExist) {
-          _interval.value = setInterval(async () => {
-            await fetchListTours();
+      if (version !== requestVersion) return;
+      _allTours.value = tours;
+      _actualTour.value = tours[0] ?? null;
+    } catch (e) {
+      if (version === requestVersion)
+        error.value = e instanceof Error ? e.message : "Failed to load tours";
+    } finally {
+      if (version === requestVersion) {
+        isLoading.value = false;
+        if (_interval.value) clearTimeout(_interval.value);
+        const pending = _allTours.value.some(
+          (tour) => tour.status === "GENERATING" && !tour.preparation_error,
+        );
+        if (import.meta.client && pollingEnabled && (pending || error.value)) {
+          _interval.value = setTimeout(() => {
+            void fetchListTours();
           }, 5000);
         }
       }
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : "Failed to load tours";
     }
+  };
+
+  const reset = () => {
+    stopPolling();
+    requestVersion++;
+    _allTours.value = [];
+    _actualTour.value = null;
+    _routeSuggestion.value = null;
+    _startPoint.value = null;
+    _tags.value = _tags.value.map((tag) => ({ ...tag, is_selected: false }));
+    error.value = null;
+    isLoading.value = false;
   };
 
   return {
@@ -171,6 +191,8 @@ export const useRouteStore = defineStore("routeStore", () => {
     allTours,
     tags,
     error,
+    isLoading,
+    reset,
     setStartPoint,
     setDuration,
     setRouteSuggestion,

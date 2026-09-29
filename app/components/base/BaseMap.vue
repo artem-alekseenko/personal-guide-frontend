@@ -62,23 +62,7 @@ const initializeMap = async () => {
     return;
   }
 
-  // Wait for geolocation to be ready
-  if (!geolocationStore.isReady) {
-    logger.log("Waiting for geolocation...");
-    await new Promise<void>((resolve) => {
-      const unwatch = watch(
-        () => geolocationStore.isReady,
-        (isReady) => {
-          logger.log("Geolocation ready state changed:", isReady);
-          if (isReady) {
-            unwatch();
-            resolve();
-          }
-        },
-      );
-    });
-  }
-
+  // Render immediately; denied GPS must still allow manual map use.
   logger.log("Geolocation coordinates:", geolocationStore.coordinates);
   const coordinates = geolocationStore.coordinates;
 
@@ -92,9 +76,9 @@ const initializeMap = async () => {
       container: mapContainerRef.value,
       center: [lng, lat],
       style: "mapbox://styles/mapbox/standard",
-      zoom: DEFAULT_ZOOM,
-      bearing: DEFAULT_BEARING,
-      pitch: MAP_PITCH,
+      zoom: props.initialZoom ?? DEFAULT_ZOOM,
+      bearing: props.initialBearing ?? DEFAULT_BEARING,
+      pitch: props.initialPitch ?? MAP_PITCH,
     });
 
     if (props.showUserLocation) {

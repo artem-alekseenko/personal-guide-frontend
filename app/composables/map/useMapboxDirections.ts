@@ -192,7 +192,12 @@ export function useMapboxDirections(
   const decreaseWaypoints = (
     coordinates: [number, number][],
   ): [number, number][] => {
-    return coordinates.slice(0, WAYPOINTS_MAX_COUNT);
+    return coordinates.length <= WAYPOINTS_MAX_COUNT
+      ? coordinates
+      : [
+          ...coordinates.slice(0, WAYPOINTS_MAX_COUNT - 1),
+          coordinates[coordinates.length - 1]!,
+        ];
   };
 
   // Method for simple coordinate-based route setting (used in route creation)
@@ -301,14 +306,7 @@ export function useMapboxDirections(
     logger.log("Finish point:", finish);
     logger.log("Waypoints:", waypoints);
 
-    if (
-      !finish ||
-      !start ||
-      !start[0] ||
-      !start[1] ||
-      !finish[0] ||
-      !finish[1]
-    ) {
+    if (!finish || !start || ![...start, ...finish].every(Number.isFinite)) {
       logger.warn("Invalid coordinates");
       return;
     }

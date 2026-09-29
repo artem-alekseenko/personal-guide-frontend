@@ -9,7 +9,7 @@
 
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
-import { ref, shallowRef, watch, onUnmounted, nextTick } from "#imports";
+import { ref, shallowRef, watch, onBeforeUnmount, nextTick } from "#imports";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useRouteStore } from "~/stores/routeStore";
 import BaseMap from "~/components/base/BaseMap.vue";
@@ -44,7 +44,9 @@ const { addMarker, addHighPlacesToMap, addWaypointMarkers, clearAllMarkers } =
   useMarkers(mapInstance);
 
 const handleMapInitialized = (map: mapboxgl.Map) => {
-  mapInstance.value = map;
+  map.once("load", () => {
+    mapInstance.value = map;
+  });
 };
 
 const selectPoint = (e: mapboxgl.MapMouseEvent) => {
@@ -55,15 +57,17 @@ const selectPoint = (e: mapboxgl.MapMouseEvent) => {
 const limitWaypoints = (
   coordinates: [number, number][],
 ): [number, number][] => {
-  return coordinates.slice(0, WAYPOINTS_MAX_COUNT);
+  return coordinates.length <= WAYPOINTS_MAX_COUNT
+    ? coordinates
+    : [
+        ...coordinates.slice(0, WAYPOINTS_MAX_COUNT - 1),
+        coordinates[coordinates.length - 1]!,
+      ];
 };
 
 // Cleanup on component unmount
-onUnmounted(async () => {
+onBeforeUnmount(() => {
   logger.log("Component unmounting, cleaning up map...");
-
-  // Give Vue time to update DOM before cleanup
-  await nextTick();
 
   try {
     // Check if map instance is still valid before cleanup
@@ -87,8 +91,8 @@ onUnmounted(async () => {
 });
 
 watch(
-  () => routeStore.routeSuggestion?.coordinates,
-  async (newCoords) => {
+  () => [routeStore.routeSuggestion?.coordinates, mapInstance.value] as const,
+  async ([newCoords]) => {
     if (!newCoords?.length || !mapInstance.value) return;
 
     const directions = await initializeDirections();

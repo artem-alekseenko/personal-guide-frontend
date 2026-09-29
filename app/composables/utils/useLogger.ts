@@ -1,9 +1,14 @@
 export const useLogger = () => {
   const isEnabled = () => {
-    return (
-      process.env.NODE_ENV === "development" ||
-      localStorage.getItem("debug") === "true"
-    );
+    if (import.meta.dev) return true;
+    try {
+      return (
+        typeof localStorage !== "undefined" &&
+        localStorage.getItem("debug") === "true"
+      );
+    } catch {
+      return false;
+    }
   };
 
   const log = (...args: unknown[]) => {

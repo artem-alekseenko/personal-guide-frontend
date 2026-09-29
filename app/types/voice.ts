@@ -1,26 +1,27 @@
 /**
  * Voice types supported by the application
  */
-export type VoiceType = "ELEVEN_LABS" | "MOCK";
+export type VoiceType = "DEFAULT" | "CARTESIA" | "MOCK";
 
 /**
  * Voice type options with labels for UI
  */
 export const VOICE_TYPE_OPTIONS = [
   {
-    value: "ELEVEN_LABS" as const,
-    label: "Eleven Labs (AI Voice)",
+    value: "DEFAULT" as const,
+    label: "Default voice",
   },
+  { value: "CARTESIA" as const, label: "Cartesia" },
   {
     value: "MOCK" as const,
-    label: "Mock (Browser Voice)",
+    label: "Sample audio",
   },
 ] as const;
 
 /**
  * Default voice type
  */
-export const DEFAULT_VOICE_TYPE: VoiceType = "ELEVEN_LABS";
+export const DEFAULT_VOICE_TYPE: VoiceType = "DEFAULT";
 
 /**
  * Helper function to check if a string is a valid voice type

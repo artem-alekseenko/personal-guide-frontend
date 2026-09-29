@@ -25,7 +25,8 @@
     "distanceFormat": {
       "meters": "{count} м",
       "kilometers": "{count} км"
-    }
+    },
+    "loadFailed": "Не удалось загрузить данные. Попробуйте ещё раз."
   },
   "auth": {
     "login": "Войти",
@@ -72,7 +73,9 @@
     "tours": {
       "title": "Маршруты",
       "createNewTour": "Создать новый маршрут",
-      "noTours": "Маршрутов нет"
+      "noTours": "Маршрутов нет",
+      "empty": "Пока нет экскурсий. Создайте первую.",
+      "preparationFailed": "Не удалось подготовить экскурсию. Создайте новую."
     },
     "guides": {
       "title": "Гиды",
@@ -99,7 +102,8 @@
       "totalTours": "Всего маршрутов",
       "completed": "Завершено",
       "distance": "Расстояние",
-      "time": "Время"
+      "time": "Время",
+      "llmType": "Тип модели"
     }
   },
   "components": {
@@ -150,7 +154,6 @@
       "error": "Ошибка настроек",
       "errorDescription": "Не удалось сохранить ваши предпочтения. Попробуйте еще раз."
     },
-
     "network": {
       "error": "Ошибка сети",
       "errorDescription": "Не удается подключиться к серверу. Проверьте подключение к интернету."
@@ -164,5 +167,18 @@
     "en": "English",
     "ru": "Русский",
     "fr": "Français"
+  },
+  "voiceOptions": {
+    "DEFAULT": "Голос по умолчанию",
+    "CARTESIA": "Cartesia",
+    "MOCK": "Пример аудио"
+  },
+  "llmOptions": {
+    "DEFAULT": "По умолчанию на сервере",
+    "SIMPLE": "Simple",
+    "OPENAI": "OpenAI",
+    "GEMINI": "Gemini",
+    "MOCK": "Примеры ответов",
+    "PERPLEXITY": "Perplexity"
   }
 }

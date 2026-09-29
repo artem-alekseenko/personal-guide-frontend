@@ -1,18 +1,10 @@
 import { useExternalApi } from "~/composables/server/useExternalApi";
-
+import { serviceEndpoint } from "../utils/http";
 export default defineEventHandler(async (event) => {
-  const apiUrlForCreatingRoute = process.env.PG_API_CREATE_ROUTE_URL;
-
-  if (!apiUrlForCreatingRoute) {
-    console.error("External API URL for creating route is not defined");
-    return;
-  }
-
-  const body = await readBody(event);
-
-  try {
-    return await useExternalApi(event, apiUrlForCreatingRoute, body, "POST");
-  } catch (error) {
-    console.error("Failed to fetch data from external API", error);
-  }
+  return useExternalApi(
+    event,
+    serviceEndpoint("PG_API_CREATE_ROUTE_URL", "/tours/"),
+    await readBody(event),
+    "POST",
+  );
 });

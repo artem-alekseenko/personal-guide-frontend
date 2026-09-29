@@ -29,7 +29,10 @@
       <p class="tour-card__guide">
         {{ $t("components.tourCard.guide") }} {{ guideName }}
       </p>
-      <p v-if="generatingPercent !== 100" class="tour-card__progress-wrap">
+      <p
+        v-if="status === 'GENERATING' && !preparationError"
+        class="tour-card__progress-wrap"
+      >
         <span
           :aria-valuenow="generatingPercent"
           aria-valuemax="100"
@@ -41,12 +44,14 @@
             :style="{ width: `${generatingPercent}%` }"
             class="tour-card__progress-bar"
           />
-          <span class="tour-card__progress-label">{{ generatingPercent }}%</span>
+          <span class="tour-card__progress-label"
+            >{{ generatingPercent }}%</span
+          >
         </span>
       </p>
       <p class="tour-card__generating-text">{{ generatingText }}</p>
       <NuxtLink
-        v-if="generatingPercent === 100"
+        v-if="['GENERATED', 'STARTED'].includes(status)"
         :to="`/tours/${tourId}`"
         class="tour-card__link"
       >
@@ -60,6 +65,8 @@
 import { nextTick, onMounted, ref, toRefs } from "vue";
 
 const props = defineProps<{
+  status: string;
+  preparationError?: string | null;
   name: string;
   description: string;
   generatingPercent: number;
@@ -70,6 +77,8 @@ const props = defineProps<{
 }>();
 
 const {
+  status,
+  preparationError,
   name,
   description,
   generatingPercent,

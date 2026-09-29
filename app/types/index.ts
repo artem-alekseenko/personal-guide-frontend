@@ -1,3 +1,4 @@
+import type { LlmType } from "./llm";
 export interface ITour {
   id: number;
   image: string;
@@ -103,6 +104,10 @@ export interface ICreatedTour {
   settings: ISetting[];
   tags: string[];
   guide: Omit<IGuide, "tours">;
+  preparation_error?: string | null;
+  active_generation_id?: string | null;
+  latest_generation_id?: string | null;
+  playback_generation_id?: string | null;
   generating_percent: number;
   generating_string: string;
 }
@@ -117,14 +122,32 @@ export interface IPoint {
   lng: string;
 }
 
+export interface ITourGuidance {
+  action:
+    | "ARRIVE"
+    | "CONTINUE"
+    | "WALK"
+    | "ANSWER"
+    | "LOCATE"
+    | "COMPLETE"
+    | "WAIT";
+  reason: string;
+  wait_seconds: number;
+  requires_resume: boolean;
+}
+
 export interface ITourRecord {
+  route_points?: IRoutePoint[];
+  playback_segment_id?: string | null;
+  playback_action_types?: string[];
+  guidance?: ITourGuidance | null;
   id: string;
   point: IPoint;
   type: string;
   message: string;
   created_at: string;
   places?: IPoint[];
-  audio_data: string;
+  audio_data: string | null;
 }
 
 export interface IGeoJSONFeature {
@@ -147,18 +170,25 @@ export interface IGeoJSON {
 import type { VoiceType } from "./voice";
 
 export interface ITourRecordRequest {
-  duration: string;
+  duration: number;
   point: ICoordinate;
   user_text: string;
-  pace: string;
-  type_llm: "SIMPLE" | "OPENAI" | "GEMINI" | "MOCK" | "DEFAULT";
+  pace?: number;
+  location_accuracy_meters?: number;
+  location_recorded_at?: string;
+  paused?: boolean;
+  resume?: boolean;
+  acknowledged_segment_id?: string;
+  acknowledged_delivery_state?: "STARTED" | "COMPLETED" | "INTERRUPTED";
+  type_llm: LlmType;
   type_voice: VoiceType;
 }
 
 export interface ITourRecordResponse {
+  route_points?: IRoutePoint[];
   places: IPoint[];
   record: ITourRecord;
-  audio_data: string;
+  audio_data: string | null;
 }
 
 export interface ITourTag {
@@ -184,6 +214,7 @@ export type TRequestMethod =
 export interface IUserPreferences {
   language: string;
   voiceType: VoiceType;
+  llmType: LlmType;
 }
 
 export interface IUserProfile {
