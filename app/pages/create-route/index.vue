@@ -5,7 +5,7 @@
     <div v-if="!routeStore.routeSuggestion" class="prose px-4 pb-2">
       {{ $t("pages.createRoute.selectArea") }}
     </div>
-    <div v-else class="prose px-4 pb-2">
+    <div v-else-if="routeStore.canCreate" class="prose px-4 pb-2">
       {{ $t("pages.createRoute.routeBuilt") }}
     </div>
 
@@ -31,8 +31,11 @@
     </div>
 
     <div v-if="routeStore.routeSuggestion" class="mx-4 space-y-2">
-      <label for="route-variant">{{ $t("experience.routeVariant") }}</label>
+      <label v-if="routeStore.canCreate" for="route-variant">{{
+        $t("experience.routeVariant")
+      }}</label>
       <select
+        v-if="routeStore.canCreate"
         id="route-variant"
         :value="routeStore.selectedRouteIndex"
         class="w-full rounded border p-2"
@@ -70,7 +73,7 @@
     </div>
 
     <!-- Duration Selector -->
-    <div v-if="!routeStore.routeSuggestion" class="m-4">
+    <div v-if="!routeStore.canCreate" class="m-4">
       <div class="mb-4">
         <div class="prose px-4 text-sm">
           {{ $t("pages.createRoute.durationLabel") }}
@@ -184,7 +187,7 @@ const isShowDescription = computed(
     routeStore.routeSuggestion?.description,
 );
 const chips = computed(() => routeStore.tags || []);
-const isShowChips = computed(() => state.value === STATE.ROUTE_RECEIVED);
+const isShowChips = computed(() => routeStore.personalContext.enabled);
 
 // Methods
 const getRouteSuggestions = async () => {
@@ -192,6 +195,7 @@ const getRouteSuggestions = async () => {
 
   try {
     await routeStore.fetchRoutesSuggestions();
+    if (!routeStore.routeSuggestion) state.value = STATE.DATA_ENTRY_COMPLETED;
   } catch (error) {
     state.value = STATE.DATA_ENTRY_COMPLETED;
     useNotification().showApiError(error, "Could not plan the route");
@@ -243,6 +247,8 @@ watch(
   (newRouteSuggestion) => {
     if (newRouteSuggestion) {
       state.value = STATE.ROUTE_RECEIVED;
+    } else if (routeStore.startPoint) {
+      state.value = STATE.DATA_ENTRY_COMPLETED;
     }
   },
 );

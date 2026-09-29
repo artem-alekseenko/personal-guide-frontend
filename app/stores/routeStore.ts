@@ -1,6 +1,6 @@
 import { emptyPersonalContext } from "~/types/personalContext";
 import { defineStore } from "pinia";
-import { computed, ref, unref } from "vue";
+import { computed, ref, unref, watch } from "vue";
 import type {
   ICoordinate,
   ICreatedTour,
@@ -45,6 +45,35 @@ export const useRouteStore = defineStore("routeStore", () => {
   let pollingEnabled = true;
   let requestVersion = 0;
   const error = ref<string | null>(null);
+
+  const effectiveContext = computed(() => {
+    const context = personalContext.value;
+    if (!context.enabled)
+      return {
+        ...emptyPersonalContext(),
+        enabled: false,
+        step_free: context.step_free,
+      };
+    return {
+      ...context,
+      interests: [
+        ...new Set([
+          ...context.interests,
+          ..._tags.value
+            .filter((tag) => tag.is_selected)
+            .map((tag) => tag.name.toLowerCase().replaceAll(" ", "_")),
+        ]),
+      ].filter((interest) => !context.excluded_topics.includes(interest)),
+    };
+  });
+  watch(
+    () => JSON.stringify(effectiveContext.value),
+    () => {
+      requestVersion++;
+      _routeSuggestion.value = null;
+    },
+    { flush: "sync" },
+  );
 
   // Getters
   const startPoint = computed((): ICoordinate | null => _startPoint.value);
@@ -131,9 +160,14 @@ export const useRouteStore = defineStore("routeStore", () => {
       lat: unref(_startPoint)!.lat.toString(),
       duration: _duration.value,
       guideId: guidesStore.selectedGuide?.id!,
+      interests: effectiveContext.value.interests,
+      excluded_topics: effectiveContext.value.excluded_topics,
+      pace: effectiveContext.value.pace,
+      step_free: String(effectiveContext.value.step_free),
+      personal_context_enabled: String(effectiveContext.value.enabled),
     };
 
-    const version = requestVersion;
+    const version = ++requestVersion;
     const routeSuggestions = await useTourSuggestions(params);
     if (version === requestVersion) setRouteSuggestion(routeSuggestions);
   };
@@ -153,7 +187,13 @@ export const useRouteStore = defineStore("routeStore", () => {
     const guidesStore = useGuidesStore();
 
     const preparedSettings = _tags.value
-      .filter((tag) => tag.is_selected)
+      .filter(
+        (tag) =>
+          tag.is_selected &&
+          effectiveContext.value.interests.includes(
+            tag.name.toLowerCase().replaceAll(" ", "_"),
+          ),
+      )
       .map((tag) => ({
         name: tag.name,
         value: tag.name,
@@ -171,12 +211,7 @@ export const useRouteStore = defineStore("routeStore", () => {
         : selected.points,
       route_variant: selected.name,
       duration_minutes: Number(_duration.value),
-      personal_context: {
-        ...personalContext.value,
-        interests: _tags.value
-          .filter((tag) => tag.is_selected)
-          .map((tag) => tag.name.toLowerCase().replaceAll(" ", "_")),
-      },
+      personal_context: effectiveContext.value,
     };
 
     try {

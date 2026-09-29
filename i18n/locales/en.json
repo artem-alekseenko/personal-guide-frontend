@@ -242,6 +242,27 @@
     "failed": "The action could not be confirmed. Retry it, or reload the current state before choosing another action.",
     "noRoute": "No walking route is available for these choices. Try another starting point or duration.",
     "routeVariant": "Route option",
-    "actionLOCAL_TALK": "Talk with someone — optional"
+    "actionLOCAL_TALK": "Talk with someone — optional",
+    "stepFree": "Require a verified step-free route",
+    "excludedTopics": "Exclude from this route",
+    "topics": {
+      "nature": "Nature",
+      "movies": "Movies",
+      "it": "Technology",
+      "politics": "Politics",
+      "science": "Science",
+      "art": "Art",
+      "museum": "Museums"
+    },
+    "walkingDirections": "Walking directions",
+    "navigationStatus": {
+      "available": "Directions from your latest location",
+      "location_required": "A fresh location is needed for directions",
+      "accessibility_unverified": "Step-free access has not been verified",
+      "destination_required": "Which destination do you mean? Please name a stop or the start point.",
+      "time_limit": "This walk is longer than your remaining planned time",
+      "complete": "The walk is complete",
+      "unavailable": "Walking directions are unavailable"
+    }
   }
 }

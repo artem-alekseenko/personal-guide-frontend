@@ -8,7 +8,35 @@
         ><input v-model="value.enabled" type="checkbox" />
         {{ $t("experience.personalize") }}</label
       >
+      <label
+        ><input v-model="value.step_free" type="checkbox" />
+        {{ $t("experience.stepFree") }}</label
+      >
       <template v-if="value.enabled">
+        <label class="grid gap-1"
+          >{{ $t("experience.excludedTopics") }}
+          <select
+            v-model="value.excluded_topics"
+            multiple
+            class="rounded border p-2"
+          >
+            <option
+              v-for="topic in [
+                'nature',
+                'movies',
+                'it',
+                'politics',
+                'science',
+                'art',
+                'museum',
+              ]"
+              :key="topic"
+              :value="topic"
+            >
+              {{ $t(`experience.topics.${topic}`) }}
+            </option>
+          </select>
+        </label>
         <label class="grid gap-1"
           >{{ $t("experience.purpose")
           }}<input

@@ -214,3 +214,14 @@ Node is installed through NVM. Noninteractive shells may need `source "$HOME/.nv
 Creation uses the selected suggested variant, preserving named stops separately from route geometry. Changing start/duration invalidates the suggestion. New tours draw their stored geometry directly rather than requesting a second route; legacy tours retain the existing map path. Context form fields are optional. The text feature's Python/client tests do not establish live GPS, provider factual accuracy, field accessibility or public-launch readiness.
 
 User constraint for this milestone: **do not generate, listen to, test or benchmark audio. Existing audio remains in use. Future audio verification MUST receive explicit human approval.** Use focused `tests/experience.test.ts`, `tests/experience-proxy.test.ts`, `tests/tour-contract.test.ts`, `tests/stored-route.test.ts`, `tests/client-auth.test.ts`, and `tests/auth.test.ts`, plus typecheck/build. Audio-inclusive regression/smoke suites are excluded until that approval.
+
+Route preferences now flow through the suggestion proxy (`interests`,
+`excluded_topics`, `pace`, `step_free`, `personal_context_enabled`). Preference
+edits invalidate prior suggestions and in-flight responses. Creation settings
+use the same enabled/excluded-interest rules. Empty suggestions are legitimate
+infeasible/unverified-route results and show the backend explanation. Step-free
+requests are withheld until whole-path accessibility can be verified.
+
+The text panel displays backend navigation status, provider instructions and
+warnings. It never derives turns from stop names. `navigation-display.test.ts`
+and `route-preferences-proxy.test.ts` are additional approved nonaudio checks.

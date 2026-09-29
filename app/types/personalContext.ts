@@ -7,6 +7,7 @@ export interface PersonalContext {
   note: string;
   knowledge_level: "INTRODUCTORY" | "GENERAL" | "SPECIALIST";
   detail_level: "BRIEF" | "STANDARD" | "DEEP";
+  step_free: boolean;
   pace: "relaxed" | "normal" | "brisk";
 }
 export const emptyPersonalContext = (): PersonalContext => ({
@@ -18,5 +19,6 @@ export const emptyPersonalContext = (): PersonalContext => ({
   note: "",
   knowledge_level: "GENERAL",
   detail_level: "STANDARD",
+  step_free: false,
   pace: "normal",
 });

@@ -28,7 +28,26 @@ export interface Interaction {
   recorded_at?: string;
   type_llm?: LlmType;
 }
+export interface Navigation {
+  status:
+    | "available"
+    | "location_required"
+    | "accessibility_unverified"
+    | "destination_required"
+    | "time_limit"
+    | "complete"
+    | "unavailable";
+  target_name?: string;
+  target_id?: string;
+  destination_kind?: "requested" | "route_start" | "route_end" | "next";
+  instructions?: string[];
+  warnings?: string[];
+  checked_at?: string;
+  walking_minutes?: number;
+  remaining_minutes?: number;
+}
 export interface Experience {
+  navigation?: Navigation | null;
   schema_version: number;
   revision: number;
   generation_id: string | null;

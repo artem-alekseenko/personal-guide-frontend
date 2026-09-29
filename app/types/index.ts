@@ -88,7 +88,7 @@ export interface IRouteSuggestionsParams {
   duration: string;
   guideId: string;
 
-  [key: string]: string;
+  [key: string]: string | string[];
 }
 
 interface ISetting {

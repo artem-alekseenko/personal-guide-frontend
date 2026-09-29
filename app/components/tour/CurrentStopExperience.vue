@@ -54,6 +54,41 @@
           $t("experience.timeLeft", { minutes: store.view.remaining_minutes })
         }}
       </p>
+      <aside
+        v-if="store.view.navigation?.status"
+        class="grid gap-2 rounded border p-3"
+        :aria-label="$t('experience.walkingDirections')"
+      >
+        <h3 class="font-medium">{{ $t("experience.walkingDirections") }}</h3>
+        <p>
+          {{
+            $t(`experience.navigationStatus.${store.view.navigation.status}`)
+          }}
+        </p>
+        <p v-if="store.view.navigation.target_name">
+          {{ store.view.navigation.target_name }}
+        </p>
+        <ol
+          v-if="navigationInstructions(store.view.navigation).length"
+          class="list-inside list-decimal"
+        >
+          <li
+            v-for="(instruction, index) in navigationInstructions(
+              store.view.navigation,
+            )"
+            :key="index"
+          >
+            {{ instruction }}
+          </li>
+        </ol>
+        <p
+          v-for="warning in store.view.navigation.warnings"
+          :key="warning"
+          class="text-sm"
+        >
+          {{ warning }}
+        </p>
+      </aside>
       <p v-if="store.view.limitation" class="text-sm">
         {{ $t("experience.noEvidence") }}
       </p>
@@ -205,6 +240,7 @@ import {
   emptyPersonalContext,
   type PersonalContext,
 } from "~/types/personalContext";
+import { navigationInstructions } from "~/utils/navigationInstructions";
 import PersonalContextForm from "./PersonalContextForm.vue";
 const props = defineProps<{ tourId: string }>();
 const store = useExperienceStore(),

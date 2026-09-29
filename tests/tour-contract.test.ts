@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { useRouteStore } from "../app/stores/routeStore";
+const suggest = vi.hoisted(() => vi.fn());
+vi.mock("../app/composables/api/useTourSuggestions", () => ({
+  useTourSuggestions: suggest,
+}));
 const create = vi.fn().mockResolvedValue({ id: "tour-1" });
 vi.mock("../app/composables/api/tours/useCreateTour", () => ({
   useCreateTour: (p: unknown) => create(p),
@@ -113,4 +117,130 @@ it("preserves full provider geometry while accepting legacy sampled points", asy
   expect(store.routeSuggestion!.coordinates).toHaveLength(47);
   await store.fetchCreateRoute();
   expect(create.mock.calls[0]![0].route_geometry).toEqual(full);
+});
+
+it("invalidates suggestions on nested route preference changes", () => {
+  const store = useRouteStore();
+  for (const change of [
+    () => {
+      store.personalContext.pace = "relaxed";
+    },
+    () => {
+      store.personalContext.excluded_topics.push("museum");
+    },
+    () => {
+      store.personalContext.step_free = true;
+    },
+    () => {
+      store.setTags([{ name: "Art", is_selected: true }]);
+    },
+  ]) {
+    store.setRouteSuggestion({
+      routes: [variant("easy")],
+      coordinates: [],
+      description: "",
+      high_places: [],
+    });
+    change();
+    expect(store.canCreate).toBe(false);
+  }
+});
+
+it("preserves explicit interests with tags when creating", async () => {
+  const store = useRouteStore();
+  store.personalContext.interests = ["science"];
+  store.setTags([{ name: "Art", is_selected: true }]);
+  store.setRouteSuggestion({
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  await store.fetchCreateRoute();
+  expect(create.mock.calls[0]![0].personal_context.interests).toEqual([
+    "science",
+    "art",
+  ]);
+});
+
+it("sends preferences and ignores a late suggestion after an edit", async () => {
+  const store = useRouteStore();
+  store.setStartPoint({ lat: "1", lng: "2" });
+  store.personalContext.interests = ["science"];
+  store.personalContext.excluded_topics = ["museum"];
+  store.personalContext.pace = "relaxed";
+  store.personalContext.step_free = true;
+  let resolve!: (value: unknown) => void;
+  suggest.mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  const pending = store.fetchRoutesSuggestions();
+  expect(suggest.mock.calls[0]![0]).toMatchObject({
+    interests: ["science"],
+    excluded_topics: ["museum"],
+    pace: "relaxed",
+    step_free: "true",
+  });
+  store.personalContext.pace = "brisk";
+  resolve({
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  await pending;
+  expect(store.routeSuggestion).toBeNull();
+});
+
+it("does not send disabled personal information while retaining access requirements", async () => {
+  const store = useRouteStore();
+  store.setStartPoint({ lat: "1", lng: "2" });
+  store.personalContext.interests = ["science"];
+  store.personalContext.note = "Private";
+  store.personalContext.step_free = true;
+  store.personalContext.enabled = false;
+  suggest.mockResolvedValueOnce({
+    routes: [],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  await store.fetchRoutesSuggestions();
+  expect(suggest.mock.calls[0]![0]).toMatchObject({
+    interests: [],
+    excluded_topics: [],
+    personal_context_enabled: "false",
+    step_free: "true",
+  });
+});
+
+it("does not persist disabled or excluded interests through legacy settings", async () => {
+  const store = useRouteStore();
+  store.setTags([
+    { name: "Art", is_selected: true },
+    { name: "Politics", is_selected: true },
+  ]);
+  store.personalContext.excluded_topics = ["politics"];
+  store.setRouteSuggestion({
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  await store.fetchCreateRoute();
+  expect(create.mock.calls.at(-1)![0].settings).toEqual([
+    { name: "Art", value: "Art" },
+  ]);
+  store.personalContext.enabled = false;
+  store.setRouteSuggestion({
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  await store.fetchCreateRoute();
+  expect(create.mock.calls.at(-1)![0].settings).toEqual([]);
 });
