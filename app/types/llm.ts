@@ -2,6 +2,8 @@ export const LLM_TYPES = [
   "DEFAULT",
   "SIMPLE",
   "OPENAI",
+  "OPENAI_MINI",
+  "OPENAI_FULL",
   "GEMINI",
   "MOCK",
   "PERPLEXITY",

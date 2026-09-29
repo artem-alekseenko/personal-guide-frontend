@@ -177,6 +177,8 @@
     "DEFAULT": "По умолчанию на сервере",
     "SIMPLE": "Simple",
     "OPENAI": "OpenAI",
+    "OPENAI_MINI": "OpenAI Mini",
+    "OPENAI_FULL": "OpenAI (полная модель)",
     "GEMINI": "Gemini",
     "MOCK": "Примеры ответов",
     "PERPLEXITY": "Perplexity"

@@ -295,20 +295,20 @@ it("discards rejected input so the next request can use a corrected GPS fix", as
 it("uses the saved model for new narration but preserves the model on uncertain retries", async () => {
   const user = useUserStore();
   user.setUser({ uid: "alice" } as any);
-  user.updatePreferences({ llmType: "OPENAI" });
+  user.updatePreferences({ llmType: "OPENAI_MINI" });
   api.next
     .mockRejectedValueOnce(new Error("Timeout"))
     .mockResolvedValue(record());
   const store = useTourStore();
   store.setTour(tour() as any);
   await expect(store.fetchTourStep({ lat: "47", lng: "19" })).rejects.toThrow();
-  user.updatePreferences({ llmType: "GEMINI" });
+  user.updatePreferences({ llmType: "OPENAI_FULL" });
   await store.fetchTourStep({ lat: "47", lng: "19" });
   await store.fetchTourStep({ lat: "47", lng: "19" });
   expect(api.next.mock.calls.map((call) => call[1].type_llm)).toEqual([
-    "OPENAI",
-    "OPENAI",
-    "GEMINI",
+    "OPENAI_MINI",
+    "OPENAI_MINI",
+    "OPENAI_FULL",
   ]);
 });
 it("restores the model preference when recreating the user profile", () => {

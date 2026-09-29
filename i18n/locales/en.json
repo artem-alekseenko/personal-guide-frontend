@@ -177,6 +177,8 @@
     "DEFAULT": "Backend default",
     "SIMPLE": "Simple",
     "OPENAI": "OpenAI",
+    "OPENAI_MINI": "OpenAI Mini",
+    "OPENAI_FULL": "OpenAI Full",
     "GEMINI": "Gemini",
     "MOCK": "Sample responses",
     "PERPLEXITY": "Perplexity"
