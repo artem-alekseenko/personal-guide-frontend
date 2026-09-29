@@ -1,3 +1,4 @@
+import { renderStoredRoute, clearStoredRoute } from "~/utils/storedRoute";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import { ref, readonly, type Ref, type ShallowRef } from "vue";
@@ -118,6 +119,7 @@ export function useMapboxDirections(
   };
 
   const clearDirections = (): void => {
+    clearStoredRoute(mapInstance.value);
     if (!directions) {
       logger.warn("Attempted to clear directions but none initialized");
       return;
@@ -202,6 +204,10 @@ export function useMapboxDirections(
 
   // Method for simple coordinate-based route setting (used in route creation)
   const setRoute = (coordinates: [number, number][]): boolean => {
+    if (mapInstance.value) {
+      directions?.removeRoutes();
+      return renderStoredRoute(mapInstance.value, coordinates);
+    }
     logger.log("Setting route with coordinates:", coordinates.length, "points");
 
     if (!directions) {
@@ -258,6 +264,18 @@ export function useMapboxDirections(
     tour: ICreatedTour,
     isMapFullyLoaded: Ref<boolean>,
   ): void => {
+    if (
+      mapInstance.value &&
+      isMapFullyLoaded.value &&
+      tour.route.geometry?.length
+    ) {
+      directions?.removeRoutes();
+      renderStoredRoute(
+        mapInstance.value,
+        tour.route.geometry.map((p) => [Number(p.lng), Number(p.lat)]),
+      );
+      return;
+    }
     if (!mapInstance.value || !directions) {
       logger.warn("Map or directions not initialized");
       logger.log(
@@ -340,6 +358,7 @@ export function useMapboxDirections(
 
   // Unified cleanup method
   const cleanup = (): void => {
+    clearStoredRoute(mapInstance.value);
     removeDirections();
   };
 

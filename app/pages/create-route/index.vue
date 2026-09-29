@@ -30,6 +30,31 @@
       {{ routeStore.routeSuggestion?.description }}
     </div>
 
+    <div v-if="routeStore.routeSuggestion" class="mx-4 space-y-2">
+      <label for="route-variant">{{ $t("experience.routeVariant") }}</label>
+      <select
+        id="route-variant"
+        :value="routeStore.selectedRouteIndex"
+        class="w-full rounded border p-2"
+        @change="
+          routeStore.selectRoute(
+            Number(($event.target as HTMLSelectElement).value),
+          )
+        "
+      >
+        <option
+          v-for="(route, index) in routeStore.routeSuggestion.routes"
+          :key="index"
+          :value="index"
+        >
+          {{ route.name }}
+        </option>
+      </select>
+      <p v-if="!routeStore.canCreate" role="status">
+        {{ $t("experience.noRoute") }}
+      </p>
+    </div>
+    <PersonalContextForm v-model="routeStore.personalContext" class="m-4" />
     <!-- Chips -->
     <div v-if="isShowChips" class="px-4 py-4">
       <p class="mb-4">{{ $t("pages.createRoute.selectTopics") }}</p>
@@ -103,6 +128,7 @@
 </template>
 
 <script lang="ts" setup>
+import PersonalContextForm from "~/components/tour/PersonalContextForm.vue";
 import { useNotification } from "~/composables/ui/useNotification";
 import formatMinToHours from "~/utils/formatMinToHours";
 import type { ICoordinate, TypeFrom } from "~/types";
@@ -144,7 +170,8 @@ const isMainButtonDisabled = computed(
   () =>
     state.value === STATE.INITIAL ||
     state.value === STATE.ROUTE_REQUESTING ||
-    state.value === STATE.TOUR_APPROVING,
+    state.value === STATE.TOUR_APPROVING ||
+    (state.value === STATE.ROUTE_RECEIVED && !routeStore.canCreate),
 );
 const isButtonLoading = computed(
   () =>

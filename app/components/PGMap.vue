@@ -17,8 +17,6 @@ import { useMapboxDirections } from "~/composables/map/useMapboxDirections";
 import { useMarkers } from "~/composables/map/useMarkers";
 import { useLogger } from "@/composables/utils/useLogger";
 
-const WAYPOINTS_MAX_COUNT = 25;
-
 const routeStore = useRouteStore();
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
@@ -54,17 +52,6 @@ const selectPoint = (e: mapboxgl.MapMouseEvent) => {
   addMarker(e.lngLat.lat, e.lngLat.lng);
 };
 
-const limitWaypoints = (
-  coordinates: [number, number][],
-): [number, number][] => {
-  return coordinates.length <= WAYPOINTS_MAX_COUNT
-    ? coordinates
-    : [
-        ...coordinates.slice(0, WAYPOINTS_MAX_COUNT - 1),
-        coordinates[coordinates.length - 1]!,
-      ];
-};
-
 // Cleanup on component unmount
 onBeforeUnmount(() => {
   logger.log("Component unmounting, cleaning up map...");
@@ -93,7 +80,12 @@ onBeforeUnmount(() => {
 watch(
   () => [routeStore.routeSuggestion?.coordinates, mapInstance.value] as const,
   async ([newCoords]) => {
-    if (!newCoords?.length || !mapInstance.value) return;
+    if (!mapInstance.value) return;
+    if (!newCoords?.length) {
+      clearDirections();
+      clearAllMarkers();
+      return;
+    }
 
     const directions = await initializeDirections();
     if (!directions) return;
@@ -102,10 +94,8 @@ watch(
     clearDirections();
     clearAllMarkers();
 
-    const trimmedCoordinates = limitWaypoints(newCoords);
-
     // Set the route using directions composable
-    const routeSet = setRoute(trimmedCoordinates);
+    const routeSet = setRoute(newCoords);
 
     if (routeSet) {
       // Add high places markers
@@ -115,7 +105,15 @@ watch(
       }
 
       // Add waypoint markers
-      addWaypointMarkers(trimmedCoordinates);
+      addWaypointMarkers(
+        (routeStore.selectedRoute?.stops ?? []).map(
+          (stop) =>
+            [Number(stop.point.lng), Number(stop.point.lat)] as [
+              number,
+              number,
+            ],
+        ),
+      );
     }
   },
   { flush: "post" },

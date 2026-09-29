@@ -206,3 +206,11 @@ For UI or playback changes, exercise login/redirect, guide selection, route crea
 Keep changes within the requested scope and check each repository's working tree before editing. Do not modify the backend merely to hide a frontend contract mismatch. Do not edit generated `.nuxt/`, `.output/`, or dependency files by hand. Keep this guide current when architecture, commands, environment variables, or contracts change.
 
 Node is installed through NVM. Noninteractive shells may need `source "$HOME/.nvm/nvm.sh"` before using Node/Corepack. See README for local setup. The regression suite uses controlled dependencies; live provider behavior still requires browser testing.
+
+## Current-stop text milestone
+
+`NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED=true` exposes `CurrentStopExperience`; the backend must also enable `TEXT_EXPERIENCE_ENABLED`. Defaults are off. `experienceStore` is separate from playback and resets on account/tour changes. It forwards revision and generation identity with an idempotency key; uncertain actions must be retried or explicitly reconciled by reloading. The proxy uses the existing authenticated same-origin API boundary. Personal context is per tour; saving or clearing future preferences is an explicit profile action. No text activity pauses existing audio.
+
+Creation uses the selected suggested variant, preserving named stops separately from route geometry. Changing start/duration invalidates the suggestion. New tours draw their stored geometry directly rather than requesting a second route; legacy tours retain the existing map path. Context form fields are optional. The text feature's Python/client tests do not establish live GPS, provider factual accuracy, field accessibility or public-launch readiness.
+
+User constraint for this milestone: **do not generate, listen to, test or benchmark audio. Existing audio remains in use. Future audio verification MUST receive explicit human approval.** Use focused `tests/experience.test.ts`, `tests/experience-proxy.test.ts`, `tests/tour-contract.test.ts`, `tests/stored-route.test.ts`, `tests/client-auth.test.ts`, and `tests/auth.test.ts`, plus typecheck/build. Audio-inclusive regression/smoke suites are excluded until that approval.

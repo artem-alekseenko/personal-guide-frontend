@@ -1,3 +1,4 @@
+import { useExperienceStore } from "~/stores/experienceStore";
 import { useCurrentUser } from "vuefire";
 import { useUserStore } from "~/stores/userStore";
 import { useGuidesStore } from "~/stores/guidesStore";
@@ -17,6 +18,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         guides.reset();
         routes.reset();
         tours.reset();
+        useExperienceStore().reset();
         // Audio state is account-specific; do not revive another user's session.
         try {
           for (const key of Object.keys(localStorage)) {

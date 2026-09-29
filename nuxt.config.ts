@@ -33,6 +33,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     pgApiBaseUrl: process.env.PG_API_BASE_URL || "",
     public: {
+      textExperienceEnabled: false,
       mapboxGlAccessToken: process.env.NUXT_PUBLIC_MAPBOX_GL_ACCESS_TOKEN || "",
     },
   },

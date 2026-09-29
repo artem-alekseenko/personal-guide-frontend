@@ -1,3 +1,4 @@
+import { emptyPersonalContext } from "~/types/personalContext";
 import { defineStore } from "pinia";
 import { computed, ref, unref } from "vue";
 import type {
@@ -15,6 +16,18 @@ export const useRouteStore = defineStore("routeStore", () => {
   // State
   const _startPoint = ref<ICoordinate | null>(null);
   const _duration = ref<string>("5");
+  const selectedRouteIndex = ref(0);
+  const personalContext = ref(emptyPersonalContext());
+  const selectedRoute = computed(
+    () => _routeSuggestion.value?.routes[selectedRouteIndex.value],
+  );
+  const canCreate = computed(
+    () =>
+      (selectedRoute.value?.stops?.length ?? 0) >= 2 &&
+      (selectedRoute.value?.geometry?.length ||
+        selectedRoute.value?.points.length ||
+        0) >= 2,
+  );
   const _routeSuggestion = ref<IRouteSuggestionsResponseExtended | null>(null);
   const _actualTour = ref<ICreatedTour | null>(null);
   const _allTours = ref<ICreatedTour[]>([]);
@@ -49,10 +62,18 @@ export const useRouteStore = defineStore("routeStore", () => {
   };
 
   const setStartPoint = (newPoint: ICoordinate): void => {
+    if (JSON.stringify(_startPoint.value) !== JSON.stringify(newPoint)) {
+      requestVersion++;
+      _routeSuggestion.value = null;
+    }
     _startPoint.value = newPoint;
   };
 
   const setDuration = (newDuration: string): void => {
+    if (_duration.value !== newDuration) {
+      requestVersion++;
+      _routeSuggestion.value = null;
+    }
     _duration.value = newDuration;
   };
 
@@ -60,6 +81,19 @@ export const useRouteStore = defineStore("routeStore", () => {
     newRoutes: IRouteSuggestionsResponseExtended,
   ): void => {
     _routeSuggestion.value = newRoutes;
+    selectRoute(0);
+  };
+
+  const selectRoute = (index: number) => {
+    const route = _routeSuggestion.value?.routes[index];
+    if (!route) return;
+    selectedRouteIndex.value = index;
+    _routeSuggestion.value = {
+      ..._routeSuggestion.value!,
+      coordinates: (route.geometry?.length ? route.geometry : route.points).map(
+        (p) => [Number(p.lng), Number(p.lat)] as [number, number],
+      ),
+    };
   };
 
   const setActualTour = (newRoute: ICreatedTour): void => {
@@ -105,14 +139,16 @@ export const useRouteStore = defineStore("routeStore", () => {
   };
 
   const fetchCreateRoute = async (): Promise<void> => {
-    const route = _routeSuggestion.value?.routes[0]?.points.map((point) => ({
-      lat: point.lat.toString(),
-      lng: point.lng.toString(),
+    const selected = selectedRoute.value;
+    if (!canCreate.value || !selected?.stops)
+      throw new Error("Select a validated route first");
+    const route = selected.stops.map((stop) => ({
+      name: stop.name,
+      lat: String(stop.point.lat),
+      lng: String(stop.point.lng),
+      source: stop.source,
+      source_id: stop.source_id,
     }));
-
-    if (!route || !route.length) {
-      throw new Error("Select a route first");
-    }
 
     const guidesStore = useGuidesStore();
 
@@ -129,6 +165,18 @@ export const useRouteStore = defineStore("routeStore", () => {
       guide_id: guidesStore.selectedGuide?.id || "",
       route,
       settings: preparedSettings,
+      contract_version: 2,
+      route_geometry: selected.geometry?.length
+        ? selected.geometry
+        : selected.points,
+      route_variant: selected.name,
+      duration_minutes: Number(_duration.value),
+      personal_context: {
+        ...personalContext.value,
+        interests: _tags.value
+          .filter((tag) => tag.is_selected)
+          .map((tag) => tag.name.toLowerCase().replaceAll(" ", "_")),
+      },
     };
 
     try {
@@ -178,6 +226,8 @@ export const useRouteStore = defineStore("routeStore", () => {
     _actualTour.value = null;
     _routeSuggestion.value = null;
     _startPoint.value = null;
+    personalContext.value = emptyPersonalContext();
+    selectedRouteIndex.value = 0;
     _tags.value = _tags.value.map((tag) => ({ ...tag, is_selected: false }));
     error.value = null;
     isLoading.value = false;
@@ -185,6 +235,11 @@ export const useRouteStore = defineStore("routeStore", () => {
 
   return {
     startPoint,
+    selectedRouteIndex,
+    selectedRoute,
+    selectRoute,
+    canCreate,
+    personalContext,
     duration,
     routeSuggestion,
     actualTour,

@@ -17,7 +17,13 @@ export default defineEventHandler(async (event) => {
   return useExternalApi<IServerUserResponse>(
     event,
     serviceEndpoint("PG_API_UPDATE_ME", "/users/me/"),
-    { name: body.name.trim(), language: body.language },
+    {
+      name: body.name.trim(),
+      language: body.language,
+      ...(Object.hasOwn(body, "personal_context")
+        ? { personal_context: body.personal_context }
+        : {}),
+    },
     "PUT",
   );
 });

@@ -39,6 +39,11 @@
       </div>
     </div>
 
+    <CurrentStopExperience
+      v-if="publicConfig.textExperienceEnabled"
+      :tour-id="tourId"
+    />
+
     <!-- Play/pause/resume button -->
     <div>
       <PGButton
@@ -132,6 +137,7 @@ import { useTourActions } from "~/composables/tour/useTourActions";
 import { addPlaceMarkers, removePlaceMarkers } from "~/utils/mapMarkers";
 import type { TypeFrom } from "~/types";
 import BaseMap from "~/components/base/BaseMap.vue";
+import CurrentStopExperience from "~/components/tour/CurrentStopExperience.vue";
 import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
 
 const { public: publicConfig } = useRuntimeConfig();

@@ -1,3 +1,4 @@
+import type { PersonalContext } from "./personalContext";
 import type { LlmType } from "./llm";
 export interface ITour {
   id: number;
@@ -32,15 +33,29 @@ export interface ICoordinate {
 }
 
 export interface IRoutePoint extends ICoordinate {
+  id?: string;
+  source?: string | null;
+  source_id?: string | null;
   name: string;
 }
 
 export interface IRoute {
+  geometry?: ICoordinate[];
   name: string;
-  points: IRoutePoint[];
+  points: ICoordinate[];
+  provider?: string;
+  stops?: {
+    name: string;
+    point: IPoint;
+    source?: string;
+    source_id?: string | null;
+  }[];
+  total_minutes?: number;
 }
 
 interface IGeneratedRoute {
+  geometry?: ICoordinate[];
+  variant?: string | null;
   id: string;
   points: IRoutePoint[];
   context: string;
@@ -83,11 +98,21 @@ interface ISetting {
 
 export interface ICreateTourRequest {
   guide_id: string;
-  route: ICoordinate[];
+  route: (ICoordinate & {
+    name?: string;
+    source?: string;
+    source_id?: string | null;
+  })[];
   settings: ISetting[];
+  contract_version?: 2;
+  route_geometry?: ICoordinate[];
+  route_variant?: string;
+  duration_minutes?: number;
+  personal_context?: PersonalContext;
 }
 
 export interface ICreatedTour {
+  personal_context?: PersonalContext;
   id: string;
   name: string;
   image: string;
