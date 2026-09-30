@@ -40,6 +40,11 @@ export function useTourProgress(input: {
             type: record.type,
             message: record.message,
             created_at: record.created_at,
+            places: record.places?.map((place) => ({
+              name: place.name,
+              lat: place.lat,
+              lng: place.lng,
+            })),
             point: record.point
               ? { lat: record.point.lat, lng: record.point.lng }
               : undefined,

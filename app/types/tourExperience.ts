@@ -64,6 +64,8 @@ export interface Experience {
     id: string;
     stop_id: string;
     role: "visitor" | "guide";
+    kind?: "story" | "navigation";
+    fact_ids?: string[];
     text: string;
     source_ids: string[];
     created_at: string;

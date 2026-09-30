@@ -146,7 +146,9 @@
       "enableSimulation": "Switch to simulation mode to move along the route.",
       "routeEnd": "End of the simulated route reached.",
       "waitForRoute": "Waiting for route geometry.",
-      "simulationHint": "Move 300 m follows the route. Next step requests guidance at the current marker."
+      "simulationHint": "Move 300 m follows the route. Next step requests guidance at the current marker.",
+      "guideDiscussing": "Guide is discussing",
+      "discussedObjects": "In this guide message: {names}"
     },
     "tourCard": {
       "guide": "Guide:",

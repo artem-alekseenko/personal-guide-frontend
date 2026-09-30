@@ -57,7 +57,24 @@
           ></span
           >{{ $t("components.map.tourStops") }}</span
         >
+        <span v-if="guideObjects.length" class="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            class="h-2.5 w-2.5 rounded-full bg-amber-700 ring-2 ring-amber-300"
+          ></span>
+          {{ $t("components.map.guideDiscussing") }}
+        </span>
       </div>
+      <p
+        v-if="guideObjects.length"
+        class="mt-2 px-1 text-sm break-words text-neutral-700 dark:text-neutral-200"
+      >
+        {{
+          $t("components.map.discussedObjects", {
+            names: guideObjects.map((object) => object.name).join(", "),
+          })
+        }}
+      </p>
     </div>
 
     <!-- Position Mode Toggle -->
@@ -230,7 +247,6 @@ import {
   onBeforeUnmount,
   onMounted,
   ref,
-  type Ref,
   shallowRef,
   watch,
 } from "vue";
@@ -246,8 +262,8 @@ import { useSimulationMarker } from "~/composables/map/useSimulationMarker";
 import { useTourCoordinates } from "~/composables/tour/useTourCoordinates";
 import { useTourAudioPlayer } from "~/composables/tour/useTourAudioPlayer";
 import { useTourActions } from "~/composables/tour/useTourActions";
-import { addPlaceMarkers, removePlaceMarkers } from "~/utils/mapMarkers";
-import type { TypeFrom, IGeoJSON } from "~/types";
+import { createGuideMapMarkers } from "~/utils/guideMapMarkers";
+import type { TypeFrom } from "~/types";
 import BaseMap from "~/components/base/BaseMap.vue";
 import CurrentStopExperience from "~/components/tour/CurrentStopExperience.vue";
 import { useTourRequestStore } from "~/stores/tourRequestStore";
@@ -288,6 +304,7 @@ const tourProgress = useTourProgress({
     viewFor: experiences.viewFor,
   },
 });
+const guideObjects = computed(() => tourProgress.value?.guideObjects ?? []);
 let tourPageAlive = true;
 const {
   loading: tourLoading,
@@ -366,8 +383,7 @@ const tourTextDisplayRef = ref<InstanceType<typeof TourTextDisplay> | null>(
 ------------------------------------------- */
 const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
 let mapInstance: mapboxgl.Map | null = null;
-const placesMarkers: Ref<mapboxgl.Marker[]> = ref([]);
-let stopMarkers: mapboxgl.Marker[] = [];
+const guideMapMarkers = createGuideMapMarkers();
 const isMapFullyLoaded = ref(false);
 
 const mapInstanceRef = shallowRef<mapboxgl.Map | null>(null);
@@ -400,27 +416,6 @@ const requestNextStep = () => {
 const devGuideText = computed(
   () => tourProgress.value?.latestText || tourStore.textForDisplay || "",
 );
-function updateStopMarkers() {
-  removePlaceMarkers(stopMarkers);
-  const features: IGeoJSON["features"] = (
-    tourStore.tour?.route.points ?? []
-  ).map((point, index) => ({
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: [Number(point.lng), Number(point.lat)],
-    },
-    properties: {
-      title:
-        point.name || t("tourProgress.stopNumber", { position: index + 1 }),
-    },
-  }));
-  stopMarkers = addPlaceMarkers(
-    mapInstance,
-    { type: "FeatureCollection", features },
-    true,
-  );
-}
 
 let routeTimer: ReturnType<typeof setInterval> | undefined;
 function tryAddRouteWithCheck(retries = 5, delay = 100) {
@@ -435,7 +430,6 @@ function tryAddRouteWithCheck(retries = 5, delay = 100) {
     if (mapInstance && tourStore.tour && isMapFullyLoaded.value) {
       logger.log(`Adding route, attempt ${retries - attempts + 1}`);
       addRouteToMap(tourStore.tour, isMapFullyLoaded);
-      updateStopMarkers();
       clearInterval(interval);
     } else if (--attempts <= 0) {
       clearInterval(interval);
@@ -566,18 +560,32 @@ watch(positionMode, (newMode, oldMode) => {
   }
 });
 
-// Watch for new tour records to update places and start playback
+// Discussion markers follow the displayed guide message, including cached reloads.
 watch(
-  () => tourStore.currentTourRecord,
-  (newRecord) => {
-    if (!newRecord) return;
-
-    removePlaceMarkers(placesMarkers.value);
-    placesMarkers.value = addPlaceMarkers(
-      mapInstance,
-      tourStore.currentPlacesGeoJSON,
+  [
+    mapInstanceRef,
+    isMapFullyLoaded,
+    () => tourStore.tour?.route.points,
+    guideObjects,
+    () => t("components.map.guideDiscussing"),
+  ],
+  () => {
+    if (!isMapFullyLoaded.value || tourStore.tour?.id !== tourId) {
+      guideMapMarkers.clear();
+      return;
+    }
+    guideMapMarkers.update(
+      mapInstanceRef.value,
+      (tourStore.tour?.route.points ?? []).map((point, index) => ({
+        ...point,
+        name:
+          point.name || t("tourProgress.stopNumber", { position: index + 1 }),
+      })),
+      guideObjects.value,
+      t("components.map.guideDiscussing"),
     );
   },
+  { immediate: true },
 );
 
 watch(
@@ -629,11 +637,7 @@ onBeforeUnmount(() => {
   audioPlayer.cleanup();
 
   simulationMarker.cleanup();
-  removePlaceMarkers(stopMarkers);
-  stopMarkers = [];
-
-  removePlaceMarkers(placesMarkers.value);
-  placesMarkers.value = [];
+  guideMapMarkers.clear();
 
   cleanup();
 

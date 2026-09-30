@@ -109,6 +109,15 @@ The map distinguishes GPS position, the simulated walker and numbered tour
 stops. Tap a stop to read its name. Street labels and an outlined route help
 orient the walk; marker numbers describe route order rather than visited stops.
 
+Objects referenced in the latest guide message gain an amber halo and a visible
+name on the map. Route stops keep their numbers; returned places outside the
+route get their own markers. Highlights update with each nonempty guide reply,
+including replies in the text panel. Empty updates keep the last message's
+highlights. This follows the whole message, rather than individual spoken words.
+Only places with known coordinates can be highlighted; unknown names and aliases
+are not geocoded. Reload restores known route subjects from saved history;
+response-only places outside the route are not stored in that history.
+
 The tour page shows route position, the last recorded location, and the latest
 guide text beneath playback controls. Recorded history restores this summary
 after reload. A selected stop or walking target is labelled separately from a

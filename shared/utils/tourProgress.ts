@@ -1,3 +1,5 @@
+import { guideMapObjects, type GuideMapObject } from "./guideMapObjects";
+
 export interface ProgressPoint {
   lat: string;
   lng: string;
@@ -5,6 +7,7 @@ export interface ProgressPoint {
   name?: string | null;
 }
 export interface ProgressRecord {
+  places?: readonly ProgressPoint[];
   type?: string;
   message?: string;
   point?: ProgressPoint;
@@ -23,7 +26,14 @@ export interface ProgressState {
   last_fix_at?: string | null;
   revision?: number;
   stops?: readonly { id: string; name: string }[];
-  turns?: readonly { role: string; text: string; created_at: string }[];
+  turns?: readonly {
+    role: string;
+    kind?: "story" | "navigation";
+    fact_ids?: readonly string[];
+    text: string;
+    created_at: string;
+    stop_id?: string | null;
+  }[];
 }
 export interface ProgressTour {
   id?: string;
@@ -34,6 +44,7 @@ export interface ProgressTour {
   experience?: ProgressState;
 }
 export interface TourProgress {
+  guideObjects?: GuideMapObject[];
   stopPosition: number | null;
   totalStops: number;
   stopName: string | null;
@@ -156,10 +167,26 @@ export function buildTourProgress({
     ...records.filter(isGuideText).map((entry) => ({
       text: entry.message!.trim(),
       created_at: entry.created_at,
+      // ANSWER/LOCATE/WAIT stop IDs can describe visitor context, not the subject.
+      stopId:
+        !entry.guidance?.action ||
+        ["ARRIVE", "CONTINUE", "WALK"].includes(entry.guidance.action)
+          ? entry.guidance?.stop_id
+          : null,
+      places: entry.places,
     })),
     ...(state?.turns ?? [])
       .filter((turn) => turn.role === "guide" && turn.text.trim())
-      .map((turn) => ({ text: turn.text.trim(), created_at: turn.created_at })),
+      .map((turn) => ({
+        text: turn.text.trim(),
+        created_at: turn.created_at,
+        // Some operational replies are marked story but deliberately carry no facts.
+        stopId:
+          turn.kind === "navigation" || turn.fact_ids?.length === 0
+            ? null
+            : turn.stop_id,
+        places: undefined,
+      })),
   ];
   const reply = newest(replies);
   const locations = records
@@ -180,6 +207,9 @@ export function buildTourProgress({
     ...(location ? [location] : []),
   ]);
   return {
+    guideObjects: reply
+      ? guideMapObjects({ ...reply, route: tour.route.points })
+      : [],
     stopPosition: index >= 0 ? index + 1 : null,
     totalStops: stops.length,
     stopName:

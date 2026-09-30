@@ -291,6 +291,28 @@ audio and stores no new browser data. Reload restoration uses existing backend
 history. `tests/tour-progress.test.ts` and `tests/ui-tour-progress*.test.ts` are
 approved nonaudio checks for derivation, isolation and rendered states.
 
+## Guide objects on the map
+
+`shared/utils/guideMapObjects.ts` derives discussed objects from the latest
+nonempty guide reply, response `places` and unambiguous whole route-stop names.
+When no explicit subject resolves, story turns with nonempty `fact_ids` and
+ARRIVE/CONTINUE/WALK guidance can use their stop ID; operational text turns and ANSWER/LOCATE/WAIT guidance
+cannot assume that the visitor's contextual stop is the subject. Legacy replies
+without classification/evidence metadata retain stop-ID support. Visitor coordinates are never
+object coordinates. Names without known coordinates or exact name matches remain
+unhighlighted. Returned places reuse numbered stops only when both name and
+coordinates match; distinct co-located objects retain their identities.
+
+`createGuideMapMarkers` retains route elements across discussion changes,
+updates amber halos, safe labels and accessible names, removes stale off-route
+markers and clears on map replacement/disposal. The legend and caption describe
+the current message's objects. Empty updates preserve the last guide message;
+a new unresolved message clears its highlights. There is no word/audio timing,
+camera movement, extra request or browser persistence. Reload resolves known
+route subjects from backend history; response-only `places` are not in saved
+history. `tests/ui-guide-map-objects.test.ts` and
+`tests/ui-guide-map-markers.test.ts` are approved nonaudio checks in `test:text`.
+
 ## Development walking screen
 
 In development, `TourReadingPanel` displays the full latest guide message below

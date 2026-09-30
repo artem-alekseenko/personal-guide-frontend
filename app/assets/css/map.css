@@ -60,6 +60,41 @@
   background: #15803d;
   font-size: 13px;
 }
+.pg-place-marker__label {
+  display: none;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 12rem;
+  padding: 4px 8px;
+  border: 1px solid #d97706;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+  font:
+    600 12px/1.4 system-ui,
+    sans-serif;
+  text-align: center;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 6px #0002;
+  pointer-events: none;
+}
+.pg-place-marker--discussed {
+  z-index: 3;
+}
+.pg-place-marker--discussed .pg-place-marker__badge {
+  width: 36px;
+  height: 36px;
+  background: #b45309;
+  box-shadow:
+    0 0 0 5px #fbbf2470,
+    0 3px 10px #0004;
+}
+.pg-place-marker--discussed .pg-place-marker__label {
+  display: block;
+}
 .pg-landmark-marker {
   display: grid;
   justify-items: center;

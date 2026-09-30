@@ -110,3 +110,30 @@ it("restores the saved guide message on a fresh page instance without retaining 
   expect(progress.value?.latestText).toBe("Saved last words.");
   scope.stop();
 });
+
+it("retains off-route guide objects across silence and clears them on tour changes", () => {
+  const tour = ref<ProgressTour | null>(tourData());
+  const record = ref<ProgressRecord | null>({
+    type: "SYSTEM_TEXT",
+    message: "A statue stands here.",
+    created_at: "2026-09-30T13:00:00Z",
+    places: [{ name: "Statue", lat: "47.001", lng: "19.001" }],
+  });
+  const scope = effectScope();
+  const progress = scope.run(() => useTourProgress({ tour, record }))!;
+  const object = {
+    name: "Statue",
+    coordinates: [19.001, 47.001],
+    stopPosition: null,
+  };
+  expect(progress.value?.guideObjects).toEqual([object]);
+  record.value = {
+    type: "WAIT",
+    message: "",
+    created_at: "2026-09-30T14:00:00Z",
+  };
+  expect(progress.value?.guideObjects).toEqual([object]);
+  tour.value = { ...tourData(), id: "other-tour", user_id: "other-owner" };
+  expect(progress.value?.guideObjects).toEqual([]);
+  scope.stop();
+});
