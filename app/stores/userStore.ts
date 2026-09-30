@@ -9,7 +9,10 @@ import {
   type VoiceType,
 } from "~/types/voice";
 import { useUserApi } from "~/composables/api/useUserApi";
-import type { PersonalContext } from "~/types/personalContext";
+import {
+  normalizePersonalContext,
+  type PersonalContext,
+} from "~/types/personalContext";
 
 const makeDefaultPreferences = (): IUserPreferences => ({
   language: "en",
@@ -157,7 +160,7 @@ export const useUserStore = defineStore("userStore", () => {
   const setSavedPersonalContext = (context: PersonalContext | null) => {
     personalContextVersion++;
     savedPersonalContext.value = context
-      ? JSON.parse(JSON.stringify(context))
+      ? normalizePersonalContext(context)
       : null;
   };
 
@@ -211,7 +214,7 @@ export const useUserStore = defineStore("userStore", () => {
     const uid = user.value.uid;
     const session = accountEpoch;
     const snapshot: PersonalContext | null = context
-      ? JSON.parse(JSON.stringify(context))
+      ? normalizePersonalContext(context)
       : null;
     const { fetchUserProfile, updateUserProfile } = useUserApi();
     isSavingPreferences.value = true;

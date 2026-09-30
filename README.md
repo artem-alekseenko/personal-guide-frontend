@@ -88,6 +88,10 @@ In the panel, select a stop, ask a question, or use the navigation shortcuts. Na
 
 Per-tour context edits apply to that walk. Use the save action to update preferences for future tours, or the explicit clear action to remove them. New route drafts load those saved preferences without overwriting edits you made while the profile loaded.
 
+Choose **Guide's style**, **Explore together**, or **Just guide me** in the personal-context form. Guide's style follows the selected guide card; Just guide me keeps stories and directions without unsolicited questions. You can still ask your own questions and use photo/rest controls. Apply a change to the active walk with **Apply to this walk**; saving it for future tours is a separate action. The panel shows the backend's effective style. Clearing personal memories can retain an operational no-questions override; change the selector explicitly to replace it.
+
+In development (`pnpm dev`), a **Next step** button beside Pause/Resume requests another step through the existing tour action. It is hidden in production builds.
+
 Earlier conversation turns display their stop and source links available in the current session. The panel explains when the backend no longer supplies links for an older turn. If a request has an uncertain outcome, retry it or reload to reconcile state. Text activities do not pause existing audio.
 
 ## Commands and verification
@@ -111,7 +115,7 @@ corepack pnpm build
 corepack pnpm exec prettier --check README.md AGENTS.md
 ```
 
-`test:text` covers text interactions, route contracts, GPS update coordination, navigation display, safe rendering, saved preferences, request serialization, authentication boundaries, route draft restoration, map following, accessible controls, notifications, and loading/error states. Its Vue component checks render in Node; they do not launch a browser.
+`test:text` covers text interactions, interaction preferences, route contracts, GPS update coordination, navigation display, safe rendering, saved preferences, request serialization, authentication boundaries, route draft restoration, map following, accessible controls, notifications, and loading/error states. Its Vue component checks render in Node; they do not launch a browser.
 
 **Audio verification requires explicit human approval.** Do not generate, listen to, test, or benchmark audio under the current milestone. The full `test`, `test:smoke`, and `test:dev` suites include audio and are excluded until that approval. After approval, `test:smoke` requires a build; run `test:dev` separately from builds because both write `.nuxt` files.
 
@@ -144,6 +148,7 @@ Deploy the Nitro server as well as the browser assets. A static-only host cannot
 | `app/components/tour/` | Route preview, playback text, and current-stop experience.                        |
 | `app/stores/`          | User preferences, route drafts, tours, text state, GPS, and request coordination. |
 | `app/composables/`     | API clients, authentication, maps, tour actions, and UI helpers.                  |
+| `shared/`              | Interaction preference types, context defaults, and command reconciliation.       |
 | `server/api/`          | Authenticated backend proxy handlers.                                             |
 | `server/utils/http.ts` | Upstream URLs, auth forwarding, request IDs, timeouts, and retry rules.           |
 | `i18n/locales/`        | UI translations; English and Russian are offered.                                 |

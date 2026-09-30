@@ -63,7 +63,9 @@
     </div>
 
     <!-- Play/pause/resume button -->
-    <div class="sticky top-0 z-20 bg-white py-3 dark:bg-gray-900">
+    <div
+      class="sticky top-0 z-20 flex flex-wrap justify-center gap-3 bg-white px-4 py-3 dark:bg-gray-900"
+    >
       <PGButton
         :disabled="
           (requests.isBusy(tourId) && state !== STATE.RECORD_ACTIVE) ||
@@ -77,16 +79,28 @@
           state === STATE.RECORD_LOADING ||
           state === STATE.RECORD_LOADING_WHEN_PAUSED
         "
-        class="mx-auto flex"
         @click="handleTourButtonClick"
       >
         {{ mainButtonText }}
+      </PGButton>
+      <PGButton
+        v-if="isDevelopment"
+        color="neutral"
+        :disabled="
+          requests.isBusy(tourId) ||
+          actions.isBusy.value ||
+          state === STATE.TOUR_FINISHED
+        "
+        @click="actions.getRecord(true)"
+      >
+        {{ $t("buttons.devNextStep") }}
       </PGButton>
     </div>
 
     <CurrentStopExperience
       v-if="publicConfig.textExperienceEnabled"
       :tour-id="tourId"
+      :guide-mode="tourStore.tour?.guide?.interaction_mode"
       :request-busy="actions.isBusy.value"
     />
 
@@ -178,6 +192,7 @@ import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
 import { useTourLoader } from "~/composables/tour/useTourLoader";
 
 const { public: publicConfig } = useRuntimeConfig();
+const isDevelopment = import.meta.dev;
 mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
 
 /* -------------------------------------------

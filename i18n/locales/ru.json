@@ -163,6 +163,7 @@
     }
   },
   "buttons": {
+    "devNextStep": "Следующий шаг",
     "getTourRoute": "Получить маршрут",
     "gettingRoute": "Получение маршрута...",
     "approveRoute": "Подтвердить маршрут",
@@ -217,6 +218,15 @@
     "PERPLEXITY": "Perplexity"
   },
   "experience": {
+    "interactionStyle": "Общение с гидом",
+    "interactionModes": {
+      "guide": "Стиль гида",
+      "interactive": "Исследовать вместе",
+      "leading": "Просто рассказывайте"
+    },
+    "guideStyleDefault": "Стиль гида: {mode}",
+    "effectiveInteractionStyle": "Текущий стиль: {mode}",
+    "reconcileRequired": "Обновите прогулку, прежде чем вносить новое изменение.",
     "title": "Ваша текущая остановка",
     "intro": "Исследуйте город с ИИ-гидом. Выберите остановку и задайте вопрос или сделайте паузу.",
     "forThisWalk": "О вас — для этой прогулки",

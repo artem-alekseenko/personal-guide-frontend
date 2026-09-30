@@ -58,6 +58,7 @@ export const useRouteStore = defineStore("routeStore", () => {
         ...emptyPersonalContext(),
         enabled: false,
         step_free: context.step_free,
+        interaction_mode: context.interaction_mode,
       };
     return {
       ...context,

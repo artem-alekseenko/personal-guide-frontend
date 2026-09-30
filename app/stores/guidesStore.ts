@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { IGuide } from "~/types";
 import { useGuides } from "~/composables/api/useGuides";
+import { normalizeGuideInteractionMode } from "#shared/types/guideInteraction";
 
 const GUIDES_CACHE_TTL_MS = 1000 * 60 * 60;
 
@@ -24,11 +25,19 @@ export const useGuidesStore = defineStore("guidesStore", () => {
 
   // Actions
   const setSelectedGuide = (newGuide: IGuide): void => {
-    selectedGuide.value = newGuide;
+    selectedGuide.value = {
+      ...newGuide,
+      interaction_mode: normalizeGuideInteractionMode(
+        newGuide.interaction_mode,
+      ),
+    };
   };
 
   const setGuidesList = (newGuides: IGuide[]) => {
-    guidesList.value = newGuides;
+    guidesList.value = newGuides.map((guide) => ({
+      ...guide,
+      interaction_mode: normalizeGuideInteractionMode(guide.interaction_mode),
+    }));
     guidesListFetchedAt.value = Date.now();
     isGuidesListLoading.value = false;
   };

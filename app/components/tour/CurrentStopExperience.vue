@@ -6,11 +6,16 @@
     <h2 class="text-lg font-semibold">{{ $t("experience.title") }}</h2>
     <p class="text-sm">{{ $t("experience.intro") }}</p>
     <p v-if="error" role="alert">{{ error }}</p>
+    <p v-if="store.needsReconciliation" role="status">
+      {{ $t("experience.reconcileRequired") }}
+    </p>
     <div class="flex flex-wrap gap-2">
       <button
         v-if="store.hasPending"
         class="rounded border px-3 py-2"
-        :disabled="requestBusy || store.busy || saving"
+        :disabled="
+          requestBusy || store.busy || store.needsReconciliation || saving
+        "
         @click="perform(() => store.retry())"
       >
         {{ $t("experience.retry") }}
@@ -24,6 +29,13 @@
       </button>
     </div>
     <template v-if="store.view">
+      <p class="text-sm" role="status">
+        {{
+          $t("experience.effectiveInteractionStyle", {
+            mode: $t(`experience.interactionModes.${effectiveInteractionMode}`),
+          })
+        }}
+      </p>
       <label class="grid gap-1"
         >{{ $t("experience.stop") }}
         <select
@@ -260,7 +272,7 @@
           </li>
         </ul>
       </details>
-      <PersonalContextForm v-model="context" />
+      <PersonalContextForm v-model="context" :guide-mode="guideMode" />
       <div class="flex flex-wrap gap-2">
         <button
           class="rounded border px-3 py-2"
@@ -296,7 +308,14 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import { useExperienceStore } from "~/stores/experienceStore";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useExperienceLocation } from "~/composables/tour/useExperienceLocation";
@@ -313,7 +332,15 @@ import {
 } from "~/types/personalContext";
 import { navigationInstructions } from "~/utils/navigationInstructions";
 import PersonalContextForm from "./PersonalContextForm.vue";
-const props = defineProps<{ tourId: string; requestBusy?: boolean }>();
+import {
+  normalizeGuideInteractionMode,
+  type GuideInteractionMode,
+} from "#shared/types/guideInteraction";
+const props = defineProps<{
+  tourId: string;
+  requestBusy?: boolean;
+  guideMode?: GuideInteractionMode;
+}>();
 const { positionMode } = usePositionMode();
 const requests = useTourRequestStore();
 const users = useUserStore();
@@ -333,7 +360,15 @@ const requestBusy = computed(
   () => !!props.requestBusy || requests.isBusy(props.tourId),
 );
 const blocked = computed(
-  () => requestBusy.value || store.busy || store.hasPending || saving.value,
+  () =>
+    requestBusy.value ||
+    store.busy ||
+    store.hasPending ||
+    store.needsReconciliation ||
+    saving.value,
+);
+const effectiveInteractionMode = computed(() =>
+  normalizeGuideInteractionMode(store.view?.interaction_mode),
 );
 const directions = computed(() =>
   navigationInstructions(store.view?.navigation),
@@ -355,6 +390,7 @@ const actions = computed(() =>
   buttons.filter((a) => store.view?.available_actions.includes(a)),
 );
 let session = 0;
+let initialContextRead: { session: number; snapshot: string } | null = null;
 let alive = true,
   timer: ReturnType<typeof setInterval> | undefined;
 async function perform(task: () => Promise<unknown>) {
@@ -424,8 +460,13 @@ watch(
 watch(
   () => JSON.stringify(store.view?.personal_context),
   () => {
-    if (store.view)
-      context.value = JSON.parse(JSON.stringify(store.view.personal_context));
+    if (!store.view) return;
+    if (
+      initialContextRead?.session === session &&
+      JSON.stringify(context.value) !== initialContextRead.snapshot
+    )
+      return;
+    context.value = JSON.parse(JSON.stringify(store.view.personal_context));
   },
   { immediate: true },
 );
@@ -466,14 +507,49 @@ watch(
     saving.value = false;
     useGps.value = false;
     location.reset();
-    if (uid) await perform(() => store.load(tour, uid));
-    else store.reset();
+    if (uid) {
+      const current = session;
+      await perform(async () => {
+        const loading = store.load(tour, uid);
+        // load resets a changed tour/account before returning its promise.
+        if (store.view) {
+          context.value = JSON.parse(
+            JSON.stringify(store.view.personal_context),
+          );
+          selected.value = store.view.stop_id ?? "";
+        }
+        initialContextRead = {
+          session: current,
+          snapshot: JSON.stringify(context.value),
+        };
+        try {
+          await loading;
+          await nextTick();
+        } finally {
+          if (initialContextRead?.session === current)
+            initialContextRead = null;
+        }
+      });
+    } else store.reset();
   },
   { immediate: true },
 );
 function onVisibility() {
   visible.value = !document.hidden;
-  if (visible.value && !blocked.value && store.view) void refresh();
+  if (
+    visible.value &&
+    !requestBusy.value &&
+    !store.busy &&
+    !saving.value &&
+    store.view
+  ) {
+    void perform(() => store.reconcile()).then(async (reconciled) => {
+      if (reconciled) {
+        location.reconcile();
+        await location.sync();
+      }
+    });
+  }
 }
 onMounted(() => {
   visible.value = !document.hidden;

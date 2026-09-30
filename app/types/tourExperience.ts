@@ -1,6 +1,7 @@
 import type { LlmType } from "./llm";
 import type { PersonalContext } from "./personalContext";
 import type { ICoordinate } from "./index";
+import type { GuideInteractionMode } from "#shared/types/guideInteraction";
 export type Intent =
   | "ASK"
   | "MORE"
@@ -47,6 +48,7 @@ export interface Navigation {
   remaining_minutes?: number;
 }
 export interface Experience {
+  interaction_mode?: GuideInteractionMode;
   navigation?: Navigation | null;
   schema_version: number;
   revision: number;

@@ -163,6 +163,7 @@
     }
   },
   "buttons": {
+    "devNextStep": "Next step",
     "getTourRoute": "Get the tour route",
     "gettingRoute": "Getting the route...",
     "approveRoute": "Approve route",
@@ -217,6 +218,15 @@
     "PERPLEXITY": "Perplexity"
   },
   "experience": {
+    "interactionStyle": "Guide interaction",
+    "interactionModes": {
+      "guide": "Guide's style",
+      "interactive": "Explore together",
+      "leading": "Just guide me"
+    },
+    "guideStyleDefault": "Guide's style: {mode}",
+    "effectiveInteractionStyle": "Current style: {mode}",
+    "reconcileRequired": "Refresh this walk before making another change.",
     "title": "Your current stop",
     "intro": "Explore with your AI guide. Choose a stop and ask a question, or take a moment for yourself.",
     "forThisWalk": "About you, for this walk",

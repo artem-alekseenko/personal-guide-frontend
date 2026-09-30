@@ -1,6 +1,6 @@
 # Guide personality and interaction preference
 
-Backend contract prepared on 30 September 2026. This is a frontend implementation handoff, not a completed UI feature or a deployment. Existing audio must remain in use. **Do not generate, listen to, test or benchmark audio; future audio verification MUST receive explicit human approval.**
+Backend contract prepared on 30 September 2026. The frontend implements this handoff using `shared/` types and context defaults; this does not establish a live deployment. Existing audio remains in use. **Do not generate, listen to, test or benchmark audio; future audio verification MUST receive explicit human approval.**
 
 ## Visitor experience
 
@@ -108,3 +108,22 @@ Both profiles are AI guide personas. Their cards are editorial direction, not ev
 8. Ownership, generation conflicts, retries, account changes and pending mutations keep their existing behavior.
 
 Use focused text tests and Prettier for this work. This document alone requires no application build. Backend source tests and provider text examples do not establish real GPS, browser or audio behavior.
+
+## Implementation notes
+
+`shared/types/guideInteraction.ts` defines the preference values and legacy
+defaults. `shared/types/personalContext.ts` owns the full context type, factory
+and normalization; `app/types/personalContext.ts` re-exports it for existing
+callers. API responses retain the backend's effective style separately from the
+stored selector. Main-tour visitor messages reconcile text state before the
+shared queue releases, including when the remaining request fails. Failed reads
+leave text mutations blocked; automatic reads preserve pending payloads and keys.
+
+One backend ambiguity remains: `effective_context()` falls back to profile
+preferences if the tour context equals all defaults. Choosing `guide` with every
+other field at its default can therefore inherit a saved profile style. The
+client sends the explicit selection unchanged; backend presence tracking is
+needed to distinguish this from an absent tour preference.
+
+Development builds also expose a Next step button beside Pause/Resume. It uses
+the existing next-step action; no audio verification was performed for this work.

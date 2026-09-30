@@ -254,3 +254,42 @@ it("can deselect a saved interest and select an excluded topic without conflicti
   expect(store.effectiveContext.interests).toEqual(["science"]);
   expect(store.effectiveContext.excluded_topics).toEqual([]);
 });
+
+it.each(["guide", "interactive", "leading"] as const)(
+  "creates the walk with its explicit %s interaction preference",
+  async (mode) => {
+    const store = useRouteStore();
+    store.personalContext.interaction_mode = mode;
+    store.personalContext.note = "Preserve my context";
+    store.setRouteSuggestion({
+      routes: [variant("easy")],
+      coordinates: [],
+      description: "",
+      high_places: [],
+    });
+    await store.fetchCreateRoute();
+    expect(create.mock.calls.at(-1)![0].personal_context).toMatchObject({
+      interaction_mode: mode,
+      note: "Preserve my context",
+    });
+  },
+);
+
+it("retains the operational interaction choice when personal memories are disabled", async () => {
+  const store = useRouteStore();
+  store.personalContext.interaction_mode = "leading";
+  store.personalContext.note = "Private";
+  store.personalContext.enabled = false;
+  store.setRouteSuggestion({
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  await store.fetchCreateRoute();
+  expect(create.mock.calls.at(-1)![0].personal_context).toMatchObject({
+    enabled: false,
+    note: "",
+    interaction_mode: "leading",
+  });
+});

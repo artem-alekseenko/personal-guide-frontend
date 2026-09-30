@@ -64,6 +64,7 @@
     </div>
     <PersonalContextForm
       v-model="routeStore.personalContext"
+      :guide-mode="guidesStore.selectedGuide?.interaction_mode"
       :show-interests="false"
       class="m-4"
     />

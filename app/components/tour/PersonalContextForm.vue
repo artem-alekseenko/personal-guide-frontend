@@ -12,6 +12,12 @@
         ><input v-model="value.step_free" type="checkbox" />
         {{ $t("experience.stepFree") }}</label
       >
+      <BaseSelector
+        :model-value="normalizeInteractionPreference(value.interaction_mode)"
+        :options="interactionOptions"
+        :label="$t('experience.interactionStyle')"
+        @update:model-value="updateInteractionPreference"
+      />
       <template v-if="value.enabled">
         <label v-if="showInterests" class="grid gap-1"
           >{{ $t("experience.interests") }}
@@ -114,10 +120,39 @@
 </template>
 <script setup lang="ts">
 import type { PersonalContext } from "~/types/personalContext";
-withDefaults(defineProps<{ showInterests?: boolean }>(), {
-  showInterests: true,
-});
+import {
+  INTERACTION_PREFERENCES,
+  normalizeGuideInteractionMode,
+  normalizeInteractionPreference,
+  type GuideInteractionMode,
+} from "#shared/types/guideInteraction";
+const props = withDefaults(
+  defineProps<{ showInterests?: boolean; guideMode?: GuideInteractionMode }>(),
+  {
+    showInterests: true,
+  },
+);
 const value = defineModel<PersonalContext>({ required: true });
+const { t } = useI18n();
+const interactionOptions = computed(() =>
+  INTERACTION_PREFERENCES.map((mode) => ({
+    value: mode,
+    label:
+      mode === "guide" && props.guideMode
+        ? t("experience.guideStyleDefault", {
+            mode: t(
+              `experience.interactionModes.${normalizeGuideInteractionMode(props.guideMode)}`,
+            ),
+          })
+        : t(`experience.interactionModes.${mode}`),
+  })),
+);
+function updateInteractionPreference(mode: string) {
+  value.value = {
+    ...value.value,
+    interaction_mode: normalizeInteractionPreference(mode),
+  };
+}
 const topics = [
   "nature",
   "movies",

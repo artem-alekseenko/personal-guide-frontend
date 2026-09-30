@@ -13,6 +13,15 @@
     />
     <div class="pg-guide__header">
       <h2 class="pg-guide__name">{{ guide.name }}</h2>
+      <p class="text-sm">
+        {{
+          $t("experience.guideStyleDefault", {
+            mode: $t(
+              `experience.interactionModes.${normalizeGuideInteractionMode(guide.interaction_mode)}`,
+            ),
+          })
+        }}
+      </p>
       <div class="pg-guide__context">{{ guide.context }}</div>
     </div>
     <div class="pg-guide__skills">
@@ -38,6 +47,7 @@
 
 <script lang="ts" setup>
 import type { IGuide } from "~/types";
+import { normalizeGuideInteractionMode } from "#shared/types/guideInteraction";
 import { useGuidesStore } from "~/stores/guidesStore";
 
 interface Props {

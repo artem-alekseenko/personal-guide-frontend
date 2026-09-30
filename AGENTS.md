@@ -81,6 +81,7 @@ Before starting the app, configure `.env` as described below and start the backe
 | `app/components/`                            | Product components (`PG*`), settings, authentication, and tour text                                                       |
 | `app/components/ui/`, `app/components/base/` | Reusable controls, maps, selectors, and modals                                                                            |
 | `app/types/`                                 | Handwritten frontend API and UI types                                                                                     |
+| `shared/types/`, `shared/utils/`             | Shared interaction preferences, personal-context defaults and command reconciliation helpers (`#shared`)                  |
 | `server/api/`                                | Nitro route handlers translating/forwarding backend requests                                                              |
 | `server/utils/http.ts`                       | Upstream URL construction, auth forwarding, request IDs, timeout/retry, errors                                            |
 | `app/composables/server/useExternalApi.ts`   | Server-only request helper, despite its location under `app/`                                                             |
@@ -239,3 +240,34 @@ requests are withheld until whole-path accessibility can be verified.
 The text panel displays backend navigation status, provider instructions and
 warnings. It never derives turns from stop names. `navigation-display.test.ts`
 and `route-preferences-proxy.test.ts` are additional approved nonaudio checks.
+
+## Guide interaction preferences
+
+`shared/types/guideInteraction.ts` and `shared/types/personalContext.ts` own the
+interaction contract and legacy defaults, imported with `#shared`. Guide cards
+and effective experience modes default to `interactive`; personal context
+defaults to `guide`. The selector remains available when personal memories are
+disabled. Creation keeps this operational preference while omitting disabled
+personal information. Active-tour changes use the full current context through
+`UPDATE_CONTEXT`; saving future profile preferences remains explicit.
+
+Display the backend's effective `interaction_mode` separately from the context
+selector. `FORGET_CONTEXT` can reset context to `guide` while retaining a
+`leading` operational override. Commands through the main tour controls can
+advance the text revision even when the remainder of `/next` fails. Their
+automatic reconciliation stays inside the shared request queue, retains pending
+text payloads/keys, and leaves text mutations blocked if a fresh read fails.
+First-send revision capture waits for earlier queue work; retries retain the
+original body and generation. Automatic visibility reads also preserve pending
+actions; explicit reload reconciles and discards them only after a successful read.
+
+Backend contract edge: `effective_context()` falls back to profile preferences
+when the tour context equals all defaults. An explicit all-default `guide`
+selection can therefore be indistinguishable from an absent tour preference.
+The frontend sends the selected value unchanged; backend presence tracking is
+needed to remove that ambiguity.
+
+`tests/guide-interaction*.test.ts` and `tests/experience*-mode*.test.ts` cover
+the nonaudio contract and UI. A development-only Next step button beside
+Pause/Resume calls the existing next-step action and is removed from production
+rendering by `import.meta.dev`. Its audio behavior has not been verified.

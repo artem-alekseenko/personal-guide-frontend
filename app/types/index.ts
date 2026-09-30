@@ -1,5 +1,6 @@
 import type { PersonalContext } from "./personalContext";
 import type { LlmType } from "./llm";
+import type { GuideInteractionMode } from "#shared/types/guideInteraction";
 export interface ITour {
   id: number;
   image: string;
@@ -14,6 +15,7 @@ export interface ITour {
 }
 
 export interface IGuide {
+  interaction_mode?: GuideInteractionMode;
   id: string;
   name: string;
   skills: string;
