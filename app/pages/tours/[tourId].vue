@@ -39,20 +39,17 @@
       </div>
     </div>
 
-    <CurrentStopExperience
-      v-if="publicConfig.textExperienceEnabled"
-      :tour-id="tourId"
-    />
-
     <!-- Play/pause/resume button -->
-    <div>
+    <div class="sticky top-0 z-20 bg-white py-3 dark:bg-gray-900">
       <PGButton
         :disabled="
+          (requests.isBusy(tourId) && state !== STATE.RECORD_ACTIVE) ||
           actions.isBusy.value ||
           state === STATE.RECORD_LOADING ||
           state === STATE.RECORD_LOADING_WHEN_PAUSED
         "
         :loading="
+          (requests.isBusy(tourId) && state !== STATE.RECORD_ACTIVE) ||
           actions.isBusy.value ||
           state === STATE.RECORD_LOADING ||
           state === STATE.RECORD_LOADING_WHEN_PAUSED
@@ -64,6 +61,12 @@
       </PGButton>
     </div>
 
+    <CurrentStopExperience
+      v-if="publicConfig.textExperienceEnabled"
+      :tour-id="tourId"
+      :request-busy="actions.isBusy.value"
+    />
+
     <!-- Text block -->
     <TourTextDisplay
       ref="tourTextDisplayRef"
@@ -74,7 +77,14 @@
     />
 
     <!-- Question input -->
-    <div v-if="state !== STATE.INITIAL" class="mx-4">
+    <details
+      v-if="state !== STATE.INITIAL"
+      class="mx-4"
+      :open="!publicConfig.textExperienceEnabled"
+    >
+      <summary v-if="publicConfig.textExperienceEnabled" class="mb-2">
+        {{ $t("experience.audioQuestion") }}
+      </summary>
       <input
         v-model="userText"
         :placeholder="$t('components.tourPage.enterQuestion')"
@@ -83,20 +93,22 @@
         type="text"
       />
       <PGButton
-        :disabled="actions.isBusy.value || !userText.trim()"
+        :disabled="
+          requests.isBusy(tourId) || actions.isBusy.value || !userText.trim()
+        "
         class="mx-auto mt-3 block"
         @click="addQuestion"
       >
         {{ $t("components.tourPage.sendQuestion") }}
       </PGButton>
-    </div>
+    </details>
 
     <!-- Complete the tour button -->
     <div class="flex grow items-end">
       <PGButton
         class="prose mx-auto flex ring-green-400"
         color="neutral"
-        :disabled="actions.isBusy.value"
+        :disabled="requests.isBusy(tourId) || actions.isBusy.value"
         @click="handleCompleteTour"
       >
         {{ $t("components.tourPage.completeTour") }}
@@ -138,6 +150,7 @@ import { addPlaceMarkers, removePlaceMarkers } from "~/utils/mapMarkers";
 import type { TypeFrom } from "~/types";
 import BaseMap from "~/components/base/BaseMap.vue";
 import CurrentStopExperience from "~/components/tour/CurrentStopExperience.vue";
+import { useTourRequestStore } from "~/stores/tourRequestStore";
 import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
 
 const { public: publicConfig } = useRuntimeConfig();
@@ -148,6 +161,7 @@ mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
 ------------------------------------------- */
 const route = useRoute();
 const tourStore = useTourStore();
+const requests = useTourRequestStore();
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 const { t } = useI18n();
@@ -421,7 +435,7 @@ onMounted(async () => {
   } catch {
     return;
   }
-  logger.log("Tour fetched:", tourStore.tour);
+  logger.log("Tour loaded");
 
   if (shouldRestoreState.value && tourStore.textForDisplay) {
     logger.log("Restoring tour state:", state.value);

@@ -1,3 +1,4 @@
+import { escapeHtml } from "./safeText";
 /**
  * Finds the starting index of a sentence within a text
  */
@@ -44,7 +45,7 @@ export const findCurrentSpokenSentence = (
 export const formatTextWithParagraphs = (text: string): string => {
   return text
     .split("\n\n")
-    .map((paragraph) => paragraph.trim())
+    .map((paragraph) => escapeHtml(paragraph.trim()))
     .filter((paragraph) => paragraph.length > 0)
     .join("</p><p>");
 };
@@ -56,17 +57,23 @@ export const createHighlightedText = (
   text: string,
   highlightSentence: string,
 ): string => {
-  const formattedText = formatTextWithParagraphs(text);
-
-  const sentences = splitIntoSentences(formattedText);
-
-  const highlightedText = sentences
-    .map((sentence) =>
-      sentence === highlightSentence
-        ? `<span class="bg-yellow-200 active-sentence">${sentence}</span> `
-        : `${sentence} `,
-    )
+  return text
+    .split("\n\n")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((paragraph) => {
+      const sentences = paragraph.match(/[^.!?]+(?:[.!?]+["”']?|$)/g) ?? [
+        paragraph,
+      ];
+      const html = sentences
+        .map((sentence) => {
+          const trimmed = sentence.trim();
+          if (trimmed !== highlightSentence) return escapeHtml(sentence);
+          const leading = sentence.slice(0, sentence.indexOf(trimmed));
+          return `${escapeHtml(leading)}<span class="bg-yellow-200 active-sentence">${escapeHtml(trimmed)}</span>`;
+        })
+        .join("");
+      return `<p>${html}</p>`;
+    })
     .join("");
-
-  return `<p>${highlightedText}</p>`;
 };

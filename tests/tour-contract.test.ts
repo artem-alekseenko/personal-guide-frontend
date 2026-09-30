@@ -244,3 +244,13 @@ it("does not persist disabled or excluded interests through legacy settings", as
   await store.fetchCreateRoute();
   expect(create.mock.calls.at(-1)![0].settings).toEqual([]);
 });
+it("can deselect a saved interest and select an excluded topic without conflicting preferences", () => {
+  const store = useRouteStore();
+  store.personalContext.interests = ["art"];
+  store.personalContext.excluded_topics = ["science"];
+  store.toggleInterest("art");
+  expect(store.effectiveContext.interests).toEqual([]);
+  store.toggleInterest("science");
+  expect(store.effectiveContext.interests).toEqual(["science"]);
+  expect(store.effectiveContext.excluded_topics).toEqual([]);
+});

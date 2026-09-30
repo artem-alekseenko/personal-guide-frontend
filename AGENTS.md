@@ -215,6 +215,17 @@ Creation uses the selected suggested variant, preserving named stops separately 
 
 User constraint for this milestone: **do not generate, listen to, test or benchmark audio. Existing audio remains in use. Future audio verification MUST receive explicit human approval.** Use focused `tests/experience.test.ts`, `tests/experience-proxy.test.ts`, `tests/tour-contract.test.ts`, `tests/stored-route.test.ts`, `tests/client-auth.test.ts`, and `tests/auth.test.ts`, plus typecheck/build. Audio-inclusive regression/smoke suites are excluded until that approval.
 
+`pnpm test:text` runs the approved nonaudio checks, including text rendering,
+saved preferences, per-tour request serialization, GPS clearing and component
+rendering. Text interactions, playback receipts and finish requests share a
+client mutation queue because the backend uses one tour lease. Account changes
+invalidate queued work. Local audio pause remains available during text requests.
+Failed reconciliation keeps the original interaction payload/key until a fresh
+state is loaded. Future personal context is hydrated once per new walk without
+overwriting draft edits or newer profile saves. Conversation sources are cached
+in memory for the current tour/generation; unavailable historical links are
+explicitly labeled.
+
 Route preferences now flow through the suggestion proxy (`interests`,
 `excluded_topics`, `pace`, `step_free`, `personal_context_enabled`). Preference
 edits invalidate prior suggestions and in-flight responses. Creation settings

@@ -1,3 +1,4 @@
+import { useTourRequestStore } from "~/stores/tourRequestStore";
 import type {
   ITourRecord,
   ITourRecordRequest,
@@ -13,14 +14,16 @@ export const useGetTourRecord = async (
   const apiFetch = $apiFetch as typeof $fetch;
 
   try {
-    const data = await apiFetch<ITourRecordResponse>(
-      `/api/get-tour-record/${encodeURIComponent(tourId)}`,
-      {
-        body: params,
-        method: "POST",
-        retry: 0,
-        headers: { "Idempotency-Key": operationId },
-      },
+    const data = await useTourRequestStore().run(tourId, () =>
+      apiFetch<ITourRecordResponse>(
+        `/api/get-tour-record/${encodeURIComponent(tourId)}`,
+        {
+          body: params,
+          method: "POST",
+          retry: 0,
+          headers: { "Idempotency-Key": operationId },
+        },
+      ),
     );
 
     if (!data) {

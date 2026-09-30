@@ -1,7 +1,7 @@
 <template>
   <div v-if="show" class="flex flex-col gap-y-2 px-4">
-    <!-- Note: v-html is safe here as we control the text content and only add highlighting spans -->
-    <p
+    <!-- Only escaped text and application-owned paragraph/highlight markup. -->
+    <div
       ref="textRef"
       class="border-primary-500 h-60 overflow-y-auto rounded-md border-2 border-solid p-4"
       v-html="displayText"
@@ -79,7 +79,7 @@ const scrollToHighlightedSentence = () => {
 
 const clearHighlights = () => {
   if (!textRef.value || !props.text) return;
-  textRef.value.innerHTML = props.text;
+  textRef.value.innerHTML = `<p>${formatTextWithParagraphs(props.text)}</p>`;
 };
 
 // Watch for highlight changes and auto-scroll if enabled

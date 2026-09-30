@@ -10,15 +10,15 @@
       <button
         v-if="store.hasPending"
         class="rounded border px-3 py-2"
-        :disabled="store.busy"
+        :disabled="requestBusy || store.busy || saving"
         @click="perform(() => store.retry())"
       >
         {{ $t("experience.retry") }}
       </button>
       <button
         class="rounded border px-3 py-2"
-        :disabled="store.busy"
-        @click="perform(() => store.refresh())"
+        :disabled="requestBusy || store.busy || saving"
+        @click="refresh"
       >
         {{ $t("experience.refresh") }}
       </button>
@@ -30,7 +30,7 @@
           v-model="selected"
           class="rounded border p-2"
           :disabled="blocked"
-          @change="send({ action: 'CONTINUE', stop_id: selected })"
+          @change="selectStop"
         >
           <option value="" disabled>{{ $t("experience.selectStop") }}</option>
           <option
@@ -43,9 +43,44 @@
         </select>
       </label>
       <label
-        ><input v-model="useGps" type="checkbox" />
+        ><input
+          v-model="useGps"
+          type="checkbox"
+          :disabled="positionMode !== 'gps'"
+        />
         {{ $t("experience.useGps") }}</label
       >
+      <p v-if="positionMode !== 'gps'" class="text-sm">
+        {{ $t("experience.textGpsManual") }}
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button
+          class="rounded border px-3 py-2"
+          :disabled="blocked || !selected"
+          @click="
+            send({
+              action: 'ASK',
+              text: t('experience.nextStopQuery'),
+              stop_id: selected,
+            })
+          "
+        >
+          {{ $t("experience.nextStopDirections") }}
+        </button>
+        <button
+          class="rounded border px-3 py-2"
+          :disabled="blocked || !selected"
+          @click="
+            send({
+              action: 'ASK',
+              text: t('experience.timeQuery'),
+              stop_id: selected,
+            })
+          "
+        >
+          {{ $t("experience.checkTime") }}
+        </button>
+      </div>
       <p class="text-sm" role="status">
         {{ $t(`experience.${store.view.location_status}`) }}
       </p>
@@ -68,19 +103,28 @@
         <p v-if="store.view.navigation.target_name">
           {{ store.view.navigation.target_name }}
         </p>
-        <ol
-          v-if="navigationInstructions(store.view.navigation).length"
-          class="list-inside list-decimal"
+        <p
+          v-if="store.view.navigation.walking_minutes !== undefined"
+          class="text-sm"
         >
-          <li
-            v-for="(instruction, index) in navigationInstructions(
-              store.view.navigation,
-            )"
-            :key="index"
-          >
-            {{ instruction }}
-          </li>
-        </ol>
+          {{
+            $t("experience.walkingTime", {
+              minutes: store.view.navigation.walking_minutes,
+            })
+          }}
+        </p>
+        <div v-if="directions.length">
+          <h4 class="font-medium">{{ $t("experience.nextInstruction") }}</h4>
+          <p>{{ directions[0] }}</p>
+          <details v-if="directions.length > 1" class="mt-2">
+            <summary>{{ $t("experience.allInstructions") }}</summary>
+            <ol class="list-inside list-decimal">
+              <li v-for="(instruction, index) in directions" :key="index">
+                {{ instruction }}
+              </li>
+            </ol>
+          </details>
+        </div>
         <p
           v-for="warning in store.view.navigation.warnings"
           :key="warning"
@@ -157,7 +201,29 @@
               ? $t("experience.you")
               : $t("experience.guide")
           }}</strong>
+          <p class="text-xs">
+            {{ $t("experience.turnStop", { stop: stopName(turn.stop_id) }) }}
+          </p>
           <p>{{ turn.text }}</p>
+          <ul v-if="turn.source_ids.length" class="mt-2 text-xs">
+            <li v-for="source in store.sourcesForTurn(turn)" :key="source.id">
+              <a
+                v-if="safeUrl(source.url)"
+                :href="source.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline"
+                >{{ source.title }}</a
+              >
+              <span v-else>{{ source.title }}</span>
+            </li>
+          </ul>
+          <p
+            v-if="store.sourcesForTurn(turn).length < turn.source_ids.length"
+            class="text-xs"
+          >
+            {{ $t("experience.earlierSourcesUnavailable") }}
+          </p>
         </li>
       </ol>
       <form class="grid gap-2" @submit.prevent="ask">
@@ -233,16 +299,25 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useExperienceStore } from "~/stores/experienceStore";
 import { useGeolocationStore } from "~/stores/geolocationStore";
+import { useExperienceLocation } from "~/composables/tour/useExperienceLocation";
+import { usePositionMode } from "~/composables/map/usePositionMode";
+import { useTourRequestStore } from "~/stores/tourRequestStore";
+import { useUserStore } from "~/stores/userStore";
+import { experienceErrorKey } from "~/utils/experienceErrors";
+import { safeSourceUrl as safeUrl } from "~/utils/safeText";
 import { useAuth } from "~/composables/auth/useAuth";
 import type { Interaction, Intent } from "~/types/tourExperience";
-import type { IServerUserResponse } from "~/types";
 import {
   emptyPersonalContext,
   type PersonalContext,
 } from "~/types/personalContext";
 import { navigationInstructions } from "~/utils/navigationInstructions";
 import PersonalContextForm from "./PersonalContextForm.vue";
-const props = defineProps<{ tourId: string }>();
+const props = defineProps<{ tourId: string; requestBusy?: boolean }>();
+const { positionMode } = usePositionMode();
+const requests = useTourRequestStore();
+const users = useUserStore();
+const visible = ref(false);
 const store = useExperienceStore(),
   geo = useGeolocationStore(),
   auth = useAuth();
@@ -254,7 +329,18 @@ const selected = ref(""),
   context = ref(emptyPersonalContext()),
   saved = ref(false),
   saving = ref(false);
-const blocked = computed(() => store.busy || store.hasPending || saving.value);
+const requestBusy = computed(
+  () => !!props.requestBusy || requests.isBusy(props.tourId),
+);
+const blocked = computed(
+  () => requestBusy.value || store.busy || store.hasPending || saving.value,
+);
+const directions = computed(() =>
+  navigationInstructions(store.view?.navigation),
+);
+const stopName = (id: string) =>
+  store.view?.stops.find((stop) => stop.id === id)?.name ??
+  t("experience.earlierStop");
 const buttons: Intent[] = [
   "MORE",
   "SHORTER",
@@ -268,29 +354,37 @@ const buttons: Intent[] = [
 const actions = computed(() =>
   buttons.filter((a) => store.view?.available_actions.includes(a)),
 );
+let session = 0;
 let alive = true,
   timer: ReturnType<typeof setInterval> | undefined;
-const safeUrl = (url: string) => {
-  try {
-    return ["https:", "http:"].includes(new URL(url).protocol);
-  } catch {
-    return false;
-  }
-};
 async function perform(task: () => Promise<unknown>) {
+  const current = session;
   error.value = "";
   try {
     await task();
-    return true;
-  } catch {
-    if (alive) error.value = t("experience.failed");
+    return alive && current === session;
+  } catch (failure) {
+    if (alive && current === session)
+      error.value = t(experienceErrorKey(failure));
     return false;
   }
 }
 async function send(input: Interaction) {
+  if (blocked.value) return false;
   return perform(() =>
     store.act({ ...input, type_llm: auth.userPreferences.value.llmType }),
   );
+}
+async function selectStop() {
+  if (!(await send({ action: "CONTINUE", stop_id: selected.value })))
+    selected.value = store.view?.stop_id ?? "";
+}
+async function refresh() {
+  if (requestBusy.value || saving.value) return;
+  if (await perform(() => store.refresh())) {
+    location.reconcile();
+    await location.sync();
+  }
 }
 async function ask() {
   const text = question.value;
@@ -305,32 +399,27 @@ async function ask() {
   }
 }
 async function saveFuture(value: PersonalContext | null) {
+  if (blocked.value) return;
+  const current = session;
   saving.value = true;
   saved.value = false;
-  const uid = auth.user.value?.uid;
   await perform(async () => {
-    const api = useNuxtApp().$apiFetch as typeof $fetch;
-    const profile = await api<IServerUserResponse>("/api/user-profile");
-    if (!alive || auth.user.value?.uid !== uid) return;
-    await api("/api/user-profile", {
-      method: "PUT",
-      body: {
-        name: profile.name,
-        language: profile.language,
-        personal_context: value,
-      },
-    });
-    if (alive && auth.user.value?.uid === uid) saved.value = true;
+    const didSave = await users.savePersonalContext(
+      value,
+      () => alive && current === session,
+    );
+    if (didSave && alive && current === session) {
+      saved.value = true;
+    }
   });
-  saving.value = false;
+  if (current === session) saving.value = false;
 }
 watch(
   () => store.view,
   (view) => {
-    if (view) {
-      selected.value = view.stop_id ?? "";
-    }
+    selected.value = view?.stop_id ?? "";
   },
+  { immediate: true },
 );
 watch(
   () => JSON.stringify(store.view?.personal_context),
@@ -338,22 +427,20 @@ watch(
     if (store.view)
       context.value = JSON.parse(JSON.stringify(store.view.personal_context));
   },
-);
-watch(
-  () => [props.tourId, auth.user.value?.uid] as const,
-  async ([tour, uid]) => {
-    question.value = "";
-    error.value = "";
-    context.value = emptyPersonalContext();
-    selected.value = "";
-    if (uid) await perform(() => store.load(tour, uid));
-    else store.reset();
-  },
   { immediate: true },
 );
-async function locate() {
-  if (!useGps.value || document.hidden || blocked.value || !store.view) return;
-  const fix =
+const location = useExperienceLocation({
+  enabled: computed(
+    () => useGps.value && positionMode.value === "gps" && visible.value,
+  ),
+  blocked: computed(() => blocked.value || !visible.value),
+  ready: computed(() => !!store.view),
+  hasLocation: computed(
+    () =>
+      store.view?.location_status === "GPS_CONFIRMED" ||
+      store.view?.navigation?.status === "available",
+  ),
+  fix: computed(() =>
     geo.coordinates && !geo.error && geo.accuracy !== null && geo.recordedAt
       ? {
           point: {
@@ -363,24 +450,35 @@ async function locate() {
           accuracy: geo.accuracy,
           recorded_at: geo.recordedAt,
         }
-      : {};
-  await send({ action: "LOCATION_UPDATE", ...fix });
-}
-watch(useGps, (enabled) => {
-  if (enabled) void locate();
-  else if (!blocked.value && store.view)
-    void send({ action: "LOCATION_UPDATE" });
+      : {},
+  ),
+  send,
 });
+watch(
+  () => [props.tourId, auth.user.value?.uid] as const,
+  async ([tour, uid]) => {
+    session++;
+    question.value = "";
+    error.value = "";
+    context.value = emptyPersonalContext();
+    selected.value = "";
+    saved.value = false;
+    saving.value = false;
+    useGps.value = false;
+    location.reset();
+    if (uid) await perform(() => store.load(tour, uid));
+    else store.reset();
+  },
+  { immediate: true },
+);
 function onVisibility() {
-  if (!document.hidden && !blocked.value && store.view)
-    void perform(async () => {
-      await store.refresh();
-      await locate();
-    });
+  visible.value = !document.hidden;
+  if (visible.value && !blocked.value && store.view) void refresh();
 }
 onMounted(() => {
+  visible.value = !document.hidden;
   document.addEventListener("visibilitychange", onVisibility);
-  timer = setInterval(() => void locate(), 10000);
+  timer = setInterval(() => void location.sync(), 10000);
 });
 onBeforeUnmount(() => {
   alive = false;

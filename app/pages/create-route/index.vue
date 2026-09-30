@@ -53,11 +53,20 @@
           {{ route.name }}
         </option>
       </select>
+      <RoutePreview
+        v-if="routeStore.selectedRoute"
+        :route="routeStore.selectedRoute"
+        :context="routeStore.effectiveContext"
+      />
       <p v-if="!routeStore.canCreate" role="status">
         {{ $t("experience.noRoute") }}
       </p>
     </div>
-    <PersonalContextForm v-model="routeStore.personalContext" class="m-4" />
+    <PersonalContextForm
+      v-model="routeStore.personalContext"
+      :show-interests="false"
+      class="m-4"
+    />
     <!-- Chips -->
     <div v-if="isShowChips" class="px-4 py-4">
       <p class="mb-4">{{ $t("pages.createRoute.selectTopics") }}</p>
@@ -73,7 +82,7 @@
     </div>
 
     <!-- Duration Selector -->
-    <div v-if="!routeStore.canCreate" class="m-4">
+    <div class="m-4">
       <div class="mb-4">
         <div class="prose px-4 text-sm">
           {{ $t("pages.createRoute.durationLabel") }}
@@ -132,6 +141,7 @@
 
 <script lang="ts" setup>
 import PersonalContextForm from "~/components/tour/PersonalContextForm.vue";
+import RoutePreview from "~/components/tour/RoutePreview.vue";
 import { useNotification } from "~/composables/ui/useNotification";
 import formatMinToHours from "~/utils/formatMinToHours";
 import type { ICoordinate, TypeFrom } from "~/types";
@@ -164,6 +174,7 @@ const guidesStore = useGuidesStore();
 const routeStore = useRouteStore();
 onMounted(() => {
   if (!guidesStore.selectedGuide) void navigateTo("/guides");
+  else void routeStore.initializePersonalContext();
 });
 
 // Computed
@@ -186,7 +197,14 @@ const isShowDescription = computed(
     state.value === STATE.ROUTE_RECEIVED &&
     routeStore.routeSuggestion?.description,
 );
-const chips = computed(() => routeStore.tags || []);
+const chips = computed(() =>
+  routeStore.tags.map((tag) => ({
+    ...tag,
+    is_selected: routeStore.effectiveContext.interests.includes(
+      tag.name.toLowerCase().replaceAll(" ", "_"),
+    ),
+  })),
+);
 const isShowChips = computed(() => routeStore.personalContext.enabled);
 
 // Methods
@@ -225,10 +243,7 @@ const handleMainButtonClick = async () => {
 };
 
 const toggleChip = (chip: string) => {
-  const newTags = unref(chips).map((tag) =>
-    tag.name == chip ? { ...tag, is_selected: !tag.is_selected } : tag,
-  );
-  routeStore.setTags(newTags);
+  routeStore.toggleInterest(chip.toLowerCase().replaceAll(" ", "_"));
 };
 
 // Watchers

@@ -1,6 +1,7 @@
 import mapboxgl from "mapbox-gl";
 import type { IGeoJSONFeature, IGeoJSON } from "~/types";
 import createPlacesMarkerElem from "./pages/createPlacesMarkerElem";
+import { escapeHtml } from "./safeText";
 
 /**
  * Create and add a marker element to the map for a specific feature
@@ -16,7 +17,7 @@ export const addMarkerElemToMap = (
 ): mapboxgl.Marker | undefined => {
   if (!map) return;
 
-  const popupHTML = `<h3>${feature.properties.title}</h3><p>Description here!</p>`;
+  const popupHTML = `<h3>${escapeHtml(feature.properties.title)}</h3>`;
   const marker = new mapboxgl.Marker(markerElem)
     .setLngLat(feature.geometry.coordinates)
     .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(popupHTML))

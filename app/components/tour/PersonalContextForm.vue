@@ -13,26 +13,36 @@
         {{ $t("experience.stepFree") }}</label
       >
       <template v-if="value.enabled">
+        <label v-if="showInterests" class="grid gap-1"
+          >{{ $t("experience.interests") }}
+          <select
+            v-model="value.interests"
+            multiple
+            class="rounded border p-2"
+            @change="
+              value.excluded_topics = value.excluded_topics.filter(
+                (topic) => !value.interests.includes(topic),
+              )
+            "
+          >
+            <option v-for="topic in topics" :key="topic" :value="topic">
+              {{ $t(`experience.topics.${topic}`) }}
+            </option>
+          </select>
+        </label>
         <label class="grid gap-1"
           >{{ $t("experience.excludedTopics") }}
           <select
             v-model="value.excluded_topics"
+            @change="
+              value.interests = value.interests.filter(
+                (topic) => !value.excluded_topics.includes(topic),
+              )
+            "
             multiple
             class="rounded border p-2"
           >
-            <option
-              v-for="topic in [
-                'nature',
-                'movies',
-                'it',
-                'politics',
-                'science',
-                'art',
-                'museum',
-              ]"
-              :key="topic"
-              :value="topic"
-            >
+            <option v-for="topic in topics" :key="topic" :value="topic">
               {{ $t(`experience.topics.${topic}`) }}
             </option>
           </select>
@@ -104,5 +114,18 @@
 </template>
 <script setup lang="ts">
 import type { PersonalContext } from "~/types/personalContext";
+withDefaults(defineProps<{ showInterests?: boolean }>(), {
+  showInterests: true,
+});
 const value = defineModel<PersonalContext>({ required: true });
+const topics = [
+  "nature",
+  "movies",
+  "it",
+  "politics",
+  "science",
+  "art",
+  "museum",
+  "for_child",
+];
 </script>

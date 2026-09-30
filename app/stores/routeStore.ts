@@ -11,6 +11,7 @@ import type {
 import { useListTours } from "~/composables/api/tours/useListTours";
 import { useCreateTour } from "~/composables/api/tours/useCreateTour";
 import { useTourSuggestions } from "~/composables/api/useTourSuggestions";
+import { useUserStore } from "./userStore";
 
 export const useRouteStore = defineStore("routeStore", () => {
   // State
@@ -44,6 +45,10 @@ export const useRouteStore = defineStore("routeStore", () => {
   const isLoading = ref(false);
   let pollingEnabled = true;
   let requestVersion = 0;
+  let contextInitialized = false;
+  let draftConsumed = false;
+  let contextEdited = false;
+  let contextEpoch = 0;
   const error = ref<string | null>(null);
 
   const effectiveContext = computed(() => {
@@ -66,9 +71,44 @@ export const useRouteStore = defineStore("routeStore", () => {
       ].filter((interest) => !context.excluded_topics.includes(interest)),
     };
   });
+  // Wait for the shared profile read, but never replace edits made while it loads.
+  const initializePersonalContext = async () => {
+    if (contextInitialized && !draftConsumed) return;
+    if (draftConsumed) {
+      draftConsumed = false;
+      _actualTour.value = null;
+      _routeSuggestion.value = null;
+      _startPoint.value = null;
+      personalContext.value = emptyPersonalContext();
+      _tags.value = _tags.value.map((tag) => ({ ...tag, is_selected: false }));
+      contextEdited = false;
+      contextEpoch++;
+    }
+    contextInitialized = true;
+    const current = contextEpoch;
+    const user = useUserStore();
+    const uid = user.user?.uid;
+    const before = JSON.stringify(effectiveContext.value);
+    await user.loadServerPreferences();
+    if (current !== contextEpoch || user.user?.uid !== uid) return;
+    if (!user.serverPreferencesLoaded) {
+      contextInitialized = false;
+      return;
+    }
+    if (
+      !contextEdited &&
+      JSON.stringify(effectiveContext.value) === before &&
+      user.savedPersonalContext
+    )
+      personalContext.value = JSON.parse(
+        JSON.stringify(user.savedPersonalContext),
+      );
+    contextEdited = false;
+  };
   watch(
     () => JSON.stringify(effectiveContext.value),
     () => {
+      contextEdited = true;
       requestVersion++;
       _routeSuggestion.value = null;
     },
@@ -88,6 +128,22 @@ export const useRouteStore = defineStore("routeStore", () => {
   // Setters
   const setTags = (newTags: ITourTag[]): void => {
     _tags.value = newTags;
+  };
+  const toggleInterest = (topic: string) => {
+    const selected = effectiveContext.value.interests.includes(topic);
+    personalContext.value.interests = selected
+      ? personalContext.value.interests.filter((interest) => interest !== topic)
+      : [...new Set([...personalContext.value.interests, topic])];
+    if (!selected)
+      personalContext.value.excluded_topics =
+        personalContext.value.excluded_topics.filter(
+          (excluded) => excluded !== topic,
+        );
+    _tags.value = _tags.value.map((tag) =>
+      tag.name.toLowerCase().replaceAll(" ", "_") === topic
+        ? { ...tag, is_selected: !selected }
+        : tag,
+    );
   };
 
   const setStartPoint = (newPoint: ICoordinate): void => {
@@ -217,7 +273,10 @@ export const useRouteStore = defineStore("routeStore", () => {
     try {
       error.value = null;
       const tour = await useCreateTour(payload);
-      if (version === requestVersion) setActualTour(tour);
+      if (version === requestVersion) {
+        setActualTour(tour);
+        draftConsumed = true;
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Failed to create route";
       throw e;
@@ -262,6 +321,10 @@ export const useRouteStore = defineStore("routeStore", () => {
     _routeSuggestion.value = null;
     _startPoint.value = null;
     personalContext.value = emptyPersonalContext();
+    contextInitialized = false;
+    draftConsumed = false;
+    contextEdited = false;
+    contextEpoch++;
     selectedRouteIndex.value = 0;
     _tags.value = _tags.value.map((tag) => ({ ...tag, is_selected: false }));
     error.value = null;
@@ -275,6 +338,8 @@ export const useRouteStore = defineStore("routeStore", () => {
     selectRoute,
     canCreate,
     personalContext,
+    initializePersonalContext,
+    effectiveContext,
     duration,
     routeSuggestion,
     actualTour,
@@ -287,6 +352,7 @@ export const useRouteStore = defineStore("routeStore", () => {
     setDuration,
     setRouteSuggestion,
     setTags,
+    toggleInterest,
     stopPolling,
     fetchRoutesSuggestions,
     fetchCreateRoute,

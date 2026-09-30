@@ -252,7 +252,8 @@
       "politics": "Politics",
       "science": "Science",
       "art": "Art",
-      "museum": "Museums"
+      "museum": "Museums",
+      "for_child": "For children"
     },
     "walkingDirections": "Walking directions",
     "navigationStatus": {
@@ -263,6 +264,27 @@
       "time_limit": "This walk is longer than your remaining planned time",
       "complete": "The walk is complete",
       "unavailable": "Walking directions are unavailable"
-    }
+    },
+    "nextStopDirections": "Directions to the next stop",
+    "nextStopQuery": "Where next?",
+    "checkTime": "Check remaining time",
+    "timeQuery": "How much time is left?",
+    "walkingTime": "About {minutes} minutes walking",
+    "nextInstruction": "Next instruction",
+    "allInstructions": "All directions",
+    "turnStop": "At {stop}",
+    "earlierStop": "an earlier stop",
+    "earlierSourcesUnavailable": "Supporting links for this earlier reply are unavailable. Current-stop sources may refer to different material.",
+    "routePreview": "Review your walk",
+    "routeTotal": "Estimated total: {minutes} minutes",
+    "routeAccessUnknown": "Access and opening conditions are not confirmed. Check local signs and conditions.",
+    "interests": "Topics for this walk",
+    "textGpsManual": "The map is in simulation mode. Select a stop for text exploration; simulated coordinates are not used to confirm arrival.",
+    "audioQuestion": "Ask the audio guide",
+    "conflict": "Another tour action or a newer revision is in progress. Retry a temporary conflict, or reload current state before choosing another action.",
+    "authFailed": "Your session or access could not be verified. Sign in again before continuing.",
+    "unavailable": "This tour or its text experience is unavailable. Reload or return to your tours.",
+    "invalidAction": "The request was not accepted. Check your choices and try again.",
+    "modelUnavailable": "The selected text model is unavailable. Reload current state, then choose a configured model in Settings."
   }
 }

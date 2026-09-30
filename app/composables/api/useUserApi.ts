@@ -1,4 +1,5 @@
 import type { IServerUserResponse } from "~/types";
+import type { PersonalContext } from "~/types/personalContext";
 
 export const useUserApi = () => {
   const apiFetch = useNuxtApp().$apiFetch as typeof $fetch;
@@ -11,7 +12,6 @@ export const useUserApi = () => {
       const response = await apiFetch<IServerUserResponse>("/api/user-profile");
       return response;
     } catch (error: any) {
-      console.error("Error fetching user profile:", error);
       throw createError({
         statusCode: error.statusCode || 500,
         statusMessage: error.message || "Failed to fetch user profile",
@@ -25,6 +25,7 @@ export const useUserApi = () => {
   const updateUserProfile = async (
     name: string,
     language: string,
+    personalContext?: PersonalContext | null,
   ): Promise<IServerUserResponse> => {
     try {
       const response = await apiFetch<IServerUserResponse>(
@@ -34,12 +35,14 @@ export const useUserApi = () => {
           body: {
             name,
             language,
+            ...(personalContext !== undefined
+              ? { personal_context: personalContext }
+              : {}),
           },
         },
       );
       return response;
     } catch (error: any) {
-      console.error("Error updating user profile:", error);
       throw createError({
         statusCode: error.statusCode || 500,
         statusMessage: error.message || "Failed to update user profile",

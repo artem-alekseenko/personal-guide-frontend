@@ -67,8 +67,14 @@ export interface Experience {
     created_at: string;
   }[];
   available_actions: Intent[];
-  sources: { id: string; title: string; url: string; checked_at: string }[];
+  sources: ExperienceSource[];
   cues: { id: string; kind: string; text: string; limitations: string[] }[];
   remaining_minutes: number | null;
   limitation: string | null;
+}
+export interface ExperienceSource {
+  id: string;
+  title: string;
+  url: string;
+  checked_at: string;
 }

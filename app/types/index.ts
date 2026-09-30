@@ -254,6 +254,7 @@ export interface IUserProfile {
 }
 
 export interface IServerUserResponse {
+  personal_context?: PersonalContext | null;
   id: string;
   name: string;
   avatar: string | null;

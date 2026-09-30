@@ -9,6 +9,7 @@ import {
   type VoiceType,
 } from "~/types/voice";
 import { useUserApi } from "~/composables/api/useUserApi";
+import type { PersonalContext } from "~/types/personalContext";
 
 const makeDefaultPreferences = (): IUserPreferences => ({
   language: "en",
@@ -41,6 +42,11 @@ export const useUserStore = defineStore("userStore", () => {
   const user = shallowRef<User | null>(null);
   const profile = ref<IUserProfile | null>(null);
   const stats = ref<IUserStats | null>(null);
+  const savedPersonalContext = ref<PersonalContext | null>(null);
+  const serverPreferencesLoaded = ref(false);
+  let profileLoad: Promise<void> | null = null;
+  let personalContextVersion = 0;
+  let accountEpoch = 0;
 
   const guestLanguage = useLocalStorage<string>(
     "personal-guide-user-lang",
@@ -102,7 +108,11 @@ export const useUserStore = defineStore("userStore", () => {
     }
 
     if (user.value?.uid !== newUser?.uid) {
+      accountEpoch++;
       profileRequest++;
+      profileLoad = null;
+      savedPersonalContext.value = null;
+      serverPreferencesLoaded.value = false;
       isLoading.value = false;
       isSavingPreferences.value = false;
     }
@@ -144,32 +154,86 @@ export const useUserStore = defineStore("userStore", () => {
     stats.value = { ...(stats.value ?? makeDefaultStats()), ...patch };
   };
 
+  const setSavedPersonalContext = (context: PersonalContext | null) => {
+    personalContextVersion++;
+    savedPersonalContext.value = context
+      ? JSON.parse(JSON.stringify(context))
+      : null;
+  };
+
   const loadServerPreferences = async () => {
-    if (!isAuthenticated.value || isLoading.value) return;
+    if (!isAuthenticated.value || serverPreferencesLoaded.value) return;
+    if (profileLoad) return profileLoad;
 
     isLoading.value = true;
     const uid = user.value?.uid;
     const request = ++profileRequest;
-    try {
-      const { fetchUserProfile } = useUserApi();
-      const serverProfile = await fetchUserProfile();
-      if (user.value?.uid !== uid || request !== profileRequest) return;
+    const contextVersion = personalContextVersion;
+    profileLoad = (async () => {
+      try {
+        const { fetchUserProfile } = useUserApi();
+        const serverProfile = await fetchUserProfile();
+        if (user.value?.uid !== uid || request !== profileRequest) return;
+        if (contextVersion === personalContextVersion)
+          setSavedPersonalContext(serverProfile.personal_context ?? null);
+        serverPreferencesLoaded.value = true;
 
-      if (user.value && !profile.value)
-        profile.value = makeProfileFromFirebaseUser(user.value);
+        if (user.value && !profile.value)
+          profile.value = makeProfileFromFirebaseUser(user.value);
 
-      if (["en", "ru"].includes(serverProfile.language) && profile.value) {
-        profile.value.preferences = {
-          ...profile.value.preferences,
-          language: serverProfile.language,
-        };
-        guestLanguage.value = serverProfile.language;
+        if (["en", "ru"].includes(serverProfile.language) && profile.value) {
+          profile.value.preferences = {
+            ...profile.value.preferences,
+            language: serverProfile.language,
+          };
+          guestLanguage.value = serverProfile.language;
+        }
+      } catch (e) {
+        if (import.meta.dev)
+          console.error("Failed to load server preferences:", e);
+      } finally {
+        if (request === profileRequest) {
+          isLoading.value = false;
+          profileLoad = null;
+        }
       }
-    } catch (e) {
-      if (import.meta.dev)
-        console.error("Failed to load server preferences:", e);
+    })();
+    return profileLoad;
+  };
+
+  const savePersonalContext = async (
+    context: PersonalContext | null,
+    shouldContinue: () => boolean = () => true,
+  ): Promise<boolean> => {
+    if (!user.value) throw new Error("Sign in to save preferences");
+    if (isSavingPreferences.value)
+      throw new Error("Preferences are already being saved");
+    const uid = user.value.uid;
+    const session = accountEpoch;
+    const snapshot: PersonalContext | null = context
+      ? JSON.parse(JSON.stringify(context))
+      : null;
+    const { fetchUserProfile, updateUserProfile } = useUserApi();
+    isSavingPreferences.value = true;
+    try {
+      const serverProfile = await fetchUserProfile();
+      if (
+        session !== accountEpoch ||
+        user.value?.uid !== uid ||
+        !shouldContinue()
+      )
+        return false;
+      await updateUserProfile(
+        serverProfile.name,
+        serverProfile.language,
+        snapshot,
+      );
+      if (session !== accountEpoch || user.value?.uid !== uid) return false;
+      setSavedPersonalContext(snapshot);
+      return true;
     } finally {
-      if (request === profileRequest) isLoading.value = false;
+      if (session === accountEpoch && user.value?.uid === uid)
+        isSavingPreferences.value = false;
     }
   };
 
@@ -186,20 +250,20 @@ export const useUserStore = defineStore("userStore", () => {
       const language = userPreferences.value.language;
 
       await updateUserProfile(name, language);
-
-      if (import.meta.dev) {
-        console.log("Preferences synced:", { name, language });
-      }
     } finally {
       isSavingPreferences.value = false;
     }
   };
 
   const reset = () => {
+    accountEpoch++;
     profileRequest++;
     user.value = null;
     profile.value = null;
     stats.value = null;
+    savedPersonalContext.value = null;
+    serverPreferencesLoaded.value = false;
+    profileLoad = null;
     isLoading.value = false;
     isSavingPreferences.value = false;
   };
@@ -208,6 +272,10 @@ export const useUserStore = defineStore("userStore", () => {
     user,
     profile,
     stats,
+    savedPersonalContext,
+    serverPreferencesLoaded,
+    setSavedPersonalContext,
+    savePersonalContext,
     guestLanguage,
     isLoading,
     isSavingPreferences,

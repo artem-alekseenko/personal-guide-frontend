@@ -4,6 +4,7 @@ import { useUserStore } from "~/stores/userStore";
 import { useGuidesStore } from "~/stores/guidesStore";
 import { useRouteStore } from "~/stores/routeStore";
 import { useTourStore } from "~/stores/tourStore";
+import { useTourRequestStore } from "~/stores/tourRequestStore";
 
 export default defineNuxtPlugin((nuxtApp) => {
   const firebaseUser = useCurrentUser();
@@ -19,6 +20,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         routes.reset();
         tours.reset();
         useExperienceStore().reset();
+        useTourRequestStore().reset();
         // Audio state is account-specific; do not revive another user's session.
         try {
           for (const key of Object.keys(localStorage)) {

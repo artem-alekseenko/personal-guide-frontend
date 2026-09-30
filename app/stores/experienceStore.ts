@@ -1,6 +1,11 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import type { Experience, Interaction } from "~/types/tourExperience";
+import type {
+  Experience,
+  ExperienceSource,
+  Interaction,
+} from "~/types/tourExperience";
+import { useTourRequestStore } from "./tourRequestStore";
 type Operation = {
   key: string;
   body: Interaction & {
@@ -18,12 +23,21 @@ export const useExperienceStore = defineStore("experience", () => {
     readVersion = 0,
     operation: Operation | null = null;
   const api = () => useNuxtApp().$apiFetch as typeof $fetch;
+  const sourceCatalog = ref<Record<string, ExperienceSource>>({});
+  const applyView = (result: Experience) => {
+    if (view.value?.generation_id !== result.generation_id)
+      sourceCatalog.value = {};
+    for (const source of result.sources ?? [])
+      sourceCatalog.value[source.id] = source;
+    view.value = result;
+  };
   const reset = () => {
     epoch++;
     readVersion++;
     tourId = "";
     ownerId = "";
     view.value = null;
+    sourceCatalog.value = {};
     busy.value = false;
     operation = null;
     hasPending.value = false;
@@ -44,27 +58,33 @@ export const useExperienceStore = defineStore("experience", () => {
       reading === readVersion &&
       (!view.value || result.revision >= view.value.revision)
     )
-      view.value = result;
+      applyView(result);
   };
   const send = async () => {
     if (!operation || busy.value)
       throw new Error("An action is already in progress");
     const current = epoch,
-      pending = operation;
+      pending = operation,
+      id = tourId,
+      client = api();
     busy.value = true;
     try {
-      const result = await api()<Experience>(
-        `/api/tour-interactions/${encodeURIComponent(tourId)}`,
-        {
-          method: "POST",
-          body: pending.body,
-          headers: { "Idempotency-Key": pending.key },
-          retry: 0,
-        },
-      );
+      const result = await useTourRequestStore().run(id, () => {
+        if (current !== epoch) throw new Error("The active tour changed");
+        return client<Experience>(
+          `/api/tour-interactions/${encodeURIComponent(id)}`,
+          {
+            method: "POST",
+            body: pending.body,
+            headers: { "Idempotency-Key": pending.key },
+            retry: 0,
+          },
+        );
+      });
       if (current === epoch) {
         readVersion++;
-        view.value = result;
+        if (!view.value || result.revision >= view.value.revision)
+          applyView(result);
         operation = null;
         hasPending.value = false;
       }
@@ -105,9 +125,17 @@ export const useExperienceStore = defineStore("experience", () => {
   // Explicit refresh reconciles a stale revision. It never replays a discarded action.
   const refresh = async () => {
     if (busy.value) return;
-    operation = null;
-    hasPending.value = false;
-    await load(tourId, ownerId);
+    const current = epoch;
+    busy.value = true;
+    try {
+      await load(tourId, ownerId);
+      if (current === epoch) {
+        operation = null;
+        hasPending.value = false;
+      }
+    } finally {
+      if (current === epoch) busy.value = false;
+    }
   };
   return {
     view,
@@ -118,6 +146,10 @@ export const useExperienceStore = defineStore("experience", () => {
     retry: send,
     refresh,
     reset,
+    sourcesForTurn: (turn: { source_ids: string[] }) =>
+      turn.source_ids
+        .map((id) => sourceCatalog.value[id])
+        .filter((s): s is ExperienceSource => !!s),
     ready: computed(() => !!view.value),
   };
 });
