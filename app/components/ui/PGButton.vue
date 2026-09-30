@@ -35,7 +35,14 @@
 const props = withDefaults(
   defineProps<{
     variant?: "solid" | "outline" | "ghost" | "soft" | "link";
-    color?: "primary" | "neutral" | "error" | "success" | "warning" | "info" | "secondary";
+    color?:
+      | "primary"
+      | "neutral"
+      | "error"
+      | "success"
+      | "warning"
+      | "info"
+      | "secondary";
     size?: "sm" | "md" | "lg";
     loading?: boolean;
     block?: boolean;
@@ -73,7 +80,11 @@ const classes = computed(() => [
   border-radius: 0.5rem;
   font-weight: 500;
   line-height: 1.25;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   user-select: none;
   border: 1px solid transparent;
   cursor: pointer;
@@ -84,9 +95,9 @@ const classes = computed(() => [
     opacity 0.15s ease;
 
   /* Color tokens – overridden per color modifier */
-  --pg-btn-accent: var(--fill-green-500);
-  --pg-btn-accent-hover: var(--fill-green-600);
-  --pg-btn-accent-active: var(--fill-green-700);
+  --pg-btn-accent: var(--fill-green-700);
+  --pg-btn-accent-hover: var(--fill-green-800);
+  --pg-btn-accent-active: var(--fill-green-900);
   --pg-btn-accent-muted: var(--fill-green-50);
   --pg-btn-accent-muted-hover: var(--fill-green-100);
   --pg-btn-on-accent: oklch(1 0 0);
@@ -102,21 +113,31 @@ const classes = computed(() => [
 }
 
 .pg-button--md {
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
   padding-block: 0.5rem;
   padding-inline: 1rem;
   font-size: 0.875rem;
 }
 
 .pg-button--lg {
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
   padding-block: 0.625rem;
   padding-inline: 1.25rem;
   font-size: 1rem;
 }
 
 /* Equal padding for icon-only buttons */
-.pg-button--icon-only.pg-button--sm { padding-inline: 0.375rem; }
-.pg-button--icon-only.pg-button--md { padding-inline: 0.5rem; }
-.pg-button--icon-only.pg-button--lg { padding-inline: 0.625rem; }
+.pg-button--icon-only.pg-button--sm {
+  padding-inline: 0.375rem;
+}
+.pg-button--icon-only.pg-button--md {
+  padding-inline: 0.5rem;
+}
+.pg-button--icon-only.pg-button--lg {
+  padding-inline: 0.625rem;
+}
 
 .pg-button--block {
   display: flex;
@@ -126,9 +147,9 @@ const classes = computed(() => [
 /* ─── Color tokens ─── */
 
 .pg-button--primary {
-  --pg-btn-accent: var(--fill-green-500);
-  --pg-btn-accent-hover: var(--fill-green-600);
-  --pg-btn-accent-active: var(--fill-green-700);
+  --pg-btn-accent: var(--fill-green-700);
+  --pg-btn-accent-hover: var(--fill-green-800);
+  --pg-btn-accent-active: var(--fill-green-900);
   --pg-btn-accent-muted: var(--fill-green-50);
   --pg-btn-accent-muted-hover: var(--fill-green-100);
   --pg-btn-on-accent: oklch(1 0 0);
@@ -153,9 +174,9 @@ const classes = computed(() => [
 }
 
 .pg-button--success {
-  --pg-btn-accent: var(--fill-green-500);
-  --pg-btn-accent-hover: var(--fill-green-600);
-  --pg-btn-accent-active: var(--fill-green-700);
+  --pg-btn-accent: var(--fill-green-700);
+  --pg-btn-accent-hover: var(--fill-green-800);
+  --pg-btn-accent-active: var(--fill-green-900);
   --pg-btn-accent-muted: var(--fill-green-50);
   --pg-btn-accent-muted-hover: var(--fill-green-100);
   --pg-btn-on-accent: oklch(1 0 0);
@@ -251,6 +272,11 @@ const classes = computed(() => [
 
 /* ─── States ─── */
 
+.pg-button:focus-visible {
+  outline: 2px solid var(--pg-btn-accent);
+  outline-offset: 2px;
+}
+
 .pg-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -286,8 +312,20 @@ const classes = computed(() => [
   --pg-btn-on-accent: oklch(0.15 0 0);
 }
 
-.dark .pg-button--primary {
+.dark .pg-button--primary,
+.dark .pg-button--success {
   --pg-btn-accent-muted: oklch(0.24 0.06 152);
   --pg-btn-accent-muted-hover: oklch(0.28 0.08 152);
+}
+
+.dark .pg-button--primary:not(.pg-button--solid),
+.dark .pg-button--success:not(.pg-button--solid) {
+  --pg-btn-accent: var(--fill-green-300);
+  --pg-btn-accent-hover: var(--fill-green-200);
+  --pg-btn-accent-active: var(--fill-green-100);
+}
+
+.dark .pg-button:focus-visible {
+  outline-color: var(--fill-green-300);
 }
 </style>

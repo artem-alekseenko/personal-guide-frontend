@@ -77,7 +77,11 @@
         class="mr-2 mb-2"
         @click="() => toggleChip(chip.name)"
       >
-        {{ chip.name }}
+        {{
+          $t(
+            `experience.topics.${chip.name.toLowerCase().replaceAll(" ", "_")}`,
+          )
+        }}
       </PGChip>
     </div>
 
@@ -143,8 +147,7 @@
 import PersonalContextForm from "~/components/tour/PersonalContextForm.vue";
 import RoutePreview from "~/components/tour/RoutePreview.vue";
 import { useNotification } from "~/composables/ui/useNotification";
-import formatMinToHours from "~/utils/formatMinToHours";
-import type { ICoordinate, TypeFrom } from "~/types";
+import type { ICoordinate } from "~/types";
 import PGMap from "~/components/PGMap.vue";
 import { definePageMeta, useGuidesStore } from "#imports";
 import { getMainButtonText } from "~/utils/pages/create-route/mainButtonText";
@@ -162,23 +165,47 @@ const STATE = {
   TOUR_APPROVING: "TOUR_APPROVING",
 } as const;
 
-type TState = TypeFrom<typeof STATE>;
-
-// State
-const state = ref<TState>(STATE.INITIAL);
-const selectedArea = ref<ICoordinate | null>(null);
-const duration = ref(MIN_DURATION_TOUR_MINUTES);
-
 // Stores
 const guidesStore = useGuidesStore();
 const routeStore = useRouteStore();
+const router = useRouter();
+const { t } = useI18n();
+const isSuggesting = ref(false);
+const isCreating = ref(false);
+let pageAlive = true;
+onBeforeUnmount(() => {
+  pageAlive = false;
+});
+const selectedArea = computed<ICoordinate | null>({
+  get: () => routeStore.startPoint,
+  set: (point) => {
+    if (point) routeStore.setStartPoint(point);
+  },
+});
+const duration = computed({
+  get: () => Number(routeStore.duration),
+  set: (minutes) => routeStore.setDuration(String(minutes)),
+});
+const state = computed(() =>
+  isCreating.value
+    ? STATE.TOUR_APPROVING
+    : isSuggesting.value
+      ? STATE.ROUTE_REQUESTING
+      : routeStore.routeSuggestion
+        ? STATE.ROUTE_RECEIVED
+        : routeStore.startPoint
+          ? STATE.DATA_ENTRY_COMPLETED
+          : STATE.INITIAL,
+);
 onMounted(() => {
   if (!guidesStore.selectedGuide) void navigateTo("/guides");
   else void routeStore.initializePersonalContext();
 });
 
 // Computed
-const formattedTime = computed(() => formatMinToHours(duration.value));
+const formattedTime = computed(() =>
+  t("common.timeFormat.minutes", { count: duration.value }),
+);
 const mainButtonText = computed<string>(() => getMainButtonText(state.value));
 const isMainButtonDisabled = computed(
   () =>
@@ -209,25 +236,30 @@ const isShowChips = computed(() => routeStore.personalContext.enabled);
 
 // Methods
 const getRouteSuggestions = async () => {
-  state.value = STATE.ROUTE_REQUESTING;
+  if (isSuggesting.value || isCreating.value) return;
+  isSuggesting.value = true;
 
   try {
     await routeStore.fetchRoutesSuggestions();
-    if (!routeStore.routeSuggestion) state.value = STATE.DATA_ENTRY_COMPLETED;
   } catch (error) {
-    state.value = STATE.DATA_ENTRY_COMPLETED;
     useNotification().showApiError(error, "Could not plan the route");
+  } finally {
+    isSuggesting.value = false;
   }
 };
 
 const approveRoute = async () => {
+  if (isCreating.value || isSuggesting.value) return;
+  const before = routeStore.actualTour;
+  isCreating.value = true;
   try {
-    state.value = STATE.TOUR_APPROVING;
     await routeStore.fetchCreateRoute();
+    if (pageAlive && routeStore.actualTour && routeStore.actualTour !== before)
+      await router.push({ name: "tours" });
   } catch (error) {
-    // Reset state on error so user can try again
-    state.value = STATE.ROUTE_RECEIVED;
     useNotification().showApiError(error, "Could not create the tour");
+  } finally {
+    isCreating.value = false;
   }
 };
 
@@ -245,47 +277,6 @@ const handleMainButtonClick = async () => {
 const toggleChip = (chip: string) => {
   routeStore.toggleInterest(chip.toLowerCase().replaceAll(" ", "_"));
 };
-
-// Watchers
-watchEffect(() => {
-  if (selectedArea.value) {
-    routeStore.setStartPoint(selectedArea.value);
-  }
-});
-
-watchEffect(() => {
-  routeStore.setDuration(String(duration.value));
-});
-
-watch(
-  () => routeStore.routeSuggestion,
-  (newRouteSuggestion) => {
-    if (newRouteSuggestion) {
-      state.value = STATE.ROUTE_RECEIVED;
-    } else if (routeStore.startPoint) {
-      state.value = STATE.DATA_ENTRY_COMPLETED;
-    }
-  },
-);
-
-watch(
-  () => routeStore.actualTour,
-  (newTour) => {
-    if (newTour) {
-      const router = useRouter();
-      router.push({ name: "tours" });
-    }
-  },
-);
-
-watch(
-  [() => routeStore.startPoint, () => routeStore.duration],
-  ([newStartPoint, newDuration]: [ICoordinate | null, string]) => {
-    if (newStartPoint?.lng && newStartPoint?.lat && newDuration) {
-      state.value = STATE.DATA_ENTRY_COMPLETED;
-    }
-  },
-);
 </script>
 
 <style scoped>

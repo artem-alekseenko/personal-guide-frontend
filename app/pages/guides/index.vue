@@ -9,6 +9,19 @@
         $t("buttons.tryAgain")
       }}</PGButton>
     </div>
+    <div
+      v-else-if="!guidesList.length"
+      class="grid gap-3 p-4 text-center"
+      role="status"
+    >
+      <p>{{ $t("pages.guides.empty") }}</p>
+      <PGButton @click="fetchGuidesList()">{{
+        $t("buttons.tryAgain")
+      }}</PGButton>
+      <NuxtLink to="/tours" class="underline">{{
+        $t("navigation.backToTours")
+      }}</NuxtLink>
+    </div>
     <div v-else class="guides-page__list">
       <PGGuide v-for="guide in guidesList" :key="guide.id" :guide="guide" />
     </div>

@@ -11,18 +11,22 @@
 
         <!-- Global notification modal -->
         <NotificationModal
+          :key="notification.id"
+          :auto-close="notification.autoClose"
+          :auto-close-duration="notification.autoCloseDuration"
           :close-on-overlay-click="notification.closeOnOverlayClick"
+          :close-on-secondary-action="notification.closeOnSecondaryAction"
           :details="notification.details"
           :message="notification.message"
           :open="notification.open"
           :primary-action-text="notification.primaryActionText"
+          :primary-button-loading="notification.primaryButtonLoading"
           :secondary-action-text="notification.secondaryActionText"
           :show-secondary-action="notification.showSecondaryAction"
           :subtitle="notification.subtitle"
           :title="notification.title"
           :type="notification.type"
           @close="handleModalClose"
-          @update:open="handleOpenChange"
           @primary-action="handlePrimaryAction"
           @secondary-action="handleSecondaryAction"
         />
@@ -36,22 +40,32 @@ import { useNotification } from "~/composables/ui/useNotification";
 
 const {
   notification,
-  handlePrimaryAction,
-  handleSecondaryAction,
+  handlePrimaryAction: performPrimaryAction,
+  handleSecondaryAction: performSecondaryAction,
   hideNotification,
 } = useNotification();
 
-const handleOpenChange = (isOpen) => {
-  if (!isOpen) {
-    hideNotification();
-  }
+let actionClosePending = false;
+
+const handlePrimaryAction = () => {
+  actionClosePending = true;
+  performPrimaryAction();
+};
+
+const handleSecondaryAction = () => {
+  actionClosePending = notification.value.closeOnSecondaryAction;
+  performSecondaryAction();
 };
 
 const handleModalClose = (reason) => {
-  if (notification.value.onClose) {
-    notification.value.onClose(reason);
+  // An action already applies its close policy and may open a replacement.
+  if (
+    actionClosePending &&
+    (reason === "primary-action" || reason === "secondary-action")
+  ) {
+    actionClosePending = false;
+    return;
   }
-
-  hideNotification();
+  hideNotification(reason);
 };
 </script>

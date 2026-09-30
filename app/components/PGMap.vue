@@ -44,12 +44,20 @@ const { addMarker, addHighPlacesToMap, addWaypointMarkers, clearAllMarkers } =
 const handleMapInitialized = (map: mapboxgl.Map) => {
   map.once("load", () => {
     mapInstance.value = map;
+    const start = routeStore.startPoint;
+    if (start && !routeStore.routeSuggestion?.coordinates?.length)
+      map.flyTo({
+        center: [Number(start.lng), Number(start.lat)],
+        duration: 0,
+      });
   });
 };
 
 const selectPoint = (e: mapboxgl.MapMouseEvent) => {
-  selectedInitialArea.value = { lng: e.lngLat.lng, lat: e.lngLat.lat };
-  addMarker(e.lngLat.lat, e.lngLat.lng);
+  selectedInitialArea.value = {
+    lng: String(e.lngLat.lng),
+    lat: String(e.lngLat.lat),
+  };
 };
 
 // Cleanup on component unmount
@@ -78,12 +86,19 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  () => [routeStore.routeSuggestion?.coordinates, mapInstance.value] as const,
+  () =>
+    [
+      routeStore.routeSuggestion?.coordinates,
+      mapInstance.value,
+      routeStore.startPoint,
+    ] as const,
   async ([newCoords]) => {
     if (!mapInstance.value) return;
     if (!newCoords?.length) {
       clearDirections();
       clearAllMarkers();
+      const start = routeStore.startPoint;
+      if (start) addMarker(Number(start.lat), Number(start.lng));
       return;
     }
 

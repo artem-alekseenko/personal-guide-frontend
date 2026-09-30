@@ -19,36 +19,70 @@
 
       <!-- Email/password form -->
       <form class="flex flex-col gap-4" @submit.prevent="handleEmailSubmit">
-        <UInput
-          v-model="email"
-          :disabled="isFormLoading"
-          :placeholder="$t('auth.email')"
-          class="w-full"
-          required
-          type="email"
-          variant="outline"
-        />
-        <UInput
-          v-model="password"
-          :disabled="isFormLoading"
-          :placeholder="$t('auth.password')"
-          class="w-full"
-          required
-          type="password"
-          variant="outline"
-        />
-        <UInput
-          v-if="mode === MODE.REGISTER"
-          v-model="passwordConfirm"
-          :disabled="isFormLoading"
-          :placeholder="$t('auth.passwordConfirm')"
-          class="w-full"
-          required
-          type="password"
-          variant="outline"
-        />
+        <div class="flex flex-col gap-1">
+          <label :for="`auth-email-${formId}`" class="text-sm font-medium">
+            {{ $t("auth.email") }}
+          </label>
+          <UInput
+            :id="`auth-email-${formId}`"
+            v-model="email"
+            :disabled="isFormLoading"
+            :placeholder="$t('auth.email')"
+            autocomplete="email"
+            class="w-full"
+            name="email"
+            required
+            type="email"
+            variant="outline"
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label :for="`auth-password-${formId}`" class="text-sm font-medium">
+            {{ $t("auth.password") }}
+          </label>
+          <UInput
+            :id="`auth-password-${formId}`"
+            v-model="password"
+            :autocomplete="
+              mode === MODE.LOGIN ? 'current-password' : 'new-password'
+            "
+            :disabled="isFormLoading"
+            :placeholder="$t('auth.password')"
+            class="w-full"
+            name="password"
+            required
+            type="password"
+            variant="outline"
+          />
+        </div>
+        <div v-if="mode === MODE.REGISTER" class="flex flex-col gap-1">
+          <label
+            :for="`auth-password-confirm-${formId}`"
+            class="text-sm font-medium"
+          >
+            {{ $t("auth.passwordConfirm") }}
+          </label>
+          <UInput
+            :id="`auth-password-confirm-${formId}`"
+            v-model="passwordConfirm"
+            :disabled="isFormLoading"
+            :placeholder="$t('auth.passwordConfirm')"
+            autocomplete="new-password"
+            class="w-full"
+            name="password-confirm"
+            required
+            type="password"
+            variant="outline"
+          />
+        </div>
 
-        <p v-if="formError" class="text-sm text-red-600">{{ formError }}</p>
+        <p
+          v-if="formError"
+          class="text-sm text-red-700 dark:text-red-300"
+          role="alert"
+        >
+          {{ formError }}
+        </p>
 
         <div class="flex flex-col gap-3">
           <PGButton
@@ -78,6 +112,7 @@
 </template>
 
 <script lang="ts" setup>
+import { useId } from "vue";
 import type { AuthErrorCode } from "~/composables/auth/useAuthActions";
 import { useAuthActions } from "~/composables/auth/useAuthActions";
 import type { TypeFrom } from "~/types";
@@ -98,6 +133,7 @@ type TMode = TypeFrom<typeof MODE>;
 type TState = TypeFrom<typeof STATE>;
 
 const { loginWithEmail, registerWithEmail } = useAuthActions();
+const formId = useId();
 
 const mode = ref<TMode>(MODE.LOGIN);
 const state = ref<TState>(STATE.INITIAL);

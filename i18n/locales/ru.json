@@ -1,4 +1,31 @@
 {
+  "notifications": {
+    "title": "Уведомление",
+    "message": "Проверьте это сообщение.",
+    "ok": "ОК",
+    "cancel": "Отмена",
+    "errorTitle": "Не удалось выполнить действие",
+    "errorMessage": "Не удалось выполнить запрос. Попробуйте ещё раз.",
+    "successTitle": "Сохранено",
+    "successMessage": "Ваши изменения сохранены.",
+    "great": "Готово",
+    "warningTitle": "Проверьте информацию",
+    "warningMessage": "Проверьте информацию перед продолжением.",
+    "understood": "Понятно",
+    "infoTitle": "Информация",
+    "infoMessage": "Ознакомьтесь с этой информацией.",
+    "showDetails": "Показать технические сведения",
+    "hideDetails": "Скрыть технические сведения",
+    "context": "Действие: {context}",
+    "status": "Код ответа: {status}",
+    "requestId": "Номер запроса: {requestId}",
+    "contextTourRequest": "Запрос рассказа гида",
+    "contextPauseTour": "Пауза в туре",
+    "contextFetchTour": "Загрузка тура",
+    "contextAudioPlayback": "Воспроизведение тура",
+    "contextPlanRoute": "Планирование маршрута",
+    "contextCreateTour": "Создание тура"
+  },
   "common": {
     "loading": "Загрузка...",
     "logout": "Выйти",
@@ -79,7 +106,8 @@
     },
     "guides": {
       "title": "Гиды",
-      "loadingGuides": "Загрузка гидов..."
+      "loadingGuides": "Загрузка гидов...",
+      "empty": "Пока нет доступных гидов. Обновите список или вернитесь к своим турам."
     },
     "createRoute": {
       "title": "Создать маршрут",
@@ -107,6 +135,11 @@
     }
   },
   "components": {
+    "map": {
+      "followLocation": "Следовать за моим местоположением",
+      "stopFollowing": "Не следовать за моим местоположением",
+      "unavailable": "Не удалось загрузить карту. Проверьте соединение и настройки карты."
+    },
     "tourCard": {
       "guide": "Гид:",
       "showMore": "Показать больше",

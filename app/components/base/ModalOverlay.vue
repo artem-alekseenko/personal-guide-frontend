@@ -50,39 +50,86 @@ const handleOverlayClick = () => {
   }
 };
 
+const focusableElements = () => {
+  if (!overlayRef.value) return [];
+  return Array.from(
+    overlayRef.value.querySelectorAll<HTMLElement>(
+      "button, [href], input, select, textarea, [tabindex], [contenteditable='true']",
+    ),
+  ).filter(
+    (element) =>
+      element.tabIndex >= 0 &&
+      !element.matches(":disabled") &&
+      element.getAttribute("aria-disabled") !== "true" &&
+      !element.closest("[hidden], [inert], [aria-hidden='true']") &&
+      element.getClientRects().length > 0,
+  );
+};
+
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === "Escape" && props.closeOnEscape) {
     event.preventDefault();
     event.stopPropagation();
     emit("close", "escape");
+  } else if (event.key === "Tab") {
+    const elements = focusableElements();
+    const first = elements[0];
+    const last = elements[elements.length - 1];
+    if (!first || !last) {
+      event.preventDefault();
+      overlayRef.value?.focus();
+    } else if (!elements.includes(document.activeElement as HTMLElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 };
 
-// Focus management
+let active = false;
+let previousFocus: HTMLElement | null = null;
+let previousOverflow = "";
+
+const activate = () => {
+  if (active || typeof document === "undefined") return;
+  active = true;
+  previousFocus = document.activeElement as HTMLElement | null;
+  previousOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
+  nextTick(() => {
+    if (!active || !props.open) return;
+    const elements = focusableElements();
+    const preferred = elements.find(
+      (element) =>
+        element.hasAttribute("data-modal-initial-focus") ||
+        element.hasAttribute("autofocus"),
+    );
+    (preferred || elements[0] || overlayRef.value)?.focus();
+  });
+};
+
+const deactivate = () => {
+  if (!active) return;
+  active = false;
+  document.body.style.overflow = previousOverflow;
+  if (previousFocus?.isConnected) previousFocus.focus();
+  previousFocus = null;
+};
+
 watch(
   () => props.open,
-  (newValue) => {
-    if (newValue) {
-      // Block body scroll when modal opens
-      document.body.style.overflow = "hidden";
-
-      // Focus overlay after next tick to ensure DOM is updated
-      nextTick(() => {
-        if (overlayRef.value) {
-          overlayRef.value.focus();
-        }
-      });
-    } else {
-      // Restore body scroll
-      document.body.style.overflow = "";
-    }
-  },
+  (open) => (open ? activate() : deactivate()),
+  { flush: "post" },
 );
-
-// Cleanup on unmount
-onUnmounted(() => {
-  document.body.style.overflow = "";
+onMounted(() => {
+  if (props.open) activate();
 });
+onUnmounted(deactivate);
 </script>
 
 <style scoped>

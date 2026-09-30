@@ -8,12 +8,7 @@
     :role="modalRole"
     @close="handleOverlayClose"
   >
-    <ModalContent
-      ref="modalContentRef"
-      :subtitle="subtitle"
-      :title="title"
-      :title-id="titleId"
-    >
+    <ModalContent :subtitle="subtitle" :title="title" :title-id="titleId">
       <!-- Main message content -->
       <div class="notification-message">
         <!-- Type indicator icon with slot support -->
@@ -53,14 +48,23 @@
             <div v-if="details" class="notification-details">
               <button
                 v-if="type === 'error'"
+                :aria-expanded="showDetails"
+                :aria-controls="`${descriptionId}-details`"
                 class="details-toggle"
                 @click="showDetails = !showDetails"
               >
-                {{ showDetails ? "Hide" : "Show" }} technical details
+                {{
+                  t(
+                    showDetails
+                      ? "notifications.hideDetails"
+                      : "notifications.showDetails",
+                  )
+                }}
               </button>
 
               <div
                 v-if="type !== 'error' || showDetails"
+                :id="`${descriptionId}-details`"
                 class="details-content"
               >
                 <pre class="details-text">{{ details }}</pre>
@@ -75,29 +79,26 @@
         <slot name="footer">
           <button
             v-if="showSecondaryAction"
-            ref="secondaryButtonRef"
             :disabled="primaryButtonLoading"
             class="action-button action-button--secondary"
             @click="handleSecondaryAction"
-            @keydown="handleTabKey"
           >
-            {{ secondaryActionText }}
+            {{ secondaryActionText || t("notifications.cancel") }}
           </button>
 
           <button
-            ref="primaryButtonRef"
+            data-modal-initial-focus
             :class="primaryButtonClasses"
             :disabled="primaryButtonLoading"
             class="action-button action-button--primary"
             @click="handlePrimaryAction"
-            @keydown="handleTabKey"
           >
             <span
               v-if="primaryButtonLoading"
               aria-hidden="true"
               class="button-spinner"
             ></span>
-            {{ primaryActionText }}
+            {{ primaryActionText || t("notifications.ok") }}
           </button>
         </slot>
       </template>
@@ -122,8 +123,6 @@ type Props = NotificationModalProps;
 type Emits = NotificationModalEmits;
 
 const props = withDefaults(defineProps<Props>(), {
-  primaryActionText: "OK",
-  secondaryActionText: "Cancel",
   showSecondaryAction: false,
   closeOnOverlayClick: true,
   closeOnSecondaryAction: true,
@@ -133,15 +132,11 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
+const { t } = useI18n();
 
 // Internal state
 const showDetails = ref(false);
 const showIcon = computed(() => true); // Can be made configurable
-
-// Refs for focus management
-const modalContentRef = ref<InstanceType<typeof ModalContent> | null>(null);
-const primaryButtonRef = ref<HTMLElement | null>(null);
-const secondaryButtonRef = ref<HTMLElement | null>(null);
 
 // Generate stable unique IDs for accessibility (one time generation)
 const { titleId, descriptionId } = generateModalIds();
@@ -195,6 +190,7 @@ const primaryButtonClasses = computed(() => ({
 
 // Event handlers
 const closeModal = (reason: CloseReason) => {
+  clearAutoCloseTimer();
   emit("update:open", false);
   emit("close", reason);
 };
@@ -215,76 +211,51 @@ const handleSecondaryAction = () => {
   }
 };
 
-// Focus trap - handle Tab key to keep focus within modal
-const handleTabKey = (event: KeyboardEvent) => {
-  if (event.key !== "Tab") return;
-
-  const focusableElements = [
-    secondaryButtonRef.value,
-    primaryButtonRef.value,
-  ].filter(Boolean) as HTMLElement[];
-
-  if (focusableElements.length === 0) return;
-
-  const firstElement = focusableElements[0];
-  const lastElement = focusableElements[focusableElements.length - 1];
-
-  if (event.shiftKey) {
-    // Shift + Tab (backward)
-    if (document.activeElement === firstElement && lastElement) {
-      event.preventDefault();
-      lastElement.focus();
-    }
-  } else {
-    // Tab (forward)
-    if (document.activeElement === lastElement && firstElement) {
-      event.preventDefault();
-      firstElement.focus();
-    }
-  }
-};
-
-// Auto-close timer
-let autoCloseTimer: NodeJS.Timeout | null = null;
-
-const startAutoCloseTimer = () => {
-  if (props.autoClose && (props.type === "success" || props.type === "info")) {
-    autoCloseTimer = setTimeout(() => {
-      closeModal("primary-action");
-    }, props.autoCloseDuration);
-  }
-};
+// A replaced notification or changed policy starts a fresh timer.
+let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
 const clearAutoCloseTimer = () => {
-  if (autoCloseTimer) {
+  if (autoCloseTimer !== null) {
     clearTimeout(autoCloseTimer);
     autoCloseTimer = null;
   }
 };
 
-// Auto-close details when modal closes
+let mounted = false;
+const refreshAutoCloseTimer = () => {
+  clearAutoCloseTimer();
+  showDetails.value = false;
+  if (
+    mounted &&
+    props.open &&
+    props.autoClose &&
+    (props.type === "success" || props.type === "info")
+  ) {
+    autoCloseTimer = setTimeout(() => {
+      autoCloseTimer = null;
+      closeModal("primary-action");
+    }, props.autoCloseDuration);
+  }
+};
+
 watch(
-  () => props.open,
-  (newValue) => {
-    if (!newValue) {
-      showDetails.value = false;
-      clearAutoCloseTimer();
-    } else {
-      // Focus primary button after next tick to ensure DOM is updated
-      nextTick(() => {
-        if (primaryButtonRef.value) {
-          primaryButtonRef.value.focus();
-        }
-      });
-
-      // Start auto-close timer for success/info notifications
-      startAutoCloseTimer();
-    }
-  },
+  () => [
+    props.open,
+    props.autoClose,
+    props.autoCloseDuration,
+    props.type,
+    props.title,
+    props.message,
+    props.details,
+  ],
+  refreshAutoCloseTimer,
 );
-
-// Clear timer when component unmounts
+onMounted(() => {
+  mounted = true;
+  refreshAutoCloseTimer();
+});
 onUnmounted(() => {
+  mounted = false;
   clearAutoCloseTimer();
 });
 </script>

@@ -1,11 +1,14 @@
 <template>
   <label :class="['pg-switch', `pg-switch--${size}`]">
     <input
+      :aria-label="label"
       :checked="modelValue"
       class="pg-switch__input"
       role="switch"
       type="checkbox"
-      @change="$emit('update:modelValue', ($event.target as HTMLInputElement).checked)"
+      @change="
+        $emit('update:modelValue', ($event.target as HTMLInputElement).checked)
+      "
     />
     <span aria-hidden="true" class="pg-switch__track">
       <span class="pg-switch__thumb" />
@@ -17,6 +20,7 @@
 withDefaults(
   defineProps<{
     modelValue: boolean;
+    label: string;
     size?: "xs" | "sm" | "md" | "lg";
   }>(),
   { size: "md" },
@@ -29,6 +33,8 @@ defineEmits<{ "update:modelValue": [value: boolean] }>();
 .pg-switch {
   display: inline-flex;
   align-items: center;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
   cursor: pointer;
   user-select: none;
 
@@ -85,7 +91,9 @@ defineEmits<{ "update:modelValue": [value: boolean] }>();
 }
 
 .pg-switch__input:checked ~ .pg-switch__track .pg-switch__thumb {
-  inset-inline-start: calc(var(--pg-switch-w) - var(--pg-switch-thumb-size) - 0.125rem);
+  inset-inline-start: calc(
+    var(--pg-switch-w) - var(--pg-switch-thumb-size) - 0.125rem
+  );
 }
 
 /* ─── Sizes ─── */

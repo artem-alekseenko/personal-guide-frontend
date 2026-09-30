@@ -1,3 +1,4 @@
+import { getCurrentInstance } from "vue";
 import type { NotificationType } from "~/types/modal";
 
 interface NotificationOptions {
@@ -19,6 +20,7 @@ interface NotificationOptions {
 }
 
 interface NotificationState {
+  id: number;
   open: boolean;
   type: NotificationType;
   title: string;
@@ -39,13 +41,15 @@ interface NotificationState {
 }
 
 // Global notification state
+let notificationId = 0;
 const notificationState = ref<NotificationState>({
+  id: notificationId,
   open: false,
   type: "info",
   title: "",
   message: "",
-  primaryActionText: "OK",
-  secondaryActionText: "Cancel",
+  primaryActionText: "",
+  secondaryActionText: "",
   showSecondaryAction: false,
   closeOnOverlayClick: true,
   closeOnSecondaryAction: true,
@@ -54,20 +58,32 @@ const notificationState = ref<NotificationState>({
   autoCloseDuration: 5000,
 });
 
+type NotificationTranslator = (
+  key: string,
+  values?: Record<string, unknown>,
+) => string;
+let translateNotification: NotificationTranslator = (key) => key;
+
 export const useNotification = () => {
+  // Capture the app's composer in setup; notifications also run in async catches.
+  if (getCurrentInstance()) translateNotification = useI18n().t;
+  const t: NotificationTranslator = (key, values) =>
+    translateNotification(key, values);
   const showNotification = (
     type: NotificationType,
     options: NotificationOptions,
   ) => {
     notificationState.value = {
+      id: ++notificationId,
       open: true,
       type,
-      title: options.title || "Notification",
+      title: options.title || t("notifications.title"),
       subtitle: options.subtitle,
-      message: options.message || "Notification message",
+      message: options.message || t("notifications.message"),
       details: options.details,
-      primaryActionText: options.primaryActionText || "OK",
-      secondaryActionText: options.secondaryActionText || "Cancel",
+      primaryActionText: options.primaryActionText || t("notifications.ok"),
+      secondaryActionText:
+        options.secondaryActionText || t("notifications.cancel"),
       showSecondaryAction: options.showSecondaryAction || false,
       closeOnOverlayClick: options.closeOnOverlayClick ?? true,
       closeOnSecondaryAction: options.closeOnSecondaryAction ?? true,
@@ -80,30 +96,32 @@ export const useNotification = () => {
     };
   };
 
-  const hideNotification = () => {
-    notificationState.value.open = false;
+  const hideNotification = (reason?: string) => {
+    const current = notificationState.value;
+    current.open = false;
+    if (reason) current.onClose?.(reason);
   };
 
   const handlePrimaryAction = () => {
-    if (notificationState.value.onPrimaryAction) {
-      notificationState.value.onPrimaryAction();
-    }
-    hideNotification();
+    const current = notificationState.value;
+    current.onPrimaryAction?.();
+    if (notificationState.value === current) hideNotification("primary-action");
   };
 
   const handleSecondaryAction = () => {
-    if (notificationState.value.onSecondaryAction) {
-      notificationState.value.onSecondaryAction();
+    const current = notificationState.value;
+    current.onSecondaryAction?.();
+    if (notificationState.value === current && current.closeOnSecondaryAction) {
+      hideNotification("secondary-action");
     }
-    hideNotification();
   };
 
   // Convenience methods for different notification types
   const showError = (options: NotificationOptions) => {
     const defaults = {
-      title: "Error",
-      message: "Sorry, an error occurred. Please try again later.",
-      primaryActionText: "OK",
+      title: t("notifications.errorTitle"),
+      message: t("notifications.errorMessage"),
+      primaryActionText: t("notifications.ok"),
     };
 
     showNotification("error", {
@@ -114,9 +132,9 @@ export const useNotification = () => {
 
   const showSuccess = (options: NotificationOptions) => {
     const defaults = {
-      title: "Success",
-      message: "Operation completed successfully.",
-      primaryActionText: "Great!",
+      title: t("notifications.successTitle"),
+      message: t("notifications.successMessage"),
+      primaryActionText: t("notifications.great"),
       autoClose: true,
       autoCloseDuration: 4000,
     };
@@ -129,9 +147,9 @@ export const useNotification = () => {
 
   const showWarning = (options: NotificationOptions) => {
     const defaults = {
-      title: "Warning",
-      message: "Please review and proceed with caution.",
-      primaryActionText: "Understood",
+      title: t("notifications.warningTitle"),
+      message: t("notifications.warningMessage"),
+      primaryActionText: t("notifications.understood"),
     };
 
     showNotification("warning", {
@@ -142,9 +160,9 @@ export const useNotification = () => {
 
   const showInfo = (options: NotificationOptions) => {
     const defaults = {
-      title: "Information",
-      message: "Here is some information for you.",
-      primaryActionText: "OK",
+      title: t("notifications.infoTitle"),
+      message: t("notifications.infoMessage"),
+      primaryActionText: t("notifications.ok"),
       autoClose: true,
       autoCloseDuration: 6000,
     };
@@ -155,54 +173,43 @@ export const useNotification = () => {
     });
   };
 
-  // Convenience method for API errors
-  const showApiError = (error: any, context?: string) => {
-    const title = "Error";
-    const subtitle = context ? `Context: ${context}` : undefined;
-
-    // Default fallback message
-    let message = "Sorry, an error occurred. Please try again later.";
-    let details = "";
-
-    try {
-      if (error?.response) {
-        // HTTP error response
-        const status = error.response.status;
-        const statusText = error.response.statusText;
-
-        if (status && statusText) {
-          message = `Server error (${status}): ${statusText}`;
-        }
-
-        if (error.response.data) {
-          try {
-            details = JSON.stringify(error.response.data, null, 2);
-          } catch (e) {
-            details = String(error.response.data);
-          }
-        }
-      } else if (error?.message) {
-        // General error with message
-        message = error.message || message;
-        details = error.stack || "";
-      } else if (typeof error === "string") {
-        // String error
-        message = error || message;
-      }
-    } catch (e) {
-      console.error("Error parsing error object:", e);
-      // Keep default message if parsing fails
-    }
-
+  // Diagnostics deliberately exclude response bodies, messages and stacks.
+  const showApiError = (error: unknown, context?: string) => {
+    const value = error as {
+      statusCode?: number;
+      status?: number;
+      response?: { status?: number; headers?: Headers };
+    } | null;
+    const status =
+      value?.response?.status ?? value?.statusCode ?? value?.status;
+    const requestId = value?.response?.headers?.get?.("x-request-id");
+    const details = [
+      Number.isInteger(status)
+        ? t("notifications.status", { status })
+        : undefined,
+      requestId && /^[a-zA-Z0-9._:-]{1,128}$/.test(requestId)
+        ? t("notifications.requestId", { requestId })
+        : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const contextKeys: Record<string, string> = {
+      "Tour request failed": "contextTourRequest",
+      "Could not pause the tour": "contextPauseTour",
+      "Failed to fetch tour data": "contextFetchTour",
+      "Audio playback failed": "contextAudioPlayback",
+      "Could not plan the route": "contextPlanRoute",
+      "Could not create the tour": "contextCreateTour",
+    };
+    const localizedContext =
+      context && contextKeys[context]
+        ? t(`notifications.${contextKeys[context]}`)
+        : undefined;
     showError({
-      title,
-      subtitle,
-      message,
+      subtitle: localizedContext
+        ? t("notifications.context", { context: localizedContext })
+        : undefined,
       details: details || undefined,
-      primaryActionText: "OK",
-      onPrimaryAction: () => {
-        // Just close the modal
-      },
     });
   };
 

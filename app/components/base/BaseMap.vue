@@ -1,5 +1,26 @@
 <template>
-  <div ref="mapContainerRef" class="h-[60vh] w-full"></div>
+  <div class="base-map">
+    <div ref="mapContainerRef" class="base-map__canvas"></div>
+    <button
+      v-if="showUserLocation"
+      type="button"
+      class="base-map__follow"
+      :disabled="!geolocationStore.coordinates || !!geolocationStore.error"
+      :aria-pressed="following"
+      @click="toggleFollowing"
+    >
+      {{
+        $t(
+          following
+            ? "components.map.stopFollowing"
+            : "components.map.followLocation",
+        )
+      }}
+    </button>
+    <p v-if="mapError" role="alert" class="base-map__error">
+      {{ $t("components.map.unavailable") }}
+    </p>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -34,6 +55,23 @@ const logger = useLogger();
 const mapContainerRef = ref<HTMLElement | null>(null);
 let mapInstance: mapboxgl.Map | null = null;
 let userMarker: mapboxgl.Marker | null = null;
+const following = ref(false);
+const mapError = ref(false);
+const followLocation = () => {
+  if (
+    mapInstance &&
+    props.showUserLocation &&
+    following.value &&
+    geolocationStore.coordinates &&
+    !geolocationStore.error
+  ) {
+    mapInstance.flyTo({ center: geolocationStore.coordinates, duration: 500 });
+  }
+};
+const toggleFollowing = () => {
+  following.value = !following.value;
+  followLocation();
+};
 
 const addUserMarker = (lat: number, lng: number) => {
   logger.log("Adding user marker at:", lat, lng);
@@ -110,18 +148,12 @@ const initializeMap = async () => {
     });
 
     mapInstance.on("error", (e) => {
+      mapError.value = true;
       logger.error("Map error:", e);
     });
 
-    mapInstance.on("moveend", () => {
-      if (!mapInstance) return;
-      const currentPitch = mapInstance.getPitch();
-      if (currentPitch !== MAP_PITCH) {
-        mapInstance.easeTo({
-          pitch: MAP_PITCH,
-          duration: 1000,
-        });
-      }
+    mapInstance.on("movestart", (event) => {
+      if (event.originalEvent) following.value = false;
     });
 
     if (props.onMapClick) {
@@ -136,12 +168,7 @@ const initializeMap = async () => {
         if (newCoordinates && mapInstance && props.showUserLocation) {
           const [lng, lat] = newCoordinates;
 
-          mapInstance.flyTo({
-            center: [lng, lat],
-            pitch: MAP_PITCH,
-            bearing: DEFAULT_BEARING,
-            essential: true,
-          });
+          followLocation();
           addUserMarker(lat, lng);
         }
       },
@@ -161,6 +188,7 @@ const initializeMap = async () => {
             addUserMarker(lat, lng);
           }
         } else {
+          following.value = false;
           // Hide user marker
           if (userMarker) {
             userMarker.remove();
@@ -180,6 +208,7 @@ const initializeMap = async () => {
     emit("map-initialized", mapInstance);
     logger.log("Map initialization completed");
   } catch (error) {
+    mapError.value = true;
     logger.error("Failed to initialize map:", error);
   }
 };
@@ -210,6 +239,44 @@ defineExpose({
 </script>
 
 <style>
+.base-map {
+  position: relative;
+  inline-size: 100%;
+}
+.base-map__canvas {
+  inline-size: 100%;
+  block-size: clamp(14rem, 40dvh, 24rem);
+}
+.base-map__follow {
+  position: absolute;
+  inset-block-start: 0.75rem;
+  inset-inline-start: 0.75rem;
+  z-index: 1;
+  max-inline-size: calc(100% - 1.5rem);
+  min-block-size: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--fill-white);
+  color: var(--fill-gray-900);
+  box-shadow: 0 1px 5px #0003;
+}
+.base-map__follow:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.base-map__follow:focus-visible {
+  outline: 2px solid var(--fill-green-700);
+  outline-offset: 2px;
+}
+.base-map__error {
+  position: absolute;
+  inset-inline: 0.75rem;
+  inset-block-end: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--fill-white);
+  color: var(--fill-gray-900);
+}
 .user-marker {
   width: 20px;
   height: 20px;

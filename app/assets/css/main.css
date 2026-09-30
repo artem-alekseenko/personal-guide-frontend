@@ -522,6 +522,11 @@
 .phone-viewport {
   min-block-size: 100dvh;
 }
+.phone-viewport__frame {
+  inline-size: 100%;
+  min-block-size: 100dvh;
+  background: var(--ui-bg);
+}
 
 @media (min-width: 769px) {
   .phone-viewport {
@@ -529,7 +534,8 @@
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    background: oklch(1 0 89);
+    block-size: 100dvh;
+    background: var(--ui-bg-muted);
   }
 
   .phone-viewport__frame {
@@ -537,7 +543,8 @@
     flex-direction: column;
     inline-size: 100%;
     max-inline-size: 440px;
-    max-block-size: 800px;
+    block-size: min(800px, calc(100dvh - 4rem));
+    min-block-size: 0;
     overflow: hidden;
     overflow-y: auto;
     border-radius: 2.5rem;

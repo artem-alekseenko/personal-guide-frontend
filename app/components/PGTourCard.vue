@@ -16,6 +16,7 @@
         <button
           v-if="shouldShowToggle"
           class="tour-card__toggle"
+          :aria-expanded="isExpanded"
           type="button"
           @click="toggleExpanded"
         >
@@ -62,7 +63,7 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, ref, toRefs } from "vue";
+import { nextTick, onMounted, onBeforeUnmount, ref, toRefs, watch } from "vue";
 
 const props = defineProps<{
   status: string;
@@ -96,7 +97,7 @@ const toggleExpanded = () => {
   isExpanded.value = !isExpanded.value;
 };
 
-onMounted(async () => {
+const measureDescription = async () => {
   await nextTick();
 
   if (!descriptionRef.value) return;
@@ -109,7 +110,7 @@ onMounted(async () => {
   element.classList.remove("tour-card__description--clamped");
   const fullHeight = element.scrollHeight;
   const computedStyle = getComputedStyle(element);
-  const lineHeight = parseInt(computedStyle.lineHeight, 10) || 24;
+  const lineHeight = parseFloat(computedStyle.lineHeight) || 24;
 
   if (hadClamped) {
     element.classList.add("tour-card__description--clamped");
@@ -117,7 +118,25 @@ onMounted(async () => {
 
   const maxHeight = lineHeight * 5;
   shouldShowToggle.value = fullHeight > maxHeight;
+};
+let resizeObserver: ResizeObserver | undefined;
+watch(
+  description,
+  () => {
+    void measureDescription();
+  },
+  { flush: "post" },
+);
+onMounted(() => {
+  void measureDescription();
+  if (descriptionRef.value && typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => {
+      void measureDescription();
+    });
+    resizeObserver.observe(descriptionRef.value);
+  }
 });
+onBeforeUnmount(() => resizeObserver?.disconnect());
 </script>
 
 <style scoped>

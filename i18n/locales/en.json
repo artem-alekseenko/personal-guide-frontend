@@ -1,4 +1,31 @@
 {
+  "notifications": {
+    "title": "Notification",
+    "message": "Please review this message.",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "errorTitle": "Something went wrong",
+    "errorMessage": "We couldn't complete the request. Please try again.",
+    "successTitle": "Saved",
+    "successMessage": "Your changes have been saved.",
+    "great": "Done",
+    "warningTitle": "Please check",
+    "warningMessage": "Review the information before continuing.",
+    "understood": "Understood",
+    "infoTitle": "Information",
+    "infoMessage": "Please review this information.",
+    "showDetails": "Show technical details",
+    "hideDetails": "Hide technical details",
+    "context": "Action: {context}",
+    "status": "Response status: {status}",
+    "requestId": "Request ID: {requestId}",
+    "contextTourRequest": "Request tour narration",
+    "contextPauseTour": "Pause the tour",
+    "contextFetchTour": "Load the tour",
+    "contextAudioPlayback": "Play the tour",
+    "contextPlanRoute": "Plan the route",
+    "contextCreateTour": "Create the tour"
+  },
   "common": {
     "loading": "Loading...",
     "logout": "Logout",
@@ -79,7 +106,8 @@
     },
     "guides": {
       "title": "Guides",
-      "loadingGuides": "Loading guides..."
+      "loadingGuides": "Loading guides...",
+      "empty": "No guides are available yet. Try refreshing or return to your tours."
     },
     "createRoute": {
       "title": "Create route",
@@ -107,6 +135,11 @@
     }
   },
   "components": {
+    "map": {
+      "followLocation": "Follow my location",
+      "stopFollowing": "Stop following my location",
+      "unavailable": "The map couldn't load. Check your connection and map configuration."
+    },
     "tourCard": {
       "guide": "Guide:",
       "showMore": "Show more",

@@ -1,6 +1,25 @@
 <template>
   <div
-    v-if="tourStore.tour"
+    v-if="tourLoading"
+    role="status"
+    class="w-full p-6 text-center"
+    aria-busy="true"
+  >
+    {{ $t("common.loading") }}
+  </div>
+  <div
+    v-else-if="tourLoadFailed"
+    role="alert"
+    class="grid w-full gap-3 p-6 text-center"
+  >
+    <p>{{ $t("common.loadFailed") }}</p>
+    <PGButton @click="loadTour">{{ $t("buttons.tryAgain") }}</PGButton>
+    <NuxtLink to="/tours" class="underline">{{
+      $t("navigation.backToTours")
+    }}</NuxtLink>
+  </div>
+  <div
+    v-else-if="tourStore.tour"
     class="container mx-auto flex grow flex-col gap-y-4 py-4"
   >
     <!-- Map -->
@@ -23,7 +42,11 @@
           {{ $t("components.tourPage.realGeolocation") }}
         </span>
 
-        <PGSwitch v-model="isManualMode" size="lg" />
+        <PGSwitch
+          v-model="isManualMode"
+          :label="$t('components.tourPage.geolocationSimulation')"
+          size="lg"
+        />
 
         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ $t("components.tourPage.geolocationSimulation") }}
@@ -152,6 +175,7 @@ import BaseMap from "~/components/base/BaseMap.vue";
 import CurrentStopExperience from "~/components/tour/CurrentStopExperience.vue";
 import { useTourRequestStore } from "~/stores/tourRequestStore";
 import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
+import { useTourLoader } from "~/composables/tour/useTourLoader";
 
 const { public: publicConfig } = useRuntimeConfig();
 mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
@@ -167,6 +191,16 @@ const logger = useLogger();
 const { t } = useI18n();
 
 const tourId = route.params.tourId as string;
+let tourPageAlive = true;
+const {
+  loading: tourLoading,
+  failed: tourLoadFailed,
+  load: loadTour,
+  dispose: disposeLoader,
+} = useTourLoader(
+  () => tourStore.fetchGetTour(tourId),
+  () => tourStore.tour?.id === tourId,
+);
 
 // State management
 const {
@@ -430,11 +464,8 @@ onMounted(async () => {
     return;
   }
   logger.log("Fetching tour with ID:", route.params.tourId);
-  try {
-    await tourStore.fetchGetTour(route.params.tourId as string);
-  } catch {
-    return;
-  }
+  await loadTour();
+  if (!tourPageAlive) return;
   logger.log("Tour loaded");
 
   if (shouldRestoreState.value && tourStore.textForDisplay) {
@@ -445,6 +476,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  tourPageAlive = false;
+  disposeLoader();
   if (routeTimer) clearInterval(routeTimer);
   actions.dispose();
 

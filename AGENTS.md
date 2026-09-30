@@ -217,7 +217,10 @@ User constraint for this milestone: **do not generate, listen to, test or benchm
 
 `pnpm test:text` runs the approved nonaudio checks, including text rendering,
 saved preferences, per-tour request serialization, GPS clearing and component
-rendering. Text interactions, playback receipts and finish requests share a
+rendering. `tests/ui-*.test.ts` adds nonaudio checks for native controls,
+notifications, route drafts, map following, catalog states and tour loading.
+GPS updates move the user marker; map following requires the visitor's explicit
+choice and stops after a map gesture. Text interactions, playback receipts and finish requests share a
 client mutation queue because the backend uses one tour lease. Account changes
 invalidate queued work. Local audio pause remains available during text requests.
 Failed reconciliation keeps the original interaction payload/key until a fresh

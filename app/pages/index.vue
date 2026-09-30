@@ -14,7 +14,7 @@
   </template>
 
   <template v-else-if="state === STATE.USER_NOT_ENTERED">
-    <div class="flex h-dvh w-full justify-center align-middle">
+    <div class="flex w-full flex-1 items-center justify-center">
       <PGAuthForm />
     </div>
   </template>

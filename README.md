@@ -111,7 +111,7 @@ corepack pnpm build
 corepack pnpm exec prettier --check README.md AGENTS.md
 ```
 
-`test:text` covers text interactions, route contracts, GPS update coordination, navigation display, safe rendering, saved preferences, request serialization, and authentication boundaries. Its Vue component checks render in Node; they do not launch a browser.
+`test:text` covers text interactions, route contracts, GPS update coordination, navigation display, safe rendering, saved preferences, request serialization, authentication boundaries, route draft restoration, map following, accessible controls, notifications, and loading/error states. Its Vue component checks render in Node; they do not launch a browser.
 
 **Audio verification requires explicit human approval.** Do not generate, listen to, test, or benchmark audio under the current milestone. The full `test`, `test:smoke`, and `test:dev` suites include audio and are excluded until that approval. After approval, `test:smoke` requires a build; run `test:dev` separately from builds because both write `.nuxt` files.
 

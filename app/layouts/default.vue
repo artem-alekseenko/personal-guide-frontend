@@ -30,8 +30,13 @@ const logout = async () => {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  height: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
+  flex: 1 0 auto;
+}
+@media (min-width: 769px) {
+  .default-layout {
+    min-height: 100%;
+  }
 }
 
 .default-layout__main {
