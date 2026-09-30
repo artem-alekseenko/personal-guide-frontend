@@ -35,13 +35,24 @@ export const addMarkerElemToMap = (
 export const addPlaceMarkers = (
   map: mapboxgl.Map | null,
   placesGeoJSON?: IGeoJSON | null,
+  numberedStops = false,
 ): mapboxgl.Marker[] => {
   if (!map || !placesGeoJSON?.features) return [];
 
   const markers: mapboxgl.Marker[] = [];
 
-  for (const feature of placesGeoJSON.features) {
-    const markerElem = createPlacesMarkerElem();
+  for (const [index, feature] of placesGeoJSON.features.entries()) {
+    const [lng, lat] = feature.geometry.coordinates;
+    if (
+      ![lng, lat].every(Number.isFinite) ||
+      Math.abs(lng) > 180 ||
+      Math.abs(lat) > 90
+    )
+      continue;
+    const markerElem = createPlacesMarkerElem(
+      feature.properties.title,
+      numberedStops ? index + 1 : undefined,
+    );
     const addedMarker = addMarkerElemToMap(map, markerElem, feature);
     if (addedMarker) {
       markers.push(addedMarker);

@@ -1,7 +1,8 @@
-import { ref, type Ref } from "vue";
+import { shallowRef } from "vue";
 import mapboxgl from "mapbox-gl";
 import { useLogger } from "~/composables/utils/useLogger";
 import { usePositionMode } from "./usePositionMode";
+import { createPositionMarker } from "~/utils/positionMarker";
 
 type MarkerWithEvents = mapboxgl.Marker & {
   on(event: string, handler: () => void): void;
@@ -9,6 +10,7 @@ type MarkerWithEvents = mapboxgl.Marker & {
 
 export interface SimulationMarkerOptions {
   onDragEnd?: () => void;
+  label?: string;
 }
 
 /**
@@ -19,9 +21,21 @@ export function useSimulationMarker(options: SimulationMarkerOptions = {}) {
   const logger = useLogger();
   const { positionMode } = usePositionMode();
 
-  const simulationMarker = ref<mapboxgl.Marker | null>(null);
+  const simulationMarker = shallowRef<mapboxgl.Marker | null>(null);
   let mapInstance: mapboxgl.Map | null = null;
   let dragEndCallback = options.onDragEnd;
+  let moveStartCallback: (() => void) | undefined;
+  let mapGestureCallback: (() => void) | undefined;
+  let clickMap: mapboxgl.Map | null = null;
+  const onMapClick = (e: mapboxgl.MapMouseEvent) => {
+    if (positionMode.value === "manual") {
+      moveStartCallback?.();
+      addSimulationMarker([e.lngLat.lng, e.lngLat.lat]);
+    }
+  };
+  const onMapGesture = (event: { originalEvent?: unknown }) => {
+    if (event.originalEvent) mapGestureCallback?.();
+  };
 
   /**
    * Add or update simulation marker at specified coordinates
@@ -33,52 +47,33 @@ export function useSimulationMarker(options: SimulationMarkerOptions = {}) {
       return;
     }
 
-    logger.log(
-      "Creating simulation marker at coordinates:",
-      coords,
-      "[lng, lat]",
-    );
-    logger.log("Map center before adding marker:", [
-      mapInstance.getCenter().lng,
-      mapInstance.getCenter().lat,
-    ]);
-
-    // Remove existing marker if present
+    // Keep the same marker while animating; replacing it causes visible flicker.
     if (simulationMarker.value) {
-      logger.log("Removing existing simulation marker");
-      simulationMarker.value.remove();
-      simulationMarker.value = null;
+      simulationMarker.value.setLngLat(coords);
+      return;
     }
-
-    logger.log("Creating standard Mapbox marker (SVG teardrop)");
 
     try {
       const newMarker = new mapboxgl.Marker({
         draggable: true,
+        element: createPositionMarker(
+          "simulation",
+          options.label ?? "Simulation",
+        ),
       })
         .setLngLat(coords)
         .addTo(mapInstance);
 
-      // Setup dragend event handler if callback provided
-      if (dragEndCallback) {
-        (newMarker as MarkerWithEvents).on("dragend", () => {
-          logger.log("Simulation marker dragged to new position");
-          dragEndCallback?.();
-        });
-      }
+      (newMarker as MarkerWithEvents).on("dragstart", () =>
+        moveStartCallback?.(),
+      );
+      (newMarker as MarkerWithEvents).on("dragend", () => {
+        logger.log("Simulation marker dragged to new position");
+        dragEndCallback?.();
+      });
 
       simulationMarker.value = newMarker;
       logger.log("Simulation marker successfully added to map at:", coords);
-
-      // Verification after short delay
-      setTimeout(() => {
-        const markerLngLat = newMarker.getLngLat();
-        logger.log("Marker verification - position:", [
-          markerLngLat.lng,
-          markerLngLat.lat,
-        ]);
-        logger.log("Standard Mapbox marker created successfully");
-      }, 100);
     } catch (error) {
       logger.error("Error creating simulation marker:", error);
     }
@@ -113,13 +108,13 @@ export function useSimulationMarker(options: SimulationMarkerOptions = {}) {
    */
   const setupMapClickHandler = (map: mapboxgl.Map): void => {
     mapInstance = map;
-
-    map.on("click", (e) => {
-      if (positionMode.value === "manual") {
-        const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-        addSimulationMarker(coords);
-      }
-    });
+    if (clickMap) {
+      clickMap.off("click", onMapClick);
+      clickMap.off("movestart", onMapGesture);
+    }
+    clickMap = map;
+    map.on("click", onMapClick);
+    map.on("movestart", onMapGesture);
   };
 
   /**
@@ -146,5 +141,20 @@ export function useSimulationMarker(options: SimulationMarkerOptions = {}) {
     setupMapClickHandler,
     initialize,
     setDragEndCallback,
+    setMoveStartCallback: (callback: () => void) => {
+      moveStartCallback = callback;
+    },
+    setMapGestureCallback: (callback: () => void) => {
+      mapGestureCallback = callback;
+    },
+    cleanup: () => {
+      if (clickMap) {
+        clickMap.off("click", onMapClick);
+        clickMap.off("movestart", onMapGesture);
+      }
+      clickMap = null;
+      removeSimulationMarker();
+      mapInstance = null;
+    },
   };
 }

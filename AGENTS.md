@@ -290,3 +290,30 @@ updates and clears it on tour/account changes. It requests no turns, starts no
 audio and stores no new browser data. Reload restoration uses existing backend
 history. `tests/tour-progress.test.ts` and `tests/ui-tour-progress*.test.ts` are
 approved nonaudio checks for derivation, isolation and rendered states.
+
+## Development walking screen
+
+In development, `TourReadingPanel` displays the full latest guide message below
+playback controls and puts progress in a closed native disclosure beneath it.
+Production retains its existing text/progress layout. The Next step handler stops
+local movement and invokes the existing explicit-resume action. New narration
+requests sample the current active position again after interruption acknowledgement;
+uncertain retries still retain their original payloads. No audio behavior has been
+tested for this change.
+
+`useRouteWalk` performs local manual simulation in 300-metre increments over
+three seconds, using the actual displayed geometry from `useMapboxDirections`.
+Stored geometry is used directly; legacy provider precision-five polylines are
+decoded by `shared/utils/routeMovement.ts`. Stop coordinates are never substituted
+for a missing path. Movement updates the existing marker in place, retains a
+cursor across route crossings, caps at the end and honours reduced motion.
+Mode/request/route changes, marker gestures and disposal cancel animation. This
+control performs no GPS writes or backend requests.
+
+The map shows distinct GPS and simulation markers, numbered route stops, compact
+place labels and an outlined stored route. Place popups keep escaped names and
+44-pixel controls; clicking one does not relocate the simulation marker.
+`tests/ui-route-walk.test.ts`, `tests/ui-simulation-marker.test.ts`,
+`tests/ui-tour-reading.test.ts` and `tests/ui-tour-step-location.test.ts` are
+additional approved nonaudio checks. Live Mapbox and narration verification
+remain separate; the audio restriction above still applies.

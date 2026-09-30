@@ -1,0 +1,116 @@
+.pg-position-marker {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+.pg-position-marker__dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 3px solid white;
+  box-shadow:
+    0 0 0 7px #2563eb26,
+    0 2px 6px #0005;
+}
+.pg-position-marker__walker {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #6d28d9;
+  color: white;
+  border: 2px solid white;
+  box-shadow: 0 3px 10px #0005;
+  cursor: grab;
+}
+.pg-position-marker__walker svg {
+  width: 26px;
+  height: 26px;
+}
+.pg-position-marker--simulation:active .pg-position-marker__walker {
+  cursor: grabbing;
+}
+.pg-place-marker {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.pg-place-marker__badge {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #b45309;
+  color: white;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px #0004;
+  font-size: 16px;
+  font-weight: 700;
+}
+.pg-place-marker--stop .pg-place-marker__badge {
+  background: #15803d;
+  font-size: 13px;
+}
+.pg-landmark-marker {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  max-width: 11rem;
+}
+.pg-landmark-marker__label {
+  padding: 4px 8px;
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  background: white;
+  color: #262626;
+  font:
+    600 12px/1.4 system-ui,
+    sans-serif;
+  text-align: center;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 6px #0002;
+}
+.pg-place-marker:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+.base-map .mapboxgl-popup-content {
+  max-width: 16rem;
+  border-radius: 12px;
+  padding: 16px 44px 16px 16px;
+  background: white;
+  color: #171717;
+  box-shadow: 0 4px 16px #0003;
+}
+.base-map .mapboxgl-popup-content h3 {
+  font:
+    600 14px/1.5 system-ui,
+    sans-serif;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.base-map .mapboxgl-popup-close-button {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+  color: #404040;
+  border-radius: 10px;
+}
+.base-map .mapboxgl-popup-close-button:focus-visible {
+  outline: 2px solid #15803d;
+  outline-offset: -3px;
+}
+.base-map .mapboxgl-canvas:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: -3px;
+}

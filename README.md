@@ -92,6 +92,23 @@ Choose **Guide's style**, **Explore together**, or **Just guide me** in the pers
 
 In development (`pnpm dev`), a **Next step** button beside Pause/Resume requests another step through the existing tour action. It is hidden in production builds.
 
+The development walking screen puts the full latest guide message immediately
+below those controls, with progress in a collapsed **Your walk** section beneath
+it. **Next step** uses the current position from the active GPS or simulation mode,
+sampling it again after any pending playback acknowledgement. An uncertain retry
+keeps its original payload and operation key.
+
+Switch to simulation mode and press **Move 300 m** to animate the walker along
+the displayed route over three seconds. Press **Stop moving** to stop midway;
+the next move continues from there. Movement stops at the route's end and respects
+reduced-motion settings. It does not request narration automatically. Use
+**Next step** to request guidance at the new position. The movement control is
+unavailable until route geometry is ready and is hidden in production.
+
+The map distinguishes GPS position, the simulated walker and numbered tour
+stops. Tap a stop to read its name. Street labels and an outlined route help
+orient the walk; marker numbers describe route order rather than visited stops.
+
 The tour page shows route position, the last recorded location, and the latest
 guide text beneath playback controls. Recorded history restores this summary
 after reload. A selected stop or walking target is labelled separately from a

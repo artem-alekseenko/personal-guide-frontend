@@ -23,14 +23,41 @@
     class="container mx-auto flex grow flex-col gap-y-4 py-4"
   >
     <!-- Map -->
-    <div class="relative">
+    <div class="relative mx-4">
       <client-only>
         <BaseMap
           ref="baseMapRef"
           :show-user-location="positionMode === 'gps'"
+          :initial-pitch="0"
           @map-initialized="handleMapInitialized"
         />
       </client-only>
+      <div
+        class="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-neutral-600 dark:text-neutral-300"
+        :aria-label="$t('components.map.legend')"
+      >
+        <span class="flex items-center gap-1.5"
+          ><span
+            aria-hidden="true"
+            class="h-2.5 w-2.5 rounded-full bg-blue-600"
+          ></span
+          >{{ $t("components.map.yourLocation") }}</span
+        >
+        <span class="flex items-center gap-1.5"
+          ><span
+            aria-hidden="true"
+            class="h-2.5 w-2.5 rounded bg-violet-600"
+          ></span
+          >{{ $t("components.map.simulatedWalker") }}</span
+        >
+        <span class="flex items-center gap-1.5"
+          ><span
+            aria-hidden="true"
+            class="h-2.5 w-2.5 rounded-full bg-green-700"
+          ></span
+          >{{ $t("components.map.tourStops") }}</span
+        >
+      </div>
     </div>
 
     <!-- Position Mode Toggle -->
@@ -91,13 +118,46 @@
           actions.isBusy.value ||
           state === STATE.TOUR_FINISHED
         "
-        @click="actions.getRecord(true)"
+        @click="requestNextStep"
       >
         {{ $t("buttons.devNextStep") }}
       </PGButton>
+      <PGButton
+        v-if="isDevelopment"
+        variant="outline"
+        :disabled="!walking.moving.value && !walking.canMove.value"
+        :aria-pressed="walking.moving.value"
+        @click="walking.moving.value ? walking.cancel() : walking.move()"
+      >
+        {{
+          $t(walking.moving.value ? "buttons.stopMoving" : "buttons.move300m")
+        }}
+      </PGButton>
+      <p
+        v-if="isDevelopment"
+        class="basis-full text-center text-xs text-neutral-600 dark:text-neutral-300"
+        role="status"
+      >
+        {{
+          $t(
+            !isManualMode
+              ? "components.map.enableSimulation"
+              : walking.atEnd.value
+                ? "components.map.routeEnd"
+                : !routeCoordinates.length
+                  ? "components.map.waitForRoute"
+                  : "components.map.simulationHint",
+          )
+        }}
+      </p>
     </div>
 
-    <TourProgressSummary v-if="tourProgress" :progress="tourProgress" />
+    <TourReadingPanel
+      v-if="isDevelopment"
+      :text="devGuideText"
+      :progress="tourProgress"
+    />
+    <TourProgressSummary v-else-if="tourProgress" :progress="tourProgress" />
 
     <CurrentStopExperience
       v-if="publicConfig.textExperienceEnabled"
@@ -108,6 +168,7 @@
 
     <!-- Text block -->
     <TourTextDisplay
+      v-if="!isDevelopment"
       ref="tourTextDisplayRef"
       v-model:scrollToHighlightEnabled="isScrollingToHighlightTextEnabled"
       :highlightSentence="currentHighlightSentence"
@@ -186,7 +247,7 @@ import { useTourCoordinates } from "~/composables/tour/useTourCoordinates";
 import { useTourAudioPlayer } from "~/composables/tour/useTourAudioPlayer";
 import { useTourActions } from "~/composables/tour/useTourActions";
 import { addPlaceMarkers, removePlaceMarkers } from "~/utils/mapMarkers";
-import type { TypeFrom } from "~/types";
+import type { TypeFrom, IGeoJSON } from "~/types";
 import BaseMap from "~/components/base/BaseMap.vue";
 import CurrentStopExperience from "~/components/tour/CurrentStopExperience.vue";
 import { useTourRequestStore } from "~/stores/tourRequestStore";
@@ -196,6 +257,9 @@ import { useTourProgress } from "~/composables/tour/useTourProgress";
 import { useExperienceStore } from "~/stores/experienceStore";
 import { useUserStore } from "~/stores/userStore";
 import TourProgressSummary from "~/components/tour/TourProgressSummary.vue";
+import TourReadingPanel from "~/components/tour/TourReadingPanel.vue";
+import { useRouteWalk } from "~/composables/map/useRouteWalk";
+import type { MapPoint } from "#shared/utils/routeMovement";
 
 const { public: publicConfig } = useRuntimeConfig();
 const isDevelopment = import.meta.dev;
@@ -247,7 +311,9 @@ const {
 const { positionMode, isManualMode } = usePositionMode();
 
 // Simulation marker (callback will be set after actions are created)
-const simulationMarker = useSimulationMarker();
+const simulationMarker = useSimulationMarker({
+  label: t("components.map.simulatedWalker"),
+});
 
 // Coordinates management
 const coordinates = useTourCoordinates({
@@ -301,16 +367,60 @@ const tourTextDisplayRef = ref<InstanceType<typeof TourTextDisplay> | null>(
 const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
 let mapInstance: mapboxgl.Map | null = null;
 const placesMarkers: Ref<mapboxgl.Marker[]> = ref([]);
+let stopMarkers: mapboxgl.Marker[] = [];
 const isMapFullyLoaded = ref(false);
 
 const mapInstanceRef = shallowRef<mapboxgl.Map | null>(null);
-const { initializeDirections, addRouteToMap, cleanup } = useMapboxDirections(
-  mapInstanceRef,
-  {
+const { initializeDirections, addRouteToMap, cleanup, routeCoordinates } =
+  useMapboxDirections(mapInstanceRef, {
     enableBounds: true,
     interactive: false,
-  },
+  });
+const walking = useRouteWalk({
+  enabled: computed(
+    () =>
+      isDevelopment &&
+      isManualMode.value &&
+      isMapFullyLoaded.value &&
+      state.value !== STATE.TOUR_FINISHED,
+  ),
+  busy: computed(() => requests.isBusy(tourId) || actions.isBusy.value),
+  geometry: computed(() =>
+    routeCoordinates.value.map((point) => [point[0], point[1]] as MapPoint),
+  ),
+  getPosition: simulationMarker.getMarkerPosition,
+  setPosition: simulationMarker.addSimulationMarker,
+});
+simulationMarker.setMoveStartCallback(walking.reset);
+simulationMarker.setMapGestureCallback(walking.cancel);
+const requestNextStep = () => {
+  walking.cancel();
+  return actions.getRecord(true);
+};
+const devGuideText = computed(
+  () => tourProgress.value?.latestText || tourStore.textForDisplay || "",
 );
+function updateStopMarkers() {
+  removePlaceMarkers(stopMarkers);
+  const features: IGeoJSON["features"] = (
+    tourStore.tour?.route.points ?? []
+  ).map((point, index) => ({
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: [Number(point.lng), Number(point.lat)],
+    },
+    properties: {
+      title:
+        point.name || t("tourProgress.stopNumber", { position: index + 1 }),
+    },
+  }));
+  stopMarkers = addPlaceMarkers(
+    mapInstance,
+    { type: "FeatureCollection", features },
+    true,
+  );
+}
 
 let routeTimer: ReturnType<typeof setInterval> | undefined;
 function tryAddRouteWithCheck(retries = 5, delay = 100) {
@@ -325,6 +435,7 @@ function tryAddRouteWithCheck(retries = 5, delay = 100) {
     if (mapInstance && tourStore.tour && isMapFullyLoaded.value) {
       logger.log(`Adding route, attempt ${retries - attempts + 1}`);
       addRouteToMap(tourStore.tour, isMapFullyLoaded);
+      updateStopMarkers();
       clearInterval(interval);
     } else if (--attempts <= 0) {
       clearInterval(interval);
@@ -512,11 +623,14 @@ onBeforeUnmount(() => {
   tourPageAlive = false;
   disposeLoader();
   if (routeTimer) clearInterval(routeTimer);
+  walking.cancel();
   actions.dispose();
 
   audioPlayer.cleanup();
 
-  simulationMarker.removeSimulationMarker();
+  simulationMarker.cleanup();
+  removePlaceMarkers(stopMarkers);
+  stopMarkers = [];
 
   removePlaceMarkers(placesMarkers.value);
   placesMarkers.value = [];

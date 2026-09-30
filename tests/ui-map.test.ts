@@ -57,6 +57,7 @@ beforeEach(() => {
   Object.assign(globalThis, {
     useRuntimeConfig: () => ({ public: { mapboxGlAccessToken: "fixture" } }),
     document: { createElement: () => ({}) },
+    useI18n: () => ({ t: (key: string) => key }),
   });
 });
 it("updates the location marker without taking control of the visitor's map", async () => {
@@ -65,6 +66,7 @@ it("updates the location marker without taking control of the visitor's map", as
   await nextTick();
   expect(fixture.maps[0].flyTo).not.toHaveBeenCalled();
   expect(fixture.markers.at(-1).point).toEqual([19.001, 47.001]);
+  expect(fixture.markers).toHaveLength(1);
   app.unmount();
   expect(fixture.maps[0].remove).toHaveBeenCalledOnce();
 });

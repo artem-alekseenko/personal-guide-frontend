@@ -4,11 +4,11 @@ import { useTourStore } from "~/stores/tourStore";
 import { usePositionMode } from "~/composables/map/usePositionMode";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useNotification } from "~/composables/ui/useNotification";
-import type { ITourRecordRequest } from "~/types";
 import type { TourState } from "./useTourState";
 import type { useTourAudioPlayer } from "./useTourAudioPlayer";
 import type { useTourCoordinates } from "./useTourCoordinates";
 import type { useSimulationMarker } from "~/composables/map/useSimulationMarker";
+import { readTourStepLocation } from "./tourStepLocation";
 
 const STATE = {
   INITIAL: "INITIAL",
@@ -118,20 +118,17 @@ export function useTourActions(options: TourActionsOptions) {
     try {
       await acknowledge("INTERRUPTED");
       if (disposed) return;
-      const gps: Partial<ITourRecordRequest> = {};
-      if (positionMode.value === "gps") {
-        const location = useGeolocationStore();
-        if (location.accuracy !== null && Number.isFinite(location.accuracy))
-          gps.location_accuracy_meters = Math.max(
-            0,
-            Math.min(10000, location.accuracy),
-          );
-        if (location.recordedAt) gps.location_recorded_at = location.recordedAt;
-      }
-      const record = await tourStore.fetchTourStep(
-        { lat: String(coords[1]), lng: String(coords[0]) },
-        { ...gps, ...(explicitResume ? { resume: true } : {}) },
+      // Acknowledgement can take time while the visitor moves. Sample again at dispatch.
+      const location = readTourStepLocation(
+        positionMode.value,
+        coordinates.getCurrentCoordinates,
+        useGeolocationStore(),
       );
+      if (!location) throw new Error("Current location is unavailable");
+      const record = await tourStore.fetchTourStep(location.point, {
+        ...location.options,
+        ...(explicitResume ? { resume: true } : {}),
+      });
       if (!record || disposed) return;
       setState(STATE.RECORD_RECEIVED);
       await playChunk();

@@ -4,12 +4,18 @@ import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-direct
 import { ref, readonly, type Ref, type ShallowRef } from "vue";
 import { useLogger } from "@/composables/utils/useLogger";
 import type { ICreatedTour } from "~/types";
+import {
+  decodeRouteGeometry,
+  type MapPoint,
+} from "#shared/utils/routeMovement";
 
 interface RouteEvent {
   route: Array<{
-    geometry: {
-      coordinates: [number, number][];
-    };
+    geometry:
+      | string
+      | {
+          coordinates: [number, number][];
+        };
   }>;
 }
 
@@ -53,6 +59,7 @@ export function useMapboxDirections(
 
   let directions: MapboxDirections | null = null;
   const isDirectionsReady = ref(false);
+  const routeCoordinates = ref<MapPoint[]>([]);
 
   const initializeDirections = (): MapboxDirections | null => {
     if (directions) {
@@ -76,31 +83,28 @@ export function useMapboxDirections(
         interactive: config.interactive,
       });
 
-      // Add event listener for route loading with bounds fitting
-      if (config.enableBounds) {
-        directions.on("route", (e: RouteEvent) => {
-          logger.log("Route loaded:", e);
-          if (mapInstance.value && e.route && Array.isArray(e.route)) {
-            const bounds = new mapboxgl.LngLatBounds();
-            e.route.forEach((leg) => {
-              if (leg.geometry && Array.isArray(leg.geometry.coordinates)) {
-                leg.geometry.coordinates.forEach((coord) => {
-                  if (Array.isArray(coord) && coord.length === 2) {
-                    bounds.extend(coord);
-                  }
-                });
-              }
-            });
+      // Keep the actual displayed path for local walking simulation, including legacy tours.
+      directions.on("route", (e: RouteEvent) => {
+        routeCoordinates.value = e.route?.[0]?.geometry
+          ? decodeRouteGeometry(e.route[0].geometry)
+          : [];
+        logger.log("Route loaded:", e);
+        if (
+          config.enableBounds &&
+          mapInstance.value &&
+          routeCoordinates.value.length
+        ) {
+          const bounds = new mapboxgl.LngLatBounds();
+          routeCoordinates.value.forEach((coord) => bounds.extend(coord));
 
-            if (!bounds.isEmpty()) {
-              mapInstance.value.fitBounds(bounds, {
-                padding: 50,
-                maxZoom: 15,
-              });
-            }
+          if (!bounds.isEmpty()) {
+            mapInstance.value.fitBounds(bounds, {
+              padding: 50,
+              maxZoom: 15,
+            });
           }
-        });
-      }
+        }
+      });
 
       directions.on("error", (e: Error) => {
         logger.error("Directions error:", e);
@@ -119,6 +123,7 @@ export function useMapboxDirections(
   };
 
   const clearDirections = (): void => {
+    routeCoordinates.value = [];
     clearStoredRoute(mapInstance.value);
     if (!directions) {
       logger.warn("Attempted to clear directions but none initialized");
@@ -134,6 +139,7 @@ export function useMapboxDirections(
   };
 
   const removeDirections = (): void => {
+    routeCoordinates.value = [];
     if (!directions) {
       logger.warn("Attempted to remove directions but none initialized");
       return;
@@ -206,6 +212,7 @@ export function useMapboxDirections(
   const setRoute = (coordinates: [number, number][]): boolean => {
     if (mapInstance.value) {
       directions?.removeRoutes();
+      routeCoordinates.value = coordinates;
       return renderStoredRoute(mapInstance.value, coordinates);
     }
     logger.log("Setting route with coordinates:", coordinates.length, "points");
@@ -270,10 +277,11 @@ export function useMapboxDirections(
       tour.route.geometry?.length
     ) {
       directions?.removeRoutes();
-      renderStoredRoute(
-        mapInstance.value,
-        tour.route.geometry.map((p) => [Number(p.lng), Number(p.lat)]),
-      );
+      routeCoordinates.value = tour.route.geometry.map((p) => [
+        Number(p.lng),
+        Number(p.lat),
+      ]);
+      renderStoredRoute(mapInstance.value, routeCoordinates.value);
       return;
     }
     if (!mapInstance.value || !directions) {
@@ -364,6 +372,7 @@ export function useMapboxDirections(
 
   return {
     // State
+    routeCoordinates: readonly(routeCoordinates),
     directions: readonly(ref(directions)),
     isDirectionsReady: readonly(isDirectionsReady),
 

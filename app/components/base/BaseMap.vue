@@ -28,6 +28,7 @@ import mapboxgl from "mapbox-gl";
 import { onMounted, onUnmounted, readonly, ref, watch } from "vue";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useLogger } from "~/composables/utils/useLogger";
+import { createPositionMarker } from "~/utils/positionMarker";
 
 const props = defineProps<{
   initialCenter?: [number, number];
@@ -52,6 +53,7 @@ mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
 
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
+const { t } = useI18n();
 const mapContainerRef = ref<HTMLElement | null>(null);
 let mapInstance: mapboxgl.Map | null = null;
 let userMarker: mapboxgl.Marker | null = null;
@@ -81,12 +83,14 @@ const addUserMarker = (lat: number, lng: number) => {
   if (userMarker?.getLngLat().lat === lat && userMarker.getLngLat().lng === lng)
     return;
 
-  userMarker?.remove();
   const coordinates: [number, number] = [lng, lat];
+  if (userMarker) {
+    userMarker.setLngLat(coordinates);
+    return;
+  }
 
   // Create a custom marker element
-  const el = document.createElement("div");
-  el.className = "user-marker";
+  const el = createPositionMarker("gps", t("components.map.yourLocation"));
 
   userMarker = new mapboxgl.Marker(el)
     .setLngLat(coordinates)
@@ -132,7 +136,7 @@ const initializeMap = async () => {
     mapInstance.on("style.load", () => {
       logger.log("Map style loaded, configuring...");
       if (!mapInstance) return;
-      mapInstance.setConfigProperty("basemap", "showRoadLabels", false);
+      mapInstance.setConfigProperty("basemap", "showRoadLabels", true);
       mapInstance.setConfigProperty("basemap", "showTransitLabels", false);
       mapInstance.setConfigProperty("basemap", "theme", "faded");
       mapInstance.setConfigProperty(
@@ -242,6 +246,9 @@ defineExpose({
 .base-map {
   position: relative;
   inline-size: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--ui-border);
 }
 .base-map__canvas {
   inline-size: 100%;
@@ -276,13 +283,5 @@ defineExpose({
   border-radius: 0.5rem;
   background: var(--fill-white);
   color: var(--fill-gray-900);
-}
-.user-marker {
-  width: 20px;
-  height: 20px;
-  background-color: #3b82f6;
-  border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 0 0 2px #3b82f6;
 }
 </style>

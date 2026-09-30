@@ -1,5 +1,6 @@
 import type { Map, GeoJSONSource } from "mapbox-gl";
 export const STORED_ROUTE_ID = "pg-stored-route";
+const ROUTE_OUTLINE_ID = `${STORED_ROUTE_ID}-outline`;
 /** Draw the provider's geometry without replacing it with a second route. */
 export function renderStoredRoute(
   map: Map,
@@ -18,6 +19,14 @@ export function renderStoredRoute(
   const source = map.getSource(STORED_ROUTE_ID) as GeoJSONSource | undefined;
   if (source) source.setData(data);
   else map.addSource(STORED_ROUTE_ID, { type: "geojson", data });
+  if (!map.getLayer(ROUTE_OUTLINE_ID))
+    map.addLayer({
+      id: ROUTE_OUTLINE_ID,
+      type: "line",
+      source: STORED_ROUTE_ID,
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.9 },
+    });
   if (!map.getLayer(STORED_ROUTE_ID))
     map.addLayer({
       id: STORED_ROUTE_ID,
@@ -40,5 +49,6 @@ export function renderStoredRoute(
 export function clearStoredRoute(map: Map | null) {
   if (!map) return;
   if (map.getLayer(STORED_ROUTE_ID)) map.removeLayer(STORED_ROUTE_ID);
+  if (map.getLayer(ROUTE_OUTLINE_ID)) map.removeLayer(ROUTE_OUTLINE_ID);
   if (map.getSource(STORED_ROUTE_ID)) map.removeSource(STORED_ROUTE_ID);
 }

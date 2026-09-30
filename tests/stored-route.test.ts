@@ -17,7 +17,10 @@ it("renders every stored geometry point without asking a routing provider", asyn
   expect(map.addSource.mock.calls[0][1].data.geometry.coordinates).toEqual(
     points,
   );
-  expect(map.addLayer).toHaveBeenCalledOnce();
+  expect(map.addLayer.mock.calls.map(([layer]) => layer.id)).toEqual([
+    "pg-stored-route-outline",
+    "pg-stored-route",
+  ]);
 });
 it("clears stored geometry when directions are invalidated", async () => {
   Object.assign(globalThis, {
