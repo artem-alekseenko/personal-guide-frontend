@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest";
+import { computed } from "vue";
 import { useExperienceStore } from "../app/stores/experienceStore";
 import { useTourRequestStore } from "../app/stores/tourRequestStore";
 import { reconcileAfterCommand } from "../shared/utils/reconcileAfterCommand";
@@ -32,6 +33,28 @@ it("keeps effective mode distinct from personal context after forgetting", async
   await store.load("tour", "owner");
   expect(store.view?.interaction_mode).toBe("leading");
   expect(store.view?.personal_context.interaction_mode).toBe("guide");
+});
+
+it("exposes progress state only for the matching tour and owner", async () => {
+  const store = useExperienceStore();
+  api.mockResolvedValueOnce(view(2));
+  await store.load("tour", "owner");
+  expect(store.viewFor("tour", "owner")?.revision).toBe(2);
+  expect(store.viewFor("other-tour", "owner")).toBeNull();
+  expect(store.viewFor("tour", "other-owner")).toBeNull();
+  store.reset();
+  expect(store.viewFor("tour", "owner")).toBeNull();
+});
+
+it("updates a scoped computed created before the experience loads", async () => {
+  const store = useExperienceStore();
+  const scoped = computed(() => store.viewFor("tour", "owner"));
+  expect(scoped.value).toBeNull();
+  api.mockResolvedValueOnce(view(3));
+  await store.load("tour", "owner");
+  expect(scoped.value?.revision).toBe(3);
+  store.reset();
+  expect(scoped.value).toBeNull();
 });
 
 it("applies the full context with revision, generation and an operation key", async () => {

@@ -190,6 +190,11 @@ export const useExperienceStore = defineStore("experience", () => {
   };
   return {
     view,
+    viewFor: (id: string, owner: string) => {
+      // Subscribe even before the scoped view loads; IDs are private metadata.
+      const current = view.value;
+      return id === tourId && owner === ownerId ? current : null;
+    },
     busy,
     hasPending,
     needsReconciliation,

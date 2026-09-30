@@ -1,6 +1,7 @@
 import type { PersonalContext } from "./personalContext";
 import type { LlmType } from "./llm";
 import type { GuideInteractionMode } from "#shared/types/guideInteraction";
+import type { ProgressRecord, ProgressState } from "#shared/utils/tourProgress";
 export interface ITour {
   id: number;
   image: string;
@@ -114,6 +115,7 @@ export interface ICreateTourRequest {
 }
 
 export interface ICreatedTour {
+  experience?: ProgressState;
   personal_context?: PersonalContext;
   id: string;
   name: string;
@@ -123,7 +125,7 @@ export interface ICreatedTour {
   guide_id: string;
   user_id: string;
   context: string;
-  history: string[];
+  history: (ProgressRecord | string)[];
   created_at: string;
   generated_at: string | null;
   finished_at: string | null;
@@ -150,6 +152,8 @@ export interface IPoint {
 }
 
 export interface ITourGuidance {
+  stop_id?: string | null;
+  stop_name?: string | null;
   action:
     | "ARRIVE"
     | "CONTINUE"

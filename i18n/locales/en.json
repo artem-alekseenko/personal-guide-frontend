@@ -217,6 +217,33 @@
     "MOCK": "Sample responses",
     "PERPLEXITY": "Perplexity"
   },
+  "tourProgress": {
+    "title": "Your walk",
+    "position": "Stop {position} of {total}",
+    "routePosition": "Route position",
+    "unknownPosition": "Route position not recorded",
+    "stopLabels": {
+      "confirmed": "Last confirmed stop",
+      "selected": "Selected stop",
+      "unconfirmed": "Last recorded stop",
+      "guide": "Guide's last stop",
+      "heading": "Heading to"
+    },
+    "locationStatus": {
+      "confirmed": "Location confirmed when recorded",
+      "selected": "Manually selected; location not confirmed",
+      "unconfirmed": "Location not confirmed",
+      "guide": "From the guide's recorded position; location not confirmed",
+      "heading": "Guidance target; arrival not confirmed"
+    },
+    "lastLocation": "Last recorded location",
+    "noLocation": "No recorded location yet",
+    "recordedAt": "Last recorded update",
+    "latestText": "Latest guide text",
+    "noText": "No guide text recorded yet",
+    "fullText": "Read full guide text",
+    "finished": "Walk finished"
+  },
   "experience": {
     "interactionStyle": "Guide interaction",
     "interactionModes": {

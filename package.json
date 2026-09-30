@@ -14,7 +14,7 @@
     "typecheck": "nuxt typecheck",
     "test:smoke": "node scripts/smoke.mjs",
     "test:dev": "node scripts/smoke.mjs --dev",
-    "test:text": "vitest run tests/experience*.test.ts tests/tour-contract.test.ts tests/stored-route.test.ts tests/client-auth.test.ts tests/auth.test.ts tests/navigation*.test.ts tests/route-preferences-proxy.test.ts tests/text-rendering.test.ts tests/personal-preferences.test.ts tests/tour-requests.test.ts tests/route-preview.test.ts tests/ui-*.test.ts tests/guide-interaction*.test.ts"
+    "test:text": "vitest run tests/experience*.test.ts tests/tour-contract.test.ts tests/tour-progress.test.ts tests/stored-route.test.ts tests/client-auth.test.ts tests/auth.test.ts tests/navigation*.test.ts tests/route-preferences-proxy.test.ts tests/text-rendering.test.ts tests/personal-preferences.test.ts tests/tour-requests.test.ts tests/route-preview.test.ts tests/ui-*.test.ts tests/guide-interaction*.test.ts"
   },
   "devDependencies": {
     "@firebase/app-types": "0.9.5",

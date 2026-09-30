@@ -97,6 +97,8 @@
       </PGButton>
     </div>
 
+    <TourProgressSummary v-if="tourProgress" :progress="tourProgress" />
+
     <CurrentStopExperience
       v-if="publicConfig.textExperienceEnabled"
       :tour-id="tourId"
@@ -190,6 +192,10 @@ import CurrentStopExperience from "~/components/tour/CurrentStopExperience.vue";
 import { useTourRequestStore } from "~/stores/tourRequestStore";
 import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
 import { useTourLoader } from "~/composables/tour/useTourLoader";
+import { useTourProgress } from "~/composables/tour/useTourProgress";
+import { useExperienceStore } from "~/stores/experienceStore";
+import { useUserStore } from "~/stores/userStore";
+import TourProgressSummary from "~/components/tour/TourProgressSummary.vue";
 
 const { public: publicConfig } = useRuntimeConfig();
 const isDevelopment = import.meta.dev;
@@ -206,6 +212,18 @@ const logger = useLogger();
 const { t } = useI18n();
 
 const tourId = route.params.tourId as string;
+const experiences = useExperienceStore();
+const users = useUserStore();
+const tourProgress = useTourProgress({
+  tour: computed(() => tourStore.tour),
+  record: computed(() => tourStore.currentTourRecord),
+  liveExperience: {
+    firebaseUid: computed(() =>
+      publicConfig.textExperienceEnabled ? (users.user?.uid ?? null) : null,
+    ),
+    viewFor: experiences.viewFor,
+  },
+});
 let tourPageAlive = true;
 const {
   loading: tourLoading,

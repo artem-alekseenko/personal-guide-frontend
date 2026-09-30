@@ -271,3 +271,22 @@ needed to remove that ambiguity.
 the nonaudio contract and UI. A development-only Next step button beside
 Pause/Resume calls the existing next-step action and is removed from production
 rendering by `import.meta.dev`. Its audio behavior has not been verified.
+
+## Tour progress display
+
+`TourProgressSummary` displays a read-only summary derived by
+`shared/utils/tourProgress.ts` and `useTourProgress`. The fetched tour provides
+structured `history` records and saved `experience` state; legacy string history
+entries are ignored. Live text state is read through `experienceStore.viewFor`
+only for the matching tour and Firebase UID (distinct from the backend's
+`tour.user_id`). An uninitialized saved text state falls back to historical
+guidance. Guidance stop IDs map to route position;
+walking targets and manually selected stops do not establish a physical visit.
+The meter reports route position, never a completion percentage. Explicit finish
+does not imply every stop was visited.
+
+The composable retains only guide-text/location metadata across empty live
+updates and clears it on tour/account changes. It requests no turns, starts no
+audio and stores no new browser data. Reload restoration uses existing backend
+history. `tests/tour-progress.test.ts` and `tests/ui-tour-progress*.test.ts` are
+approved nonaudio checks for derivation, isolation and rendered states.

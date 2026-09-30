@@ -92,6 +92,13 @@ Choose **Guide's style**, **Explore together**, or **Just guide me** in the pers
 
 In development (`pnpm dev`), a **Next step** button beside Pause/Resume requests another step through the existing tour action. It is hidden in production builds.
 
+The tour page shows route position, the last recorded location, and the latest
+guide text beneath playback controls. Recorded history restores this summary
+after reload. A selected stop or walking target is labelled separately from a
+confirmed stop. The position meter describes the stop's place in the route;
+finishing early does not imply that every stop was visited. Guide text is the
+recorded message, rather than proof that it was heard.
+
 Earlier conversation turns display their stop and source links available in the current session. The panel explains when the backend no longer supplies links for an older turn. If a request has an uncertain outcome, retry it or reload to reconcile state. Text activities do not pause existing audio.
 
 ## Commands and verification
