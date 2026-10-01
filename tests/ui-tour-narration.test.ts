@@ -8,6 +8,7 @@ const input = {
   accuracy: 5,
   recordedAt: "2026-10-01T11:59:55Z",
   visitorText: "",
+  hasPublishedGeneration: true,
 };
 
 it("requests a full stationary story at a stop instead of the walking budget", () => {
@@ -42,4 +43,18 @@ it("requests the question budget without treating a question as physical arrival
       now,
     ),
   ).toEqual({ duration: 90, requested_mode: "QUESTION" });
+});
+
+it("lets legacy location guidance choose a longer stop story for a simulated position", () => {
+  expect(
+    tourNarrationOptions(
+      {
+        ...input,
+        hasPublishedGeneration: false,
+        accuracy: undefined,
+        recordedAt: undefined,
+      },
+      now,
+    ),
+  ).toEqual({ duration: 90, requested_mode: "WALKING" });
 });

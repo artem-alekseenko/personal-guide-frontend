@@ -266,6 +266,7 @@ export const useTourStore = defineStore("tourStore", () => {
           recordedAt: options.location_recorded_at,
           pace: options.pace,
           visitorText: message,
+          hasPublishedGeneration: !!_tour.value?.playback_generation_id,
         },
         Date.now(),
       ),

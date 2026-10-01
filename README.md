@@ -130,7 +130,13 @@ or another eligibility condition changes.
 At a stop with a fresh, accurate GPS fix, the client requests the backend's
 90-second stationary story budget instead of its default 20-second walking mode.
 Visitor questions also use the 90-second budget. Moving or uncertain locations
-retain brief orientation. These are upper targets: supported evidence, prepared
+retain brief orientation on tours with a published generation. Legacy tours
+request a 90-second upper target and let backend location guidance choose a
+20-second walking transition or a longer stop story. Simulated coordinates never
+acquire GPS metadata; move the marker close to a stop for its story. Simulation
+does not trigger automatic continuation. Empty replies caused by no new content
+or no location change show a hint to move closer or ask a specific question.
+These are upper targets: supported evidence, prepared
 content and backend policy determine how much text is actually returned.
 
 The text panel and automatic-continuation frontend flags are enabled by default,

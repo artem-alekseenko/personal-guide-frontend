@@ -169,6 +169,14 @@
       </p>
     </div>
 
+    <p
+      v-if="waitHint"
+      class="mx-4 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+      role="status"
+    >
+      {{ $t(`components.tourPage.${waitHint}`) }}
+    </p>
+
     <TourReadingPanel
       v-if="isDevelopment"
       :text="devGuideText"
@@ -272,6 +280,7 @@ import { useTourRequestStore } from "~/stores/tourRequestStore";
 import TourTextDisplay from "~/components/tour/TourTextDisplay.vue";
 import { useTourLoader } from "~/composables/tour/useTourLoader";
 import { useTourProgress } from "~/composables/tour/useTourProgress";
+import { tourWaitHint } from "#shared/utils/tourNarration";
 import { useExperienceStore } from "~/stores/experienceStore";
 import { useUserStore } from "~/stores/userStore";
 import TourProgressSummary from "~/components/tour/TourProgressSummary.vue";
@@ -326,6 +335,11 @@ const {
   shouldRestoreState,
   getSavedAudioPosition,
 } = useTourState(tourId);
+const waitHint = computed(() =>
+  state.value === STATE.RECORD_FINISHED
+    ? tourWaitHint(tourStore.currentTourRecord?.guidance)
+    : null,
+);
 
 const { positionMode, isManualMode } = usePositionMode();
 

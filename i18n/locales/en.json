@@ -169,7 +169,9 @@
       "realGeolocation": "📍 Real Geolocation",
       "geolocationSimulation": "🎯 Geolocation Simulation",
       "usingRealLocation": "Using your real location",
-      "clickToSimulate": "Click on map or drag marker to simulate position",
+      "noMoreHere": "No new story was returned at this position. Move closer to a stop or ask a specific question.",
+      "observingWait": "The guide is waiting while you listen or look around. Press Continue when ready.",
+      "clickToSimulate": "Click the map or drag the marker to simulate your position. Move near a stop for its story. Automatic continuation requires real GPS.",
       "enterQuestion": "Enter your question...",
       "sendQuestion": "Send question",
       "completeTour": "Complete the tour"
