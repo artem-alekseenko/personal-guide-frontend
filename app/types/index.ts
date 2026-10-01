@@ -206,6 +206,13 @@ export interface IGeoJSON {
 import type { VoiceType } from "./voice";
 
 export interface ITourRecordRequest {
+  requested_mode?:
+    | "WALKING"
+    | "ARRIVAL"
+    | "STATIONARY"
+    | "QUESTION"
+    | "TRANSITION"
+    | "QUIET";
   duration: number;
   point: ICoordinate;
   user_text: string;

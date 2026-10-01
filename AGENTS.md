@@ -137,7 +137,7 @@ Supply config-time values when building; changing only the runtime environment d
 - Route suggestions validate bounds and translate `lat`/`lng` into `curr_lat`/`curr_lng`; the proxy derives map coordinates from the first route. Creation sends that route's points, selected `guide_id`, and selected tags as `{ name, value }` settings.
 - Guide and tour list proxies unwrap `{ guides }` and `{ tours }` into arrays. `useGetTourRecord` combines `record` with response-level `places`, `audio_data`, and `route_points`. The tour store applies returned route points to the active route.
 - `routeStore` polls lists every five seconds while a tour has status `GENERATING` without a preparation error, and retries list failures on the same schedule. The list page stops polling on exit and distinguishes loading, empty, and failed states.
-- `tourStore` caches the current tour and manages narration text, visitor questions, and places. Its `/next` request uses duration 100, the selected `type_llm` (default `DEFAULT`), and the selected voice type. GPS requests include available accuracy and fix timestamp; unknown pace is omitted. Uncertain narration failures retain the original request payload and operation ID even if GPS changes. Definitive input/auth rejections discard that pending operation.
+- `tourStore` caches the current tour and manages narration text, visitor questions, and places. Its `/next` request uses the selected `type_llm` (default `DEFAULT`) and voice type. `shared/utils/tourNarration.ts` requests `STATIONARY` with a 90-second target when fresh GPS is within the conservative stop threshold, `QUESTION` with 90 seconds for visitor text, or `WALKING` with 20 seconds otherwise. Backend evidence and mode budgets still determine actual length. GPS requests include available accuracy and fix timestamp; unknown pace is omitted. Uncertain narration failures retain the original request payload and operation ID even if GPS changes. Definitive input/auth rejections discard that pending operation.
 - `useTourState` saves state/audio position under `tour-state-{tourId}` with a 24-hour expiry. Audio resume rewinds five seconds. Restoration requires the matching in-memory audio record and restores paused state, never an active player after a page reload.
 - `useTourAudioPlayer` plays base64 audio through an HTML audio element and estimates text highlighting from playback progress. Clean up object URLs, audio, Mapbox objects/listeners, timers, and geolocation watchers when modifying lifecycle code.
 - GPS is the default position mode; manual mode uses a draggable simulation marker. `usePositionMode` shares the choice through Nuxt state and persists it under `tour-position-mode`. Missing GPS must not fall back to a landmark; route-point fallback is for manual simulation only. Maps initialize even if location permission is denied.
@@ -340,8 +340,11 @@ Both use the authenticated same-origin proxy. Pause takes effect locally before 
 cancellation. Explicit text actions await cancellation without pausing audio.
 Visitor actions, GPS uncertainty/movement, preferences, hidden pages, navigation
 and account/tour/generation changes suspend continuation. Cancellation epochs
-also fence the asynchronous activation handoff. The checkbox is page-session
-state. Pending prepare/activate/cancel metadata is saved under
+also fence the asynchronous activation handoff. There is no feature-toggle/status
+section in the tour UI; continuation defaults on and the main Pause button cancels
+it. Each newly STARTED segment can prepare once when 40 seconds remain. Explicit
+actions reconcile pending mutations before proceeding; failed reconciliation
+shows a retry/reload notification. Pending prepare/activate/cancel metadata is saved under
 `pg-story-buffer-{backend_user_id}-{tour_id}-{generation_id}`; it includes GPS
 metadata, operation IDs and buffer identity, no tokens, visitor text or media.
 Do not copy it into logs. Recovery stays paused and never replays consumed content.
@@ -350,6 +353,9 @@ existing metadata and cancels an old prepared buffer rather than auto-restoring 
 
 `tests/ui-story-buffer*.test.ts` verifies pure controller transitions, proxy
 metadata, map focus and idempotent record adoption without media/player execution.
+`tests/ui-tour-narration.test.ts` checks request budgets/modes and conservative GPS
+eligibility as pure metadata; the chained controller test checks successive turns
+and cancellation on pause.
 The browser adapter, recordings, playback timing and live backend behavior are
 unqualified; the existing explicit-human-approval audio restriction still applies.
 

@@ -40,6 +40,60 @@ export interface StoryBufferTransport {
   state: () => Promise<StoryBufferState>;
 }
 
+/** Shared physical evidence policy; requesting detail never creates GPS evidence. */
+export function isStoryFixAtStop(
+  value: {
+    point: StoryPoint | null;
+    stopPoint: StoryPoint | null;
+    accuracy: number | null;
+    recordedAt: string | null;
+  },
+  now: number,
+): boolean {
+  if (
+    !value.point ||
+    !value.stopPoint ||
+    value.accuracy === null ||
+    !Number.isFinite(value.accuracy) ||
+    value.accuracy < 0 ||
+    value.accuracy > 50 ||
+    !value.recordedAt
+  )
+    return false;
+  const age = now - Date.parse(value.recordedAt);
+  if (!Number.isFinite(age) || age < -30_000 || age > 90_000) return false;
+  const values = [
+    value.point.lat,
+    value.point.lng,
+    value.stopPoint.lat,
+    value.stopPoint.lng,
+  ];
+  if (values.some((v) => !v.trim() || !Number.isFinite(Number(v))))
+    return false;
+  const [lat, lng, stopLat, stopLng] = values.map(Number) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  if (
+    Math.abs(lat) > 90 ||
+    Math.abs(stopLat) > 90 ||
+    Math.abs(lng) > 180 ||
+    Math.abs(stopLng) > 180
+  )
+    return false;
+  const radians = Math.PI / 180;
+  const a =
+    Math.sin(((stopLat - lat) * radians) / 2) ** 2 +
+    Math.cos(lat * radians) *
+      Math.cos(stopLat * radians) *
+      Math.sin(((stopLng - lng) * radians) / 2) ** 2;
+  const distance =
+    6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+  return distance + value.accuracy <= 40;
+}
+
 /** Same conservative fix/proximity policy as backend story-buffer activation. */
 export function storyPosition(
   value: StoryObservation,
@@ -55,45 +109,11 @@ export function storyPosition(
     !value.segmentId ||
     !value.stopId ||
     !value.point ||
-    !value.stopPoint ||
     value.accuracy === null ||
-    !Number.isFinite(value.accuracy) ||
-    value.accuracy < 0 ||
-    value.accuracy > 50 ||
-    !value.recordedAt
+    !value.recordedAt ||
+    !isStoryFixAtStop(value, now)
   )
     return null;
-  const age = now - Date.parse(value.recordedAt);
-  if (!Number.isFinite(age) || age < -30_000 || age > 90_000) return null;
-  const values = [
-    value.point.lat,
-    value.point.lng,
-    value.stopPoint.lat,
-    value.stopPoint.lng,
-  ];
-  if (values.some((v) => !v.trim() || !Number.isFinite(Number(v)))) return null;
-  const [lat, lng, stopLat, stopLng] = values.map(Number) as [
-    number,
-    number,
-    number,
-    number,
-  ];
-  if (
-    Math.abs(lat) > 90 ||
-    Math.abs(stopLat) > 90 ||
-    Math.abs(lng) > 180 ||
-    Math.abs(stopLng) > 180
-  )
-    return null;
-  const radians = Math.PI / 180;
-  const a =
-    Math.sin(((stopLat - lat) * radians) / 2) ** 2 +
-    Math.cos(lat * radians) *
-      Math.cos(stopLat * radians) *
-      Math.sin(((stopLng - lng) * radians) / 2) ** 2;
-  const distance =
-    6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
-  if (distance + value.accuracy > 40) return null;
   return {
     generation_id: value.generationId,
     current_segment_id: value.segmentId,

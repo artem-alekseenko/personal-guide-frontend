@@ -176,29 +176,6 @@
     />
     <TourProgressSummary v-else-if="tourProgress" :progress="tourProgress" />
 
-    <section
-      v-if="publicConfig.storyBufferEnabled"
-      class="mx-4 grid gap-2 rounded-xl border p-3"
-    >
-      <label class="flex items-center gap-2">
-        <input v-model="continuation.enabled.value" type="checkbox" />
-        {{ $t("storyBuffer.enabled") }}
-      </label>
-      <p class="text-sm" role="status">
-        {{ $t(`storyBuffer.${continuation.status.value}`) }}
-      </p>
-      <p v-if="positionMode !== 'gps'" class="text-sm">
-        {{ $t("storyBuffer.gpsRequired") }}
-      </p>
-      <PGButton
-        v-if="continuation.status.value === 'uncertain'"
-        variant="outline"
-        @click="continuation.reconcile"
-      >
-        {{ $t("storyBuffer.reconcile") }}
-      </PGButton>
-    </section>
-
     <CurrentStopExperience
       v-if="publicConfig.textExperienceEnabled"
       :tour-id="tourId"

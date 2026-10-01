@@ -35,8 +35,7 @@ export function useStoryContinuation(options: {
     geo = useGeolocationStore();
   const auth = useAuth(),
     { positionMode } = usePositionMode();
-  const enabled = ref(options.featureEnabled),
-    visible = ref(true),
+  const visible = ref(true),
     revision = ref(0);
   let controller: ReturnType<typeof createStoryBufferController> | null = null;
   let alive = true;
@@ -89,10 +88,7 @@ export function useStoryContinuation(options: {
         checkpoint?.segment === record?.playback_segment_id &&
         checkpoint?.delivery === "STARTED",
       enabled:
-        options.featureEnabled &&
-        enabled.value &&
-        positionMode.value === "gps" &&
-        !geo.error,
+        options.featureEnabled && positionMode.value === "gps" && !geo.error,
       visible: visible.value,
       playing: options.state.value === "RECORD_ACTIVE",
       finished:
@@ -218,7 +214,6 @@ export function useStoryContinuation(options: {
   };
   watch(
     [
-      enabled,
       positionMode,
       () => geo.coordinates,
       () => geo.accuracy,
@@ -269,7 +264,6 @@ export function useStoryContinuation(options: {
     document.removeEventListener("visibilitychange", onVisibility);
   });
   return {
-    enabled,
     status,
     suspend,
     complete: () => controller?.complete() ?? Promise.resolve(false),

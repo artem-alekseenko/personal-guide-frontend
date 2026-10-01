@@ -14,6 +14,7 @@ import { useFinishTour } from "~/composables/api/tours/useFinishTour";
 import ensureSentenceEndsProperly from "~/utils/pages/ensureSentenceEndsProperly";
 import { activatedStoryRecord } from "~/utils/activatedStoryRecord";
 import type { StoryBufferView, StoryPoint } from "#shared/types/storyBuffer";
+import { tourNarrationOptions } from "#shared/utils/tourNarration";
 
 type Operation = { payload: string; id: string; params: ITourRecordRequest };
 type Delivery = "STARTED" | "COMPLETED" | "INTERRUPTED";
@@ -257,7 +258,17 @@ export const useTourStore = defineStore("tourStore", () => {
     const { userPreferences } = useAuth();
     const message = pendingOperation?.params.user_text ?? userText.value;
     const record = await requestRecord({
-      duration: 100,
+      ...tourNarrationOptions(
+        {
+          point,
+          stops: _tour.value?.route.points ?? [],
+          accuracy: options.location_accuracy_meters,
+          recordedAt: options.location_recorded_at,
+          pace: options.pace,
+          visitorText: message,
+        },
+        Date.now(),
+      ),
       point,
       user_text: message,
       type_llm: userPreferences.value.llmType,

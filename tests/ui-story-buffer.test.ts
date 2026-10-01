@@ -94,6 +94,9 @@ function fixture() {
         if (failure) throw new Error("Response lost");
         return {
           ...activated,
+          buffer_id: id,
+          segment_id: id,
+          discussion_focus: { ...activated.discussion_focus!, turn_id: id },
           status:
             reply.status === "already_consumed"
               ? "already_consumed"
@@ -193,6 +196,49 @@ it("prepares once within 40 seconds and leaves the current story visible until c
   });
   expect(f.shown).toEqual([{ view: activated, recovered: false }]);
 });
+it("prepares successive started stories at 40 seconds and stops the chain on pause", async () => {
+  const f = fixture();
+  f.change({ remainingSeconds: 40 });
+  await f.controller.observe();
+  f.change({ playing: false, remainingSeconds: 0 });
+  expect(await f.controller.complete()).toBe(true);
+
+  f.change({ segmentId: "buffer", playing: true, remainingSeconds: 80 });
+  f.reply({ ...prepared, buffer_id: "second-buffer" });
+  await f.controller.observe();
+  expect(f.requests.map((r) => r.action)).toEqual(["prepare", "activate"]);
+  f.change({ remainingSeconds: 40 });
+  await f.controller.observe();
+  f.change({ playing: false, remainingSeconds: 0 });
+  expect(await f.controller.complete()).toBe(true);
+
+  f.change({ segmentId: "second-buffer", playing: true, remainingSeconds: 40 });
+  f.reply({ ...prepared, buffer_id: "third-buffer" });
+  await f.controller.observe();
+  f.change({ playing: false, waiting: true });
+  await f.controller.suspend("pause");
+  await f.controller.observe();
+  expect(await f.controller.complete()).toBe(false);
+  expect(f.requests.map((r) => r.action)).toEqual([
+    "prepare",
+    "activate",
+    "prepare",
+    "activate",
+    "prepare",
+    "cancel",
+  ]);
+  expect(
+    f.requests
+      .filter((r) => r.action === "prepare")
+      .map((r) => r.body.current_segment_id),
+  ).toEqual(["current", "buffer", "second-buffer"]);
+  expect(f.shown.map((story) => story.view.segment_id)).toEqual([
+    "buffer",
+    "second-buffer",
+  ]);
+  expect(f.requests.at(-1)?.body.reason).toBe("pause");
+});
+
 it.each([
   { started: false },
   { enabled: false },
