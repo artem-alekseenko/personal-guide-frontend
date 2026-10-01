@@ -174,7 +174,7 @@ Playback recovery can include location and pending visitor text. It contains no 
 - Supported languages are English and Russian, matching the backend `Language` enum. French translation files alone do not establish backend narration support.
 - Voice choices are `DEFAULT`, `CARTESIA`, and `MOCK`; default selection delegates to backend configuration. MOCK means sample audio, not generated speech or browser TTS. Real speech requires a configured backend provider.
 - The tour page handles nullable audio and intentional `WAIT` responses without appending empty text or starting playback. Text highlighting uses shared state. Autoplay rejection leaves a Play action available.
-- Narration is request-driven. The main button starts/continues narration, pauses active audio, or resumes a paused segment. Visitor questions request a new turn. Dragging the simulation marker requests a turn only in `RECORD_FINISHED`. GPS watches update position but do not schedule `/next`; audio completion acknowledges the segment without requesting the next one. The map's route timer only retries route rendering.
+- Narration is request-driven. The main button starts/continues narration, pauses active audio, or resumes a paused segment. Visitor questions request a new turn. Dragging the simulation marker requests a turn only in `RECORD_FINISHED`. GPS watches update position but do not schedule `/next`; audio completion acknowledges the segment. Automatic same-stop continuation, when enabled and eligible, uses the separate story-buffer contract described below. The map's route timer only retries route rendering.
 - `useTourActions.isBusy` blocks overlapping user actions. `onAudioEnded` sends `COMPLETED`; starting another turn or finishing interrupts an unfinished segment. `dispose()` stops local audio and ignores late UI work. Do not assume browser unload can deliver an acknowledgement; preserve durable recovery.
 - Backend guidance actions include `ARRIVE`, `CONTINUE`, `WALK`, `ANSWER`, `LOCATE`, `COMPLETE`, and `WAIT`. `requires_resume` determines the paused state for silent records. Backend `COMPLETE` guidance is distinct from the explicit `/finish` mutation. `useTourSpeech` contains a browser speech helper, but the current tour action flow uses backend audio through `useTourAudioPlayer`.
 - Pause/resume send persistent backend controls using duration-zero requests. These requests do not replace the current playable record. Segment start/completion/interruption acknowledgements are serialized. Account/tour-scoped `pg-playback-{user_id}-{tour_id}` recovery records retain segment delivery state and pending request payloads/keys across reloads, and are removed after successful completion. They contain no bearer tokens or audio. Completion calls `/finish` and navigates only on success.
@@ -210,7 +210,7 @@ Node is installed through NVM. Noninteractive shells may need `source "$HOME/.nv
 
 ## Current-stop text milestone
 
-`NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED=true` exposes `CurrentStopExperience`; the backend must also enable `TEXT_EXPERIENCE_ENABLED`. Defaults are off. `experienceStore` is separate from playback and resets on account/tour changes. It forwards revision and generation identity with an idempotency key; uncertain actions must be retried or explicitly reconciled by reloading. The proxy uses the existing authenticated same-origin API boundary. Personal context is per tour; saving or clearing future preferences is an explicit profile action. No text activity pauses existing audio.
+`NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED=true` exposes `CurrentStopExperience`; the backend must also enable `TEXT_EXPERIENCE_ENABLED`. The frontend default is on by explicit user instruction; backend enablement remains separate. `experienceStore` is separate from playback and resets on account/tour changes. It forwards revision and generation identity with an idempotency key; uncertain actions must be retried or explicitly reconciled by reloading. The proxy uses the existing authenticated same-origin API boundary. Personal context is per tour; saving or clearing future preferences is an explicit profile action. No text activity pauses existing audio.
 
 Creation uses the selected suggested variant, preserving named stops separately from route geometry. Changing start/duration invalidates the suggestion. New tours draw their stored geometry directly rather than requesting a second route; legacy tours retain the existing map path. Context form fields are optional. The text feature's Python/client tests do not establish live GPS, provider factual accuracy, field accessibility or public-launch readiness.
 
@@ -312,6 +312,46 @@ camera movement, extra request or browser persistence. Reload resolves known
 route subjects from backend history; response-only `places` are not in saved
 history. `tests/ui-guide-map-objects.test.ts` and
 `tests/ui-guide-map-markers.test.ts` are approved nonaudio checks in `test:text`.
+
+## Automatic same-stop continuation
+
+The user explicitly enabled both frontend feature flags. `storyBufferEnabled`
+and `textExperienceEnabled` default to true; local runtime overrides are
+`NUXT_PUBLIC_STORY_BUFFER_ENABLED` and `NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED`.
+Backend flags remain separate. Contract source: the supplied sibling worktree
+`.private/worktrees/system-improvement/current_implementation/proposed_tour_generation/story_buffer_contract.md`;
+compare its executable `models/story_buffer.py` and `services/story_buffer_service.py`
+when changing this integration. A legacy/disabled backend reports unavailable.
+
+`shared/types/storyBuffer.ts` and `shared/utils/storyBuffer.ts` own typed metadata
+and control transitions. `useStoryContinuation` samples actual remaining time
+while a STARTED segment is active and prepares once at `0 < remaining <= 40`.
+GPS must have accuracy <= 50 m, fix age -30..90 seconds and distance plus accuracy
+<= 40 m from the same stop. Manual coordinates never become GPS evidence.
+Preparation retains the old record, checkpoint, text and map focus. Activation
+supplies the explicit completed anchor; backend completes it and activates the
+new segment atomically. Only the activated response is adopted by `tourStore`.
+Discussion focus is independent of the visitor point. Media is an existing
+owner-scoped artifact through `/api/tour-artifacts/*`, never synthesis.
+
+Buffer mutations use the existing per-tour request queue. Metadata GET reads
+are scope-fenced and do not block manual controls when no mutation is pending.
+Both use the authenticated same-origin proxy. Pause takes effect locally before network
+cancellation. Explicit text actions await cancellation without pausing audio.
+Visitor actions, GPS uncertainty/movement, preferences, hidden pages, navigation
+and account/tour/generation changes suspend continuation. Cancellation epochs
+also fence the asynchronous activation handoff. The checkbox is page-session
+state. Pending prepare/activate/cancel metadata is saved under
+`pg-story-buffer-{backend_user_id}-{tour_id}-{generation_id}`; it includes GPS
+metadata, operation IDs and buffer identity, no tokens, visitor text or media.
+Do not copy it into logs. Recovery stays paused and never replays consumed content.
+Reconciliation preserves original uncertain request payloads/keys. Startup reads
+existing metadata and cancels an old prepared buffer rather than auto-restoring it.
+
+`tests/ui-story-buffer*.test.ts` verifies pure controller transitions, proxy
+metadata, map focus and idempotent record adoption without media/player execution.
+The browser adapter, recordings, playback timing and live backend behavior are
+unqualified; the existing explicit-human-approval audio restriction still applies.
 
 ## Development walking screen
 

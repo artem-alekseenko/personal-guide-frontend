@@ -22,6 +22,7 @@ const STATE = {
   ERROR: "ERROR",
 } as const;
 export interface TourActionsOptions {
+  completeBufferedStory?: () => Promise<boolean>;
   state: Ref<TourState>;
   setState: (
     state: TourState,
@@ -58,7 +59,13 @@ export function useTourActions(options: TourActionsOptions) {
   const acknowledge = (delivery: "STARTED" | "COMPLETED" | "INTERRUPTED") =>
     tourStore.acknowledgePlayback(delivery);
   const playChunk = async (position?: number) => {
-    if (!tourStore.textForSpeech || !tourStore.currentTourRecord?.audio_data) {
+    if (
+      !tourStore.textForSpeech ||
+      !(
+        tourStore.currentTourRecord?.audio_data ||
+        tourStore.currentTourRecord?.audio_blob
+      )
+    ) {
       setState(
         tourStore.currentTourRecord?.guidance?.requires_resume
           ? STATE.RECORD_PAUSED
@@ -140,7 +147,13 @@ export function useTourActions(options: TourActionsOptions) {
   };
   const resumeTour = async () => {
     if (isBusy.value) return;
-    if (!tourStore.currentTourRecord?.audio_data || !tourStore.textForSpeech)
+    if (
+      !(
+        tourStore.currentTourRecord?.audio_data ||
+        tourStore.currentTourRecord?.audio_blob
+      ) ||
+      !tourStore.textForSpeech
+    )
       return getRecord(true);
     isBusy.value = true;
     try {
@@ -160,6 +173,7 @@ export function useTourActions(options: TourActionsOptions) {
     if (disposed) return;
     setState(STATE.RECORD_FINISHED);
     try {
+      if (await options.completeBufferedStory?.()) return;
       await acknowledge("COMPLETED");
     } catch (error) {
       fail(error);

@@ -168,6 +168,11 @@ export interface ITourGuidance {
 }
 
 export interface ITourRecord {
+  playback_generation_id?: string | null;
+  playback_wait_kind?: string | null;
+  audio_artifact_ids?: string[];
+  audio_blob?: Blob | null;
+  discussion_focus?: import("#shared/types/storyBuffer").StoryBufferView["discussion_focus"];
   route_points?: IRoutePoint[];
   playback_segment_id?: string | null;
   playback_action_types?: string[];

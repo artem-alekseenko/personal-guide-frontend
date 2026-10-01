@@ -55,7 +55,13 @@ export const useTourState = (tourId: string) => {
       }
 
       const store = useTourStore();
-      if (store.tour?.id !== tourId || !store.currentTourRecord?.audio_data)
+      if (
+        store.tour?.id !== tourId ||
+        !(
+          store.currentTourRecord?.audio_data ||
+          store.currentTourRecord?.audio_blob
+        )
+      )
         return "INITIAL";
       if (
         ["RECORD_ACTIVE", "RECORD_RECEIVED", "RECORD_PAUSED"].includes(

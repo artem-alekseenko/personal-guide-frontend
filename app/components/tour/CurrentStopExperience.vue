@@ -337,6 +337,7 @@ import {
   type GuideInteractionMode,
 } from "#shared/types/guideInteraction";
 const props = defineProps<{
+  beforeVisitorAction?: () => Promise<void>;
   tourId: string;
   requestBusy?: boolean;
   guideMode?: GuideInteractionMode;
@@ -407,9 +408,13 @@ async function perform(task: () => Promise<unknown>) {
 }
 async function send(input: Interaction) {
   if (blocked.value) return false;
-  return perform(() =>
-    store.act({ ...input, type_llm: auth.userPreferences.value.llmType }),
-  );
+  return perform(async () => {
+    const current = session;
+    if (input.action !== "LOCATION_UPDATE") await props.beforeVisitorAction?.();
+    if (!alive || current !== session || blocked.value)
+      throw new Error("The current stop changed");
+    await store.act({ ...input, type_llm: auth.userPreferences.value.llmType });
+  });
 }
 async function selectStop() {
   if (!(await send({ action: "CONTINUE", stop_id: selected.value })))

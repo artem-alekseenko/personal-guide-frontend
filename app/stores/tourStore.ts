@@ -12,6 +12,8 @@ import { useNotification } from "~/composables/ui/useNotification";
 import { useAuth } from "~/composables/auth/useAuth";
 import { useFinishTour } from "~/composables/api/tours/useFinishTour";
 import ensureSentenceEndsProperly from "~/utils/pages/ensureSentenceEndsProperly";
+import { activatedStoryRecord } from "~/utils/activatedStoryRecord";
+import type { StoryBufferView, StoryPoint } from "#shared/types/storyBuffer";
 
 type Operation = { payload: string; id: string; params: ITourRecordRequest };
 type Delivery = "STARTED" | "COMPLETED" | "INTERRUPTED";
@@ -134,6 +136,37 @@ export const useTourStore = defineStore("tourStore", () => {
 
   const setUserText = (text: string): void => {
     _userText.value = text;
+  };
+
+  const adoptBufferedStory = (view: StoryBufferView, point: StoryPoint) => {
+    if (
+      !_tour.value ||
+      _tour.value.playback_generation_id !== view.generation_id
+    )
+      throw new Error("The tour generation changed");
+    const record = activatedStoryRecord(view, point, _tour.value.route.points);
+    if (
+      _currentTourRecord.value?.playback_segment_id ===
+        record.playback_segment_id &&
+      checkpoint?.segment === record.playback_segment_id
+    )
+      return;
+    checkpoint = {
+      segment: record.playback_segment_id!,
+      point,
+      delivery: "GENERATED",
+    };
+    setCurrentTourRecord(record);
+    setTextForSpeech(record.message);
+    appendToTextForDisplay(record.message);
+    saveRecovery();
+  };
+  const attachBufferedRecording = (segment: string, blob: Blob) => {
+    if (_currentTourRecord.value?.playback_segment_id === segment)
+      _currentTourRecord.value = {
+        ..._currentTourRecord.value,
+        audio_blob: blob,
+      };
   };
 
   // Actions
@@ -330,6 +363,9 @@ export const useTourStore = defineStore("tourStore", () => {
   };
 
   return {
+    adoptBufferedStory,
+    attachBufferedRecording,
+    getPlaybackCheckpoint: () => (checkpoint ? { ...checkpoint } : null),
     reset,
     sendPlaybackControl,
     acknowledgePlayback,

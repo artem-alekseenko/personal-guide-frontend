@@ -33,7 +33,8 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
   };
   const playAudio = async (startFromPosition?: number): Promise<boolean> => {
     const data = tourStore.currentTourRecord?.audio_data;
-    if (!data) return false;
+    const blob = tourStore.currentTourRecord?.audio_blob;
+    if (!data && !blob) return false;
     if (!audioElement.value) {
       const audio = new Audio();
       audioElement.value = audio;
@@ -50,7 +51,7 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
     const audio = audioElement.value;
     audio.pause();
     const url = createAudioUrl(
-      base64ToAudioBlob(data),
+      blob ?? base64ToAudioBlob(data!),
       currentAudioUrl.value ?? undefined,
     );
     currentAudioUrl.value = url;

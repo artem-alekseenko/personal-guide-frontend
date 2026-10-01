@@ -1,4 +1,19 @@
 {
+  "storyBuffer": {
+    "enabled": "Keep telling me more while I stay here",
+    "gpsRequired": "Automatic stories need a fresh, accurate GPS position at this stop.",
+    "reconcile": "Check prepared story",
+    "idle": "The next story will be requested with up to 40 seconds left.",
+    "preparing": "Preparing another story. Your current story continues.",
+    "prepared": "Another story is ready for when this one finishes.",
+    "activating": "Starting the prepared story…",
+    "exhausted": "There are no more supported prepared stories for this segment.",
+    "unavailable": "Automatic continuation is unavailable for this tour or backend.",
+    "uncertain": "The story request could not be confirmed. Check it before continuing.",
+    "reconciling": "Checking the story request…",
+    "consumed": "This prepared story has already been used; it will not replay.",
+    "suspended": "Automatic continuation is suspended. Continue the tour when ready."
+  },
   "notifications": {
     "title": "Notification",
     "message": "Please review this message.",

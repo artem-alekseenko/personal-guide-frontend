@@ -176,11 +176,35 @@
     />
     <TourProgressSummary v-else-if="tourProgress" :progress="tourProgress" />
 
+    <section
+      v-if="publicConfig.storyBufferEnabled"
+      class="mx-4 grid gap-2 rounded-xl border p-3"
+    >
+      <label class="flex items-center gap-2">
+        <input v-model="continuation.enabled.value" type="checkbox" />
+        {{ $t("storyBuffer.enabled") }}
+      </label>
+      <p class="text-sm" role="status">
+        {{ $t(`storyBuffer.${continuation.status.value}`) }}
+      </p>
+      <p v-if="positionMode !== 'gps'" class="text-sm">
+        {{ $t("storyBuffer.gpsRequired") }}
+      </p>
+      <PGButton
+        v-if="continuation.status.value === 'uncertain'"
+        variant="outline"
+        @click="continuation.reconcile"
+      >
+        {{ $t("storyBuffer.reconcile") }}
+      </PGButton>
+    </section>
+
     <CurrentStopExperience
       v-if="publicConfig.textExperienceEnabled"
       :tour-id="tourId"
       :guide-mode="tourStore.tour?.guide?.interaction_mode"
       :request-busy="actions.isBusy.value"
+      :before-visitor-action="() => continuation.suspend('question')"
     />
 
     <!-- Text block -->
@@ -257,6 +281,7 @@ import { useMapboxDirections } from "@/composables/map/useMapboxDirections";
 import { useTourTextSync } from "@/composables/tour/useTourTextSync";
 import { useLogger } from "@/composables/utils/useLogger";
 import { useGeolocationStore } from "~/stores/geolocationStore";
+import { useStoryContinuation } from "~/composables/tour/useStoryContinuation";
 import { usePositionMode } from "~/composables/map/usePositionMode";
 import { useSimulationMarker } from "~/composables/map/useSimulationMarker";
 import { useTourCoordinates } from "~/composables/tour/useTourCoordinates";
@@ -351,6 +376,7 @@ const audioPlayer = useTourAudioPlayer({
 
 // Tour actions
 const actions = useTourActions({
+  completeBufferedStory: () => continuation.complete(),
   state,
   setState,
   clearSavedState,
@@ -360,9 +386,23 @@ const actions = useTourActions({
   simulationMarker,
 });
 
+const continuation = useStoryContinuation({
+  tourId,
+  featureEnabled: publicConfig.storyBufferEnabled,
+  state,
+  setState,
+  remainingSeconds: () => {
+    const audio = audioPlayer.audioElement.value;
+    return audio ? audio.duration - audio.currentTime : NaN;
+  },
+  play: () => actions.playChunk(),
+});
+
 simulationMarker.setDragEndCallback(() => {
   if (state.value === STATE.RECORD_FINISHED) {
-    actions.getRecord();
+    void cancelContinuation("movement").then((cancelled) => {
+      if (cancelled) return actions.getRecord();
+    });
   }
 });
 
@@ -409,8 +449,9 @@ const walking = useRouteWalk({
 });
 simulationMarker.setMoveStartCallback(walking.reset);
 simulationMarker.setMapGestureCallback(walking.cancel);
-const requestNextStep = () => {
+const requestNextStep = async () => {
   walking.cancel();
+  if (!(await cancelContinuation("visitor_cancel"))) return;
   return actions.getRecord(true);
 };
 const devGuideText = computed(
@@ -508,10 +549,36 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
 /* -------------------------------------------
    Actions (delegated to useTourActions)
 ------------------------------------------- */
-const handleTourButtonClick = () => actions.handleTourButtonClick();
-const handleCompleteTour = () => actions.handleCompleteTour();
+async function cancelContinuation(
+  reason: import("#shared/types/storyBuffer").CancelReason,
+) {
+  try {
+    await continuation.suspend(reason);
+    return true;
+  } catch (error) {
+    useNotification().showApiError(error, t("storyBuffer.uncertain"));
+    return false;
+  }
+}
+const handleTourButtonClick = async () => {
+  const pausing = state.value === STATE.RECORD_ACTIVE;
+  if (pausing) {
+    audioPlayer.pauseAudio();
+    setState(STATE.RECORD_PAUSED, undefined, audioPlayer.getCurrentPosition());
+  }
+  if (!(await cancelContinuation(pausing ? "pause" : "visitor_cancel"))) return;
+  if (pausing) return actions.pauseTour();
+  return actions.handleTourButtonClick();
+};
+const handleCompleteTour = async () => {
+  audioPlayer.stopAudio();
+  if (!(await cancelContinuation("completion"))) return;
+  return actions.handleCompleteTour();
+};
 
 async function addQuestion() {
+  audioPlayer.stopAudio();
+  if (!(await cancelContinuation("question"))) return;
   await actions.addQuestion(userText.value);
   if (state.value !== STATE.ERROR) userText.value = "";
 }
