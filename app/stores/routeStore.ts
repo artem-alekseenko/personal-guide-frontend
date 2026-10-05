@@ -44,7 +44,9 @@ export const useRouteStore = defineStore("routeStore", () => {
   const _interval = ref<NodeJS.Timeout | null>(null);
   const isLoading = ref(false);
   let pollingEnabled = true;
-  let requestVersion = 0;
+  let suggestionVersion = 0;
+  // Account resets invalidate all work; draft revisions only invalidate suggestions.
+  let accountEpoch = 0;
   let contextInitialized = false;
   let draftConsumed = false;
   let contextEdited = false;
@@ -110,7 +112,7 @@ export const useRouteStore = defineStore("routeStore", () => {
     () => JSON.stringify(effectiveContext.value),
     () => {
       contextEdited = true;
-      requestVersion++;
+      suggestionVersion++;
       _routeSuggestion.value = null;
     },
     { flush: "sync" },
@@ -149,7 +151,7 @@ export const useRouteStore = defineStore("routeStore", () => {
 
   const setStartPoint = (newPoint: ICoordinate): void => {
     if (JSON.stringify(_startPoint.value) !== JSON.stringify(newPoint)) {
-      requestVersion++;
+      suggestionVersion++;
       _routeSuggestion.value = null;
     }
     _startPoint.value = newPoint;
@@ -157,7 +159,7 @@ export const useRouteStore = defineStore("routeStore", () => {
 
   const setDuration = (newDuration: string): void => {
     if (_duration.value !== newDuration) {
-      requestVersion++;
+      suggestionVersion++;
       _routeSuggestion.value = null;
     }
     _duration.value = newDuration;
@@ -224,12 +226,12 @@ export const useRouteStore = defineStore("routeStore", () => {
       personal_context_enabled: String(effectiveContext.value.enabled),
     };
 
-    const version = ++requestVersion;
+    const version = ++suggestionVersion;
     const routeSuggestions = await useTourSuggestions(params);
-    if (version === requestVersion) setRouteSuggestion(routeSuggestions);
+    if (version === suggestionVersion) setRouteSuggestion(routeSuggestions);
   };
 
-  const fetchCreateRoute = async (): Promise<void> => {
+  const fetchCreateRoute = async (): Promise<boolean> => {
     const selected = selectedRoute.value;
     if (!canCreate.value || !selected?.stops)
       throw new Error("Select a validated route first");
@@ -257,7 +259,9 @@ export const useRouteStore = defineStore("routeStore", () => {
       }));
 
     if (!guidesStore.selectedGuide?.id) throw new Error("Select a guide first");
-    const version = requestVersion;
+    const session = accountEpoch;
+    const user = useUserStore();
+    const uid = user.user?.uid;
     const payload: ICreateTourRequest = {
       guide_id: guidesStore.selectedGuide?.id || "",
       route,
@@ -274,11 +278,12 @@ export const useRouteStore = defineStore("routeStore", () => {
     try {
       error.value = null;
       const tour = await useCreateTour(payload);
-      if (version === requestVersion) {
-        setActualTour(tour);
-        draftConsumed = true;
-      }
+      if (session !== accountEpoch || user.user?.uid !== uid) return false;
+      setActualTour(tour);
+      draftConsumed = true;
+      return true;
     } catch (e) {
+      if (session !== accountEpoch || user.user?.uid !== uid) return false;
       error.value = e instanceof Error ? e.message : "Failed to create route";
       throw e;
     }
@@ -287,19 +292,21 @@ export const useRouteStore = defineStore("routeStore", () => {
   const fetchListTours = async (): Promise<void> => {
     if (isLoading.value) return;
     pollingEnabled = true;
-    const version = requestVersion;
+    const session = accountEpoch;
+    const user = useUserStore();
+    const uid = user.user?.uid;
     isLoading.value = true;
     try {
       error.value = null;
       const tours = await useListTours();
-      if (version !== requestVersion) return;
+      if (session !== accountEpoch || user.user?.uid !== uid) return;
       _allTours.value = tours;
       _actualTour.value = tours[0] ?? null;
     } catch (e) {
-      if (version === requestVersion)
+      if (session === accountEpoch && user.user?.uid === uid)
         error.value = e instanceof Error ? e.message : "Failed to load tours";
     } finally {
-      if (version === requestVersion) {
+      if (session === accountEpoch && user.user?.uid === uid) {
         isLoading.value = false;
         if (_interval.value) clearTimeout(_interval.value);
         const pending = _allTours.value.some(
@@ -316,7 +323,8 @@ export const useRouteStore = defineStore("routeStore", () => {
 
   const reset = () => {
     stopPolling();
-    requestVersion++;
+    accountEpoch++;
+    suggestionVersion++;
     _allTours.value = [];
     _actualTour.value = null;
     _routeSuggestion.value = null;

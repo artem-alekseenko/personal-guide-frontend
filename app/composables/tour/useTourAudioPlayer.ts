@@ -1,6 +1,8 @@
 import { ref, shallowRef } from "vue";
 import { useTourStore } from "~/stores/tourStore";
 import { useTourTextSync } from "./useTourTextSync";
+import { canResumeTourRecord } from "~/utils/tourControls";
+import type { ITourRecord } from "~/types";
 import {
   base64ToAudioBlob,
   cleanupAudioUrl,
@@ -17,6 +19,7 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
   const { highlightSentence } = useTourTextSync();
   const audioElement = shallowRef<HTMLAudioElement | null>(null);
   const currentAudioUrl = ref<string | null>(null);
+  let loadedRecord: ITourRecord | null = null;
   let attempt = 0;
   const start = async (): Promise<boolean> => {
     const audio = audioElement.value;
@@ -32,8 +35,9 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
     }
   };
   const playAudio = async (startFromPosition?: number): Promise<boolean> => {
-    const data = tourStore.currentTourRecord?.audio_data;
-    const blob = tourStore.currentTourRecord?.audio_blob;
+    const record = tourStore.currentTourRecord;
+    const data = record?.audio_data;
+    const blob = record?.audio_blob;
     if (!data && !blob) return false;
     if (!audioElement.value) {
       const audio = new Audio();
@@ -56,6 +60,7 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
     );
     currentAudioUrl.value = url;
     audio.src = url;
+    loadedRecord = record ?? null;
     audio.onloadedmetadata = () => {
       if (startFromPosition !== undefined)
         audio.currentTime = Math.max(
@@ -79,7 +84,12 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
     if (audioElement.value) audioElement.value.currentTime = 0;
   };
   const canResumeAudio = () =>
-    !!audioElement.value?.src && audioElement.value.readyState >= 2;
+    canResumeTourRecord(
+      tourStore.currentTourRecord,
+      loadedRecord,
+      audioElement.value?.readyState ?? 0,
+      !!audioElement.value?.src,
+    );
   const resumeAudioFromSavedPosition = async () => {
     if (!audioElement.value) return false;
     const saved = options.getSavedAudioPosition?.();
@@ -100,6 +110,7 @@ export function useTourAudioPlayer(options: TourAudioPlayerOptions = {}) {
       audio.load();
     }
     audioElement.value = null;
+    loadedRecord = null;
     if (currentAudioUrl.value) cleanupAudioUrl(currentAudioUrl.value);
     currentAudioUrl.value = null;
   };

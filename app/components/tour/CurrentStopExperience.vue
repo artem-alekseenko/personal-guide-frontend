@@ -391,7 +391,21 @@ const actions = computed(() =>
   buttons.filter((a) => store.view?.available_actions.includes(a)),
 );
 let session = 0;
-let initialContextRead: { session: number; snapshot: string } | null = null;
+let contextVersion = 0;
+let syncedContextVersion = 0;
+let contextWriteVersion: number | null = null;
+let initialContextRead: { session: number; version: number } | null = null;
+watch(
+  context,
+  () => {
+    contextVersion++;
+  },
+  { deep: true, flush: "sync" },
+);
+function syncContext(value: PersonalContext) {
+  context.value = JSON.parse(JSON.stringify(value));
+  syncedContextVersion = contextVersion;
+}
 let alive = true,
   timer: ReturnType<typeof setInterval> | undefined;
 async function perform(task: () => Promise<unknown>) {
@@ -408,12 +422,27 @@ async function perform(task: () => Promise<unknown>) {
 }
 async function send(input: Interaction) {
   if (blocked.value) return false;
+  const writesContext =
+    input.action === "UPDATE_CONTEXT" || input.action === "FORGET_CONTEXT";
+  const submittedVersion = contextVersion;
+  const submitted = input.context
+    ? { ...input, context: JSON.parse(JSON.stringify(input.context)) }
+    : input;
   return perform(async () => {
     const current = session;
     if (input.action !== "LOCATION_UPDATE") await props.beforeVisitorAction?.();
     if (!alive || current !== session || blocked.value)
       throw new Error("The current stop changed");
-    await store.act({ ...input, type_llm: auth.userPreferences.value.llmType });
+    if (writesContext) contextWriteVersion = submittedVersion;
+    try {
+      await store.act({
+        ...submitted,
+        type_llm: auth.userPreferences.value.llmType,
+      });
+      await nextTick();
+    } finally {
+      if (current === session && writesContext) contextWriteVersion = null;
+    }
   });
 }
 async function selectStop() {
@@ -463,15 +492,17 @@ watch(
   { immediate: true },
 );
 watch(
-  () => JSON.stringify(store.view?.personal_context),
+  () => store.view,
   () => {
     if (!store.view) return;
     if (
       initialContextRead?.session === session &&
-      JSON.stringify(context.value) !== initialContextRead.snapshot
+      contextVersion !== initialContextRead.version
     )
       return;
-    context.value = JSON.parse(JSON.stringify(store.view.personal_context));
+    if (contextVersion !== (contextWriteVersion ?? syncedContextVersion))
+      return;
+    syncContext(store.view.personal_context);
   },
   { immediate: true },
 );
@@ -506,7 +537,8 @@ watch(
     session++;
     question.value = "";
     error.value = "";
-    context.value = emptyPersonalContext();
+    syncContext(emptyPersonalContext());
+    contextWriteVersion = null;
     selected.value = "";
     saved.value = false;
     saving.value = false;
@@ -518,14 +550,12 @@ watch(
         const loading = store.load(tour, uid);
         // load resets a changed tour/account before returning its promise.
         if (store.view) {
-          context.value = JSON.parse(
-            JSON.stringify(store.view.personal_context),
-          );
+          syncContext(store.view.personal_context);
           selected.value = store.view.stop_id ?? "";
         }
         initialContextRead = {
           session: current,
-          snapshot: JSON.stringify(context.value),
+          version: contextVersion,
         };
         try {
           await loading;

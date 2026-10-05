@@ -1,119 +1,130 @@
 <template>
   <div class="user-settings">
     <SettingsSavingOverlay :is-saving="isSavingPreferences" />
-    <div class="user-settings__profile">
-      <h3 class="user-settings__title">
-        {{ $t("pages.settings.profile") }}
-      </h3>
-      <div class="user-settings__profile-row">
-        <div
-          v-if="!userAvatar || userAvatar === '/default-avatar.png'"
-          class="user-settings__avatar-placeholder"
+    <fieldset
+      class="user-settings__controls"
+      :disabled="isSavingPreferences"
+      :inert="isSavingPreferences"
+      :aria-busy="isSavingPreferences"
+    >
+      <div class="user-settings__profile">
+        <h3 class="user-settings__title">
+          {{ $t("pages.settings.profile") }}
+        </h3>
+        <div class="user-settings__profile-row">
+          <div
+            v-if="!userAvatar || userAvatar === '/default-avatar.png'"
+            class="user-settings__avatar-placeholder"
+          >
+            <span class="user-settings__initial">
+              {{ userName.charAt(0).toUpperCase() }}
+            </span>
+          </div>
+          <img
+            v-else
+            :alt="userName"
+            :src="userAvatar"
+            class="user-settings__avatar-img"
+          />
+          <div class="user-settings__profile-info">
+            <h4 class="user-settings__name">
+              {{ userName }}
+            </h4>
+            <p class="user-settings__email">
+              {{ profile?.email }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="user-settings__preferences">
+        <h3 class="user-settings__title">
+          {{ $t("pages.settings.preferences") }}
+        </h3>
+
+        <div class="user-settings__preferences-list">
+          <LanguageSelector
+            :preferences="preferences"
+            @update:preferences="handlePreferencesUpdate"
+          />
+
+          <LlmTypeSelector
+            :preferences="preferences"
+            @update:preferences="handlePreferencesUpdate"
+          />
+
+          <VoiceTypeSelector
+            :preferences="preferences"
+            @update:preferences="handlePreferencesUpdate"
+          />
+        </div>
+      </div>
+
+      <div v-if="stats" class="user-settings__stats">
+        <h3 class="user-settings__title">
+          {{ $t("pages.settings.statistics") }}
+        </h3>
+
+        <div class="user-settings__stats-grid">
+          <div class="user-settings__stat-card user-settings__stat-card--blue">
+            <div class="user-settings__stat-value">
+              {{ stats.totalTours }}
+            </div>
+            <div class="user-settings__stat-label">
+              {{ $t("pages.settings.totalTours") }}
+            </div>
+          </div>
+
+          <div class="user-settings__stat-card user-settings__stat-card--green">
+            <div class="user-settings__stat-value">
+              {{ stats.completedTours }}
+            </div>
+            <div class="user-settings__stat-label">
+              {{ $t("pages.settings.completed") }}
+            </div>
+          </div>
+
+          <div
+            class="user-settings__stat-card user-settings__stat-card--purple"
+          >
+            <div class="user-settings__stat-value">
+              {{ formatDistance(stats.totalDistance) }}
+            </div>
+            <div class="user-settings__stat-label">
+              {{ $t("pages.settings.distance") }}
+            </div>
+          </div>
+
+          <div
+            class="user-settings__stat-card user-settings__stat-card--orange"
+          >
+            <div class="user-settings__stat-value">
+              {{ formatTime(stats.totalTime) }}
+            </div>
+            <div class="user-settings__stat-label">
+              {{ $t("pages.settings.time") }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="user-settings__actions">
+        <button
+          class="user-settings__btn user-settings__btn--reset"
+          type="button"
+          @click="resetSettings"
         >
-          <span class="user-settings__initial">
-            {{ userName.charAt(0).toUpperCase() }}
-          </span>
-        </div>
-        <img
-          v-else
-          :alt="userName"
-          :src="userAvatar"
-          class="user-settings__avatar-img"
-        />
-        <div class="user-settings__profile-info">
-          <h4 class="user-settings__name">
-            {{ userName }}
-          </h4>
-          <p class="user-settings__email">
-            {{ profile?.email }}
-          </p>
-        </div>
+          {{ $t("common.reset") }}
+        </button>
+        <button
+          class="user-settings__btn user-settings__btn--logout"
+          type="button"
+          @click="logout"
+        >
+          {{ $t("common.logout") }}
+        </button>
       </div>
-    </div>
-
-    <div class="user-settings__preferences">
-      <h3 class="user-settings__title">
-        {{ $t("pages.settings.preferences") }}
-      </h3>
-
-      <div class="user-settings__preferences-list">
-        <LanguageSelector
-          :preferences="preferences"
-          @update:preferences="handlePreferencesUpdate"
-        />
-
-        <LlmTypeSelector
-          :preferences="preferences"
-          @update:preferences="handlePreferencesUpdate"
-        />
-
-        <VoiceTypeSelector
-          :preferences="preferences"
-          @update:preferences="handlePreferencesUpdate"
-        />
-      </div>
-    </div>
-
-    <div v-if="stats" class="user-settings__stats">
-      <h3 class="user-settings__title">
-        {{ $t("pages.settings.statistics") }}
-      </h3>
-
-      <div class="user-settings__stats-grid">
-        <div class="user-settings__stat-card user-settings__stat-card--blue">
-          <div class="user-settings__stat-value">
-            {{ stats.totalTours }}
-          </div>
-          <div class="user-settings__stat-label">
-            {{ $t("pages.settings.totalTours") }}
-          </div>
-        </div>
-
-        <div class="user-settings__stat-card user-settings__stat-card--green">
-          <div class="user-settings__stat-value">
-            {{ stats.completedTours }}
-          </div>
-          <div class="user-settings__stat-label">
-            {{ $t("pages.settings.completed") }}
-          </div>
-        </div>
-
-        <div class="user-settings__stat-card user-settings__stat-card--purple">
-          <div class="user-settings__stat-value">
-            {{ formatDistance(stats.totalDistance) }}
-          </div>
-          <div class="user-settings__stat-label">
-            {{ $t("pages.settings.distance") }}
-          </div>
-        </div>
-
-        <div class="user-settings__stat-card user-settings__stat-card--orange">
-          <div class="user-settings__stat-value">
-            {{ formatTime(stats.totalTime) }}
-          </div>
-          <div class="user-settings__stat-label">
-            {{ $t("pages.settings.time") }}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="user-settings__actions">
-      <button
-        class="user-settings__btn user-settings__btn--reset"
-        type="button"
-        @click="resetSettings"
-      >
-        {{ $t("common.reset") }}
-      </button>
-      <button
-        class="user-settings__btn user-settings__btn--logout"
-        type="button"
-        @click="logout"
-      >
-        {{ $t("common.logout") }}
-      </button>
-    </div>
+    </fieldset>
   </div>
 </template>
 
@@ -156,11 +167,13 @@ const updatePreferences = async () => {
 };
 
 const handlePreferencesUpdate = async (newPreferences: IUserPreferences) => {
+  if (isSavingPreferences.value) return;
   preferences.value = newPreferences;
   await updatePreferences();
 };
 
 const resetSettings = async () => {
+  if (isSavingPreferences.value) return;
   preferences.value = {
     language: "en",
     voiceType: "DEFAULT",
@@ -170,6 +183,7 @@ const resetSettings = async () => {
 };
 
 const logout = async () => {
+  if (isSavingPreferences.value) return;
   await authLogout();
   await navigateTo("/");
 };
@@ -204,6 +218,13 @@ const formatTime = (minutes: number): string => {
 </script>
 
 <style scoped>
+.user-settings__controls {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .user-settings {
   padding: 1.5rem;
   border-radius: 0.5rem;

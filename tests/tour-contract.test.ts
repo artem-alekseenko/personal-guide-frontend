@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { useRouteStore } from "../app/stores/routeStore";
 const suggest = vi.hoisted(() => vi.fn());
+const list = vi.hoisted(() => vi.fn());
+vi.mock("../app/composables/api/tours/useListTours", () => ({
+  useListTours: list,
+}));
 vi.mock("../app/composables/api/useTourSuggestions", () => ({
   useTourSuggestions: suggest,
 }));
@@ -292,4 +296,104 @@ it("retains the operational interaction choice when personal memories are disabl
     note: "",
     interaction_mode: "leading",
   });
+});
+
+it.each(["duration", "context"])(
+  "finishes loading tours after a %s draft edit",
+  async (field) => {
+    const store = useRouteStore();
+    let resolveList!: (value: unknown) => void;
+    list.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveList = resolve;
+        }),
+    );
+    const loading = store.fetchListTours();
+    if (field === "duration") store.setDuration("30");
+    else store.personalContext.note = "Draft edit";
+    resolveList([{ id: "existing", status: "COMPLETED" }]);
+    await loading;
+    expect(store.isLoading).toBe(false);
+    expect(store.allTours.map((tour) => tour.id)).toEqual(["existing"]);
+    store.stopPolling();
+  },
+);
+
+it.each(["duration", "context"])(
+  "retains a successfully created tour after a %s draft edit",
+  async (field) => {
+    const store = useRouteStore();
+    store.setRouteSuggestion({
+      routes: [variant("easy")],
+      coordinates: [],
+      description: "",
+      high_places: [],
+    });
+    let resolveCreate!: (value: unknown) => void;
+    create.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    const creating = store.fetchCreateRoute();
+    if (field === "duration") store.setDuration("30");
+    else store.personalContext.note = "Later edit";
+    resolveCreate({ id: "created" });
+    expect(await creating).toBe(true);
+    expect(store.actualTour?.id).toBe("created");
+  },
+);
+
+it("keeps a late creation out of a reset account's draft", async () => {
+  const store = useRouteStore();
+  store.setRouteSuggestion({
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  let resolveCreate!: (value: unknown) => void;
+  create.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+  );
+  const creating = store.fetchCreateRoute();
+  store.reset();
+  resolveCreate({ id: "previous-account-tour" });
+  expect(await creating).toBe(false);
+  expect(store.actualTour).toBeNull();
+});
+
+it("keeps a reset list request from clearing a newer request's loading state", async () => {
+  const store = useRouteStore();
+  let resolveOld!: (value: unknown) => void;
+  let resolveNew!: (value: unknown) => void;
+  list.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveOld = resolve;
+      }),
+  );
+  const oldLoad = store.fetchListTours();
+  store.reset();
+  list.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveNew = resolve;
+      }),
+  );
+  const newLoad = store.fetchListTours();
+  resolveOld([{ id: "old" }]);
+  await oldLoad;
+  expect(store.isLoading).toBe(true);
+  expect(store.allTours).toEqual([]);
+  resolveNew([{ id: "new" }]);
+  await newLoad;
+  expect(store.isLoading).toBe(false);
+  expect(store.allTours.map((tour) => tour.id)).toEqual(["new"]);
+  store.stopPolling();
 });

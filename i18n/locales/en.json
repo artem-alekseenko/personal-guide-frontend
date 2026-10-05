@@ -105,7 +105,8 @@
       "createNewTour": "Create new tour",
       "noTours": "No tours available",
       "empty": "No tours yet. Create your first tour.",
-      "preparationFailed": "Tour preparation failed. Please create a new tour."
+      "preparationFailed": "Tour preparation failed. Please create a new tour.",
+      "missingGuide": "Guide unavailable"
     },
     "guides": {
       "title": "Guides",
@@ -121,7 +122,14 @@
       "minDuration": "5 min",
       "maxDuration": "60 min",
       "yourGuide": "Your Guide:",
-      "selectGuideAndCreate": "Select {name} and create tour"
+      "selectGuideAndCreate": "Select {name} and create tour",
+      "startLocation": "Starting point",
+      "useCurrentLocation": "Use my current location",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "applyStartLocation": "Use these coordinates",
+      "invalidStartLocation": "Enter a latitude between -90 and 90 and a longitude between -180 and 180.",
+      "locationUnavailable": "Current location is unavailable. Select a point on the map or enter coordinates."
     },
     "settings": {
       "title": "Settings",
@@ -134,7 +142,8 @@
       "completed": "Completed",
       "distance": "Distance",
       "time": "Time",
-      "llmType": "Model type"
+      "llmType": "Model type",
+      "saving": "Saving settings"
     }
   },
   "components": {

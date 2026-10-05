@@ -1,5 +1,6 @@
 <template>
-  <div v-if="isSaving" class="settings-saving-overlay">
+  <div v-if="isSaving" class="settings-saving-overlay" role="status">
+    <span class="sr-only">{{ $t("pages.settings.saving") }}</span>
     <!-- Spinner -->
     <div class="settings-saving-spinner">
       <div class="spinner-ring"></div>

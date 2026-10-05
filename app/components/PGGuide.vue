@@ -92,6 +92,11 @@ const selectGuide = () => {
   background-color: var(--fill-neutral-100);
 }
 
+.dark .pg-guide:hover {
+  border-color: var(--fill-neutral-600);
+  background-color: var(--fill-neutral-800);
+}
+
 .pg-guide__avatar {
   inline-size: 6rem;
   block-size: 6rem;

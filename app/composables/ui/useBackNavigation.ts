@@ -26,7 +26,7 @@ export const useBackNavigation = () => {
   // ----- Storage helpers -----
 
   const saveNavigationHistoryToStorage = (): void => {
-    if (import.meta.client) {
+    if (import.meta.client && isAuthenticated.value) {
       localStorage.setItem(
         "navigationHistory",
         JSON.stringify(navigationHistory.value),
@@ -41,6 +41,10 @@ export const useBackNavigation = () => {
 
   const initNavigationHistory = (): void => {
     if (!import.meta.client) return;
+    if (!isAuthenticated.value) {
+      clearNavigationHistory();
+      return;
+    }
 
     const saved = localStorage.getItem("navigationHistory");
     if (!saved) return;
@@ -58,6 +62,7 @@ export const useBackNavigation = () => {
   // ----- History mutation -----
 
   const clearNavigationHistory = (): void => {
+    throttledSaveNavigationHistory.cancel();
     navigationHistory.value = [];
     if (import.meta.client) {
       localStorage.removeItem("navigationHistory");
@@ -65,6 +70,7 @@ export const useBackNavigation = () => {
   };
 
   const addToNavigationHistory = (routePath: NavigationHistoryEntry): void => {
+    if (!isAuthenticated.value) return;
     if (routePath.includes("/settings") || routePath === "/") return;
 
     const last = navigationHistory.value[navigationHistory.value.length - 1];

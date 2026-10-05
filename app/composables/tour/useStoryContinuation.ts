@@ -20,6 +20,10 @@ import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useAuth } from "~/composables/auth/useAuth";
 import { usePositionMode } from "~/composables/map/usePositionMode";
 import type { TourState } from "./useTourState";
+import {
+  createTourContinuation,
+  resolveContinuationStop,
+} from "#shared/utils/tourContinuation";
 
 /** Browser adapter. Tests exercise the separate metadata controller, never this player flow. */
 export function useStoryContinuation(options: {
@@ -29,6 +33,7 @@ export function useStoryContinuation(options: {
   setState: (state: TourState) => void;
   remainingSeconds: () => number;
   play: () => Promise<void>;
+  requestNext: () => Promise<void>;
 }) {
   const tours = useTourStore(),
     users = useUserStore(),
@@ -41,6 +46,7 @@ export function useStoryContinuation(options: {
   let alive = true;
   let scope = "";
   let timer: ReturnType<typeof setInterval> | undefined;
+  let bufferUnsupported = false;
   const read = (): StoryObservation => {
     const record = tours.currentTourRecord,
       tour = tours.tour;
@@ -73,12 +79,14 @@ export function useStoryContinuation(options: {
         }) ?? [];
       if (candidates.length === 1) {
         const index = tour!.route.points.indexOf(candidates[0]!);
-        stopId = candidates[0]!.id || `route_point_${index}`;
+        stopId =
+          candidates[0]!.id ||
+          (tour!.playback_generation_id
+            ? `stop_${index}`
+            : `route_point_${index}`);
       }
     }
-    const stop = tour?.route.points.find(
-      (point, i) => (point.id || `route_point_${i}`) === stopId,
-    );
+    const stop = resolveContinuationStop(tour?.route.points ?? [], stopId);
     const checkpoint = tours.getPlaybackCheckpoint();
     return {
       generationId: tour?.playback_generation_id ?? null,
@@ -106,6 +114,40 @@ export function useStoryContinuation(options: {
       remainingSeconds: options.remainingSeconds(),
     };
   };
+  const fallback = createTourContinuation({
+    read: () => {
+      const evidence = read();
+      const record = tours.currentTourRecord;
+      const tour = tours.tour;
+      return {
+        ...evidence,
+        scope,
+        enabled:
+          evidence.enabled &&
+          !evidence.finished &&
+          !!users.user?.uid &&
+          tour?.id === options.tourId &&
+          !!tour.user_id,
+        turnId: record?.playback_segment_id || record?.id || null,
+        fallbackAvailable:
+          !tour?.playback_generation_id ||
+          (bufferUnsupported && !controller?.hasPending),
+        story:
+          !!record?.message.trim() &&
+          !["WAIT", "COMPLETE", "WALK", "LOCATE", "ANSWER"].includes(
+            record?.guidance?.action ?? "",
+          ),
+        phase:
+          options.state.value === "RECORD_ACTIVE"
+            ? ("playing" as const)
+            : options.state.value === "RECORD_FINISHED"
+              ? ("finished" as const)
+              : ("blocked" as const),
+        waiting: evidence.waiting,
+      };
+    },
+    request: options.requestNext,
+  });
   watch(
     () =>
       [
@@ -116,6 +158,8 @@ export function useStoryContinuation(options: {
       ] as const,
     ([uid, id, owner, generation]) => {
       const previous = controller;
+      fallback.suspend();
+      bufferUnsupported = false;
       controller = null;
       if (previous) void previous.suspend("visitor_cancel");
       scope = JSON.stringify([uid, id, owner, generation]);
@@ -148,9 +192,29 @@ export function useStoryContinuation(options: {
       } catch {
         /* Invalid device metadata is ignored. */
       }
+      const transport = useStoryBufferApi(id, uid);
+      const detectSupport = async <T>(
+        request: () => Promise<T>,
+      ): Promise<T> => {
+        try {
+          return await request();
+        } catch (error) {
+          const status =
+            (error as { statusCode?: number; status?: number }).statusCode ??
+            (error as { status?: number }).status;
+          if (scope === capturedScope && [404, 405].includes(status ?? 0))
+            bufferUnsupported = true;
+          throw error;
+        }
+      };
       const instance = createStoryBufferController({
         read,
-        transport: useStoryBufferApi(id, uid),
+        transport: {
+          ...transport,
+          state: () => detectSupport(transport.state),
+          prepare: (body, key) =>
+            detectSupport(() => transport.prepare(body, key)),
+        },
         recovery,
         current: () =>
           alive && scope === capturedScope && users.user?.uid === uid,
@@ -200,6 +264,7 @@ export function useStoryContinuation(options: {
     return controller?.status ?? "unavailable";
   });
   const suspend = async (reason: CancelReason) => {
+    fallback.suspend();
     const active = controller;
     await active?.suspend(reason);
     // A lost activation must be reconciled before another action can acknowledge its checkpoint.
@@ -210,7 +275,9 @@ export function useStoryContinuation(options: {
     }
   };
   const tick = () => {
-    if (controller?.status !== "reconciling") void controller?.observe();
+    fallback.observe();
+    if (!bufferUnsupported && controller?.status !== "reconciling")
+      void controller?.observe();
   };
   watch(
     [
@@ -230,10 +297,12 @@ export function useStoryContinuation(options: {
         state === "RECORD_PAUSED" ||
         state === "TOUR_FINISHED" ||
         state === "ERROR"
-      )
+      ) {
+        fallback.suspend();
         void controller?.suspend(
           state === "TOUR_FINISHED" ? "completion" : "pause",
         );
+      }
     },
     { flush: "sync" },
   );
@@ -245,12 +314,14 @@ export function useStoryContinuation(options: {
         auth.userPreferences.value.language,
       ]),
     () => {
+      fallback.suspend();
       void controller?.suspend("visitor_cancel");
     },
   );
   const onVisibility = () => {
     visible.value = !document.hidden;
     if (!visible.value) void controller?.suspend("visitor_cancel");
+    if (!visible.value) fallback.suspend();
   };
   onMounted(() => {
     visible.value = !document.hidden;
@@ -258,6 +329,7 @@ export function useStoryContinuation(options: {
     timer = setInterval(tick, 500);
   });
   onBeforeUnmount(() => {
+    fallback.suspend();
     void controller?.suspend("visitor_cancel");
     alive = false;
     if (timer) clearInterval(timer);
@@ -268,5 +340,6 @@ export function useStoryContinuation(options: {
     suspend,
     complete: () => controller?.complete() ?? Promise.resolve(false),
     reconcile: () => controller?.reconcile() ?? Promise.resolve(),
+    afterCompletion: () => fallback.afterCompletion(),
   };
 }

@@ -132,7 +132,7 @@ export interface ICreatedTour {
   status: string;
   settings: ISetting[];
   tags: string[];
-  guide: Omit<IGuide, "tours">;
+  guide: Omit<IGuide, "tours"> | null;
   preparation_error?: string | null;
   active_generation_id?: string | null;
   latest_generation_id?: string | null;

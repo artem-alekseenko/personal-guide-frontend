@@ -174,7 +174,7 @@ Playback recovery can include location and pending visitor text. It contains no 
 - Supported languages are English and Russian, matching the backend `Language` enum. French translation files alone do not establish backend narration support.
 - Voice choices are `DEFAULT`, `CARTESIA`, and `MOCK`; default selection delegates to backend configuration. MOCK means sample audio, not generated speech or browser TTS. Real speech requires a configured backend provider.
 - The tour page handles nullable audio and intentional `WAIT` responses without appending empty text or starting playback. Text highlighting uses shared state. Autoplay rejection leaves a Play action available.
-- Narration is request-driven. The main button starts/continues narration, pauses active audio, or resumes a paused segment. Visitor questions request a new turn. Dragging the simulation marker requests a turn only in `RECORD_FINISHED`. GPS watches update position but do not schedule `/next`; audio completion acknowledges the segment. Automatic same-stop continuation, when enabled and eligible, uses the separate story-buffer contract described below. The map's route timer only retries route rendering.
+- Narration is request-driven. The main button starts/continues narration, pauses active audio, or resumes a paused segment. Visitor questions request a new turn. Dragging the simulation marker requests a turn only in `RECORD_FINISHED`. GPS watches update position; automatic continuation observes that evidence and actual remaining time. Audio completion acknowledges the segment. Automatic same-stop continuation uses the story-buffer contract when available and a serialized completion fallback otherwise, as described below. The map's route timer only retries route rendering.
 - `useTourActions.isBusy` blocks overlapping user actions. `onAudioEnded` sends `COMPLETED`; starting another turn or finishing interrupts an unfinished segment. `dispose()` stops local audio and ignores late UI work. Do not assume browser unload can deliver an acknowledgement; preserve durable recovery.
 - Backend guidance actions include `ARRIVE`, `CONTINUE`, `WALK`, `ANSWER`, `LOCATE`, `COMPLETE`, and `WAIT`. `requires_resume` determines the paused state for silent records. Backend `COMPLETE` guidance is distinct from the explicit `/finish` mutation. `useTourSpeech` contains a browser speech helper, but the current tour action flow uses backend audio through `useTourAudioPlayer`.
 - Pause/resume send persistent backend controls using duration-zero requests. These requests do not replace the current playable record. Segment start/completion/interruption acknowledgements are serialized. Account/tour-scoped `pg-playback-{user_id}-{tour_id}` recovery records retain segment delivery state and pending request payloads/keys across reloads, and are removed after successful completion. They contain no bearer tokens or audio. Completion calls `/finish` and navigates only on success.
@@ -329,6 +329,15 @@ while a STARTED segment is active and prepares once at `0 < remaining <= 40`.
 GPS must have accuracy <= 50 m, fix age -30..90 seconds and distance plus accuracy
 <= 40 m from the same stop. Manual coordinates never become GPS evidence.
 Legacy tours without a pinned `playback_generation_id` cannot use this buffer.
+They use `shared/utils/tourContinuation.ts` instead, as do published tours when a
+metadata/prepare request confirms that the backend lacks the buffer endpoint
+(404/405). The fallback arms locally at 40 seconds remaining and requests one
+fresh `/next` one second after the completion acknowledgement. It never sends a
+speculative `/next` during an active segment. Current GPS is sampled at dispatch;
+pause, visitor actions, movement, stale fixes, settings changes and disposal cancel
+the delayed request. A WAIT/silent response ends the chain without polling. An
+uncertain buffer mutation prevents fallback until explicitly reconciled. Generated
+`stop_N` and legacy `route_point_N` identities resolve unnamed route stops.
 Simulation mode explains that automatic continuation needs real GPS. Marker
 dragging still requests a new turn when the prior record is finished. Silent
 legacy WAIT reasons `no_new_content`/`no_location_change` show a move/ask hint;
@@ -364,6 +373,20 @@ eligibility as pure metadata; the chained controller test checks successive turn
 and cancellation on pause.
 The browser adapter, recordings, playback timing and live backend behavior are
 unqualified; the existing explicit-human-approval audio restriction still applies.
+
+`app/utils/tourControls.ts` keeps Pause available during pending STARTED receipts
+and permits resuming only the record actually loaded by the player. Local pause is
+immediate; persistent controls remain serialized. Pure control and continuation
+tests run without media/player execution.
+
+Tour creation offers keyboard-accessible GPS and coordinate inputs. Duration uses
+a native range input with localized label and minutes. Creation drafts and settings
+controls are disabled/inert during submission; context edits use a draft revision
+so responses cannot overwrite newer typing. List proxies retrieve explicit backend
+pages (100 items per page), deduplicate IDs and reject incomplete or nonadvancing
+reads rather than presenting a silently truncated list. Nullable guides render an
+unavailable-guide label. Suggestion revisions are independent of owner-scoped list
+and create requests, and preference rollbacks only restore unchanged submitted fields.
 
 ## Development walking screen
 

@@ -1,10 +1,10 @@
-import type { IGuidesResponse } from "~/types";
-import { useExternalApi } from "~/composables/server/useExternalApi";
+import type { IGuide } from "~/types";
 import { serviceEndpoint } from "../utils/http";
+import { readListPages } from "../utils/listPages";
 export default defineEventHandler(async (event) => {
-  const response = await useExternalApi<IGuidesResponse>(
+  return readListPages<IGuide>(
     event,
     serviceEndpoint("PG_API_GUIDES_URL", "/guides/"),
+    "guides",
   );
-  return response.guides;
 });

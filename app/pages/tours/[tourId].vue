@@ -111,18 +111,8 @@
       class="sticky top-0 z-20 flex flex-wrap justify-center gap-3 bg-white px-4 py-3 dark:bg-gray-900"
     >
       <PGButton
-        :disabled="
-          (requests.isBusy(tourId) && state !== STATE.RECORD_ACTIVE) ||
-          actions.isBusy.value ||
-          state === STATE.RECORD_LOADING ||
-          state === STATE.RECORD_LOADING_WHEN_PAUSED
-        "
-        :loading="
-          (requests.isBusy(tourId) && state !== STATE.RECORD_ACTIVE) ||
-          actions.isBusy.value ||
-          state === STATE.RECORD_LOADING ||
-          state === STATE.RECORD_LOADING_WHEN_PAUSED
-        "
+        :disabled="mainButtonBlocked"
+        :loading="mainButtonBlocked"
         @click="handleTourButtonClick"
       >
         {{ mainButtonText }}
@@ -287,6 +277,7 @@ import TourProgressSummary from "~/components/tour/TourProgressSummary.vue";
 import TourReadingPanel from "~/components/tour/TourReadingPanel.vue";
 import { useRouteWalk } from "~/composables/map/useRouteWalk";
 import type { MapPoint } from "#shared/utils/routeMovement";
+import { isTourButtonBlocked } from "~/utils/tourControls";
 
 const { public: publicConfig } = useRuntimeConfig();
 const isDevelopment = import.meta.dev;
@@ -368,6 +359,7 @@ const audioPlayer = useTourAudioPlayer({
 // Tour actions
 const actions = useTourActions({
   completeBufferedStory: () => continuation.complete(),
+  onStoryCompleted: () => continuation.afterCompletion(),
   state,
   setState,
   clearSavedState,
@@ -387,6 +379,7 @@ const continuation = useStoryContinuation({
     return audio ? audio.duration - audio.currentTime : NaN;
   },
   play: () => actions.playChunk(),
+  requestNext: () => actions.getRecord(true),
 });
 
 simulationMarker.setDragEndCallback(() => {
@@ -398,6 +391,13 @@ simulationMarker.setDragEndCallback(() => {
 });
 
 const STATE = actions.STATE;
+const mainButtonBlocked = computed(() =>
+  isTourButtonBlocked(
+    state.value,
+    actions.isBusy.value,
+    requests.isBusy(tourId),
+  ),
+);
 type TState = TypeFrom<typeof STATE>;
 
 const userText = ref("");

@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import * as Vue from "vue";
+import { useGeolocationStore } from "../app/stores/geolocationStore";
 import { useRouteStore } from "../app/stores/routeStore";
 import { mount, findAll } from "./helpers/render";
 import CreateRoute from "../app/pages/create-route/index.vue";
@@ -26,7 +27,7 @@ vi.mock("../app/components/tour/PersonalContextForm.vue", () => ({
 const empty = { template: "<div />" };
 let language = "en";
 const push = vi.fn();
-const t = (key: string) =>
+const t = (key: string, params: Record<string, unknown> = {}) =>
   String(
     key
       .split(".")
@@ -34,7 +35,7 @@ const t = (key: string) =>
         (value: any, part) => value?.[part],
         language === "ru" ? ru : en,
       ) ?? key,
-  );
+  ).replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? ""));
 beforeEach(() => {
   language = "en";
   Object.assign(globalThis, {
@@ -137,4 +138,116 @@ it("keeps a late created tour without redirecting after leaving the page", async
   await pending;
   expect(route.actualTour?.id).toBe("created");
   expect(push).not.toHaveBeenCalled();
+});
+
+it("offers keyboard coordinate entry with bounds validation", async () => {
+  const route = useRouteStore();
+  const app = render();
+  const latitude = findAll(
+    app.root,
+    (node) => node.type === "input" && node.props.id === "start-latitude",
+  )[0];
+  const longitude = findAll(
+    app.root,
+    (node) => node.type === "input" && node.props.id === "start-longitude",
+  )[0];
+  expect(latitude).toBeDefined();
+  expect(longitude).toBeDefined();
+  latitude.props.onInput({ target: { value: "91" } });
+  longitude.props.onInput({ target: { value: "19" } });
+  const form = findAll(app.root, (node) => node.type === "form")[0];
+  form.props.onSubmit({ preventDefault() {} });
+  await Vue.nextTick();
+  expect(route.startPoint).toBeNull();
+  expect(findAll(app.root, (node) => node.props.role === "alert")).toHaveLength(
+    1,
+  );
+  latitude.props.onInput({ target: { value: "47.5" } });
+  form.props.onSubmit({ preventDefault() {} });
+  await Vue.nextTick();
+  expect(route.startPoint).toEqual({ lat: "47.5", lng: "19" });
+  expect(findAll(app.root, (node) => node.props.role === "alert")).toHaveLength(
+    0,
+  );
+  app.unmount();
+});
+
+it("selects current GPS as the start through a named button", async () => {
+  const geo = useGeolocationStore();
+  geo.longitude = 19.04;
+  geo.latitude = 47.49;
+  const app = render();
+  const gps = findAll(
+    app.root,
+    (node) =>
+      node.type === "button" &&
+      findAll(
+        node,
+        (child) => child.text === t("pages.createRoute.useCurrentLocation"),
+      ).length > 0,
+  )[0];
+  expect(gps).toBeDefined();
+  expect(gps.props.disabled).toBe(false);
+  gps.props.onClick();
+  await Vue.nextTick();
+  expect(useRouteStore().startPoint).toEqual({ lat: "47.49", lng: "19.04" });
+  app.unmount();
+});
+
+it("names the duration control and exposes its minutes on the actual slider", async () => {
+  draft("30");
+  const app = render();
+  const slider = findAll(
+    app.root,
+    (node) => node.type === "input" && node.props.type === "range",
+  )[0];
+  expect(slider).toBeDefined();
+  expect(
+    findAll(
+      app.root,
+      (node) => node.type === "label" && node.props.for === slider.props.id,
+    )[0]?.text,
+  ).toBe(t("pages.createRoute.durationLabel"));
+  expect(slider.props["aria-valuetext"]).toContain("30");
+  slider.props.onInput({ target: { value: "45" } });
+  await Vue.nextTick();
+  expect(useRouteStore().duration).toBe("45");
+  expect(slider.props["aria-valuetext"]).toContain("45");
+  app.unmount();
+});
+
+it("locks the route draft while creation is pending", async () => {
+  const route = draft("30");
+  let complete!: (result: any) => void;
+  vi.mocked(useCreateTour).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const app = render();
+  const button = findAll(
+    app.root,
+    (node) =>
+      node.type === "button" &&
+      findAll(node, (child) => child.text === "ROUTE_RECEIVED").length > 0,
+  )[0];
+  const pending = button.props.onClick();
+  await Vue.nextTick();
+  const draftControls = findAll(
+    app.root,
+    (node) => node.type === "fieldset",
+  )[0];
+  expect(draftControls).toBeDefined();
+  expect(draftControls.props.disabled).toBe(true);
+  expect(draftControls.props.inert).toBe(true);
+  const slider = findAll(
+    app.root,
+    (node) => node.type === "input" && node.props.type === "range",
+  )[0];
+  slider.props.onInput({ target: { value: "45" } });
+  expect(route.duration).toBe("30");
+  complete({ id: "created" });
+  await pending;
+  app.unmount();
 });

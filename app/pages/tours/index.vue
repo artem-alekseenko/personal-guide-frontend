@@ -28,7 +28,7 @@
         "
         :status="tour.status"
         :preparationError="tour.preparation_error"
-        :guideName="tour.guide.name"
+        :guideName="tour.guide?.name || $t('pages.tours.missingGuide')"
         :imageUrl="tour.image"
         :name="tour.name"
         :tourId="tour.id"

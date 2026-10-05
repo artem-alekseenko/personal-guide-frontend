@@ -373,3 +373,77 @@ it("preserves a visitor's context draft while a cached panel reload is pending",
     step_free: true,
   });
 });
+
+it("keeps newer context edits when an apply response arrives", async () => {
+  const root = await mount();
+  chooseMode(root, "interactive");
+  await Vue.nextTick();
+  let complete!: (result: any) => void;
+  api.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const pending = button(root, t("experience.applyContext")).props.onClick();
+  await vi.waitFor(() => expect(complete).toBeDefined());
+  chooseMode(root, "leading");
+  await Vue.nextTick();
+  complete({
+    ...structuredClone(view),
+    revision: 4,
+    personal_context: {
+      ...view.personal_context,
+      interaction_mode: "interactive",
+    },
+  });
+  await pending;
+  await Vue.nextTick();
+  expect(modeSelector(root).props.value).toBe("leading");
+  await button(root, t("experience.applyContext")).props.onClick();
+  expect(api.mock.calls.at(-1)?.[1]?.body.context.interaction_mode).toBe(
+    "leading",
+  );
+});
+
+it("preserves unapplied context edits across a refresh", async () => {
+  const root = await mount();
+  chooseMode(root, "interactive");
+  await Vue.nextTick();
+  view.personal_context = { ...view.personal_context, note: "Remote change" };
+  await button(root, t("experience.refresh")).props.onClick();
+  await Vue.nextTick();
+  expect(modeSelector(root).props.value).toBe("interactive");
+  await button(root, t("experience.applyContext")).props.onClick();
+  expect(api.mock.calls.at(-1)?.[1]?.body.context.note).toBe(
+    "Keep this context",
+  );
+});
+
+it("preserves an edit back to the original context during apply", async () => {
+  const root = await mount();
+  chooseMode(root, "interactive");
+  await Vue.nextTick();
+  let complete!: (result: any) => void;
+  api.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const pending = button(root, t("experience.applyContext")).props.onClick();
+  await vi.waitFor(() => expect(complete).toBeDefined());
+  chooseMode(root, "guide");
+  await Vue.nextTick();
+  complete({
+    ...structuredClone(view),
+    revision: 4,
+    personal_context: {
+      ...view.personal_context,
+      interaction_mode: "interactive",
+    },
+  });
+  await pending;
+  await Vue.nextTick();
+  expect(modeSelector(root).props.value).toBe("guide");
+});

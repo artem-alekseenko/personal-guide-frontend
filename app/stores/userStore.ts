@@ -50,6 +50,11 @@ export const useUserStore = defineStore("userStore", () => {
   let profileLoad: Promise<void> | null = null;
   let personalContextVersion = 0;
   let accountEpoch = 0;
+  const preferenceVersions: Record<keyof IUserPreferences, number> = {
+    language: 0,
+    voiceType: 0,
+    llmType: 0,
+  };
 
   const guestLanguage = useLocalStorage<string>(
     "personal-guide-user-lang",
@@ -141,16 +146,34 @@ export const useUserStore = defineStore("userStore", () => {
     };
   };
 
-  const updatePreferences = (patch: Partial<IUserPreferences>) => {
+  const updatePreferences = (
+    patch: Partial<IUserPreferences>,
+  ): (() => void) => {
     if (patch.llmType !== undefined && !isValidLlmType(patch.llmType))
       throw new Error("Unsupported model type");
+    const previous = { ...userPreferences.value };
+    const session = accountEpoch;
+    const keys = Object.keys(patch) as (keyof IUserPreferences)[];
+    const versions = { ...preferenceVersions };
+    for (const key of keys) versions[key] = ++preferenceVersions[key];
     if (patch.llmType) savedLlm.value = patch.llmType;
     if (patch.language) guestLanguage.value = patch.language;
     if (patch.voiceType && isValidVoiceType(patch.voiceType))
       savedVoice.value = patch.voiceType;
 
-    if (!profile.value) return;
-    profile.value.preferences = { ...profile.value.preferences, ...patch };
+    if (profile.value)
+      profile.value.preferences = { ...profile.value.preferences, ...patch };
+
+    // A failed save owns only its edits, never later edits or another session.
+    return () => {
+      if (session !== accountEpoch) return;
+      const rollback = Object.fromEntries(
+        keys
+          .filter((key) => preferenceVersions[key] === versions[key])
+          .map((key) => [key, previous[key]]),
+      ) as Partial<IUserPreferences>;
+      if (Object.keys(rollback).length) updatePreferences(rollback);
+    };
   };
 
   const updateStats = (patch: Partial<IUserStats>) => {
@@ -172,6 +195,7 @@ export const useUserStore = defineStore("userStore", () => {
     const uid = user.value?.uid;
     const request = ++profileRequest;
     const contextVersion = personalContextVersion;
+    const languageVersion = preferenceVersions.language;
     profileLoad = (async () => {
       try {
         const { fetchUserProfile } = useUserApi();
@@ -184,7 +208,11 @@ export const useUserStore = defineStore("userStore", () => {
         if (user.value && !profile.value)
           profile.value = makeProfileFromFirebaseUser(user.value);
 
-        if (["en", "ru"].includes(serverProfile.language) && profile.value) {
+        if (
+          languageVersion === preferenceVersions.language &&
+          ["en", "ru"].includes(serverProfile.language) &&
+          profile.value
+        ) {
           profile.value.preferences = {
             ...profile.value.preferences,
             language: serverProfile.language,
@@ -245,6 +273,7 @@ export const useUserStore = defineStore("userStore", () => {
     if (isSavingPreferences.value)
       throw new Error("Preferences are already being saved");
 
+    const session = accountEpoch;
     isSavingPreferences.value = true;
     try {
       const { updateUserProfile } = useUserApi();
@@ -254,7 +283,7 @@ export const useUserStore = defineStore("userStore", () => {
 
       await updateUserProfile(name, language);
     } finally {
-      isSavingPreferences.value = false;
+      if (session === accountEpoch) isSavingPreferences.value = false;
     }
   };
 

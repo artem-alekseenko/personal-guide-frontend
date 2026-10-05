@@ -105,7 +105,8 @@
       "createNewTour": "Создать новый маршрут",
       "noTours": "Маршрутов нет",
       "empty": "Пока нет экскурсий. Создайте первую.",
-      "preparationFailed": "Не удалось подготовить экскурсию. Создайте новую."
+      "preparationFailed": "Не удалось подготовить экскурсию. Создайте новую.",
+      "missingGuide": "Гид недоступен"
     },
     "guides": {
       "title": "Гиды",
@@ -121,7 +122,14 @@
       "minDuration": "5 мин",
       "maxDuration": "60 мин",
       "yourGuide": "Ваш гид:",
-      "selectGuideAndCreate": "Выберите {name} и создайте тур"
+      "selectGuideAndCreate": "Выберите {name} и создайте тур",
+      "startLocation": "Начальная точка",
+      "useCurrentLocation": "Использовать моё местоположение",
+      "latitude": "Широта",
+      "longitude": "Долгота",
+      "applyStartLocation": "Использовать эти координаты",
+      "invalidStartLocation": "Введите широту от -90 до 90 и долготу от -180 до 180.",
+      "locationUnavailable": "Местоположение недоступно. Выберите точку на карте или введите координаты."
     },
     "settings": {
       "title": "Настройки",
@@ -134,7 +142,8 @@
       "completed": "Завершено",
       "distance": "Расстояние",
       "time": "Время",
-      "llmType": "Тип модели"
+      "llmType": "Тип модели",
+      "saving": "Сохранение настроек"
     }
   },
   "components": {

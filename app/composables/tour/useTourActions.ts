@@ -23,6 +23,7 @@ const STATE = {
 } as const;
 export interface TourActionsOptions {
   completeBufferedStory?: () => Promise<boolean>;
+  onStoryCompleted?: () => void;
   state: Ref<TourState>;
   setState: (
     state: TourState,
@@ -51,6 +52,7 @@ export function useTourActions(options: TourActionsOptions) {
   const notifications = useNotification();
   const isBusy = ref(false);
   let disposed = false;
+  let pauseRequest: Promise<void> | null = null;
   const fail = (error: unknown) => {
     if (disposed) return;
     setState(STATE.ERROR);
@@ -89,18 +91,24 @@ export function useTourActions(options: TourActionsOptions) {
   };
   const playChunkFromSavedPosition = () =>
     playChunk(Math.max(0, (getSavedAudioPosition() ?? 5) - 5));
-  const pauseTour = async () => {
-    if (isBusy.value) return;
-    isBusy.value = true;
+  const pauseTour = () => {
+    if (disposed) return;
     audioPlayer.pauseAudio();
     setState(STATE.RECORD_PAUSED, undefined, audioPlayer.getCurrentPosition());
-    try {
-      await tourStore.sendPlaybackControl({ paused: true });
-    } catch (error) {
-      notifications.showApiError(error, "Could not pause the tour");
-    } finally {
-      isBusy.value = false;
-    }
+    if (pauseRequest) return pauseRequest;
+    // Local pause is immediate. The store serializes the durable pause behind
+    // STARTED without holding the Pause button hostage to its network latency.
+    pauseRequest = tourStore
+      .sendPlaybackControl({ paused: true })
+      .then(() => {})
+      .catch((error) => {
+        if (!disposed)
+          notifications.showApiError(error, "Could not pause the tour");
+      })
+      .finally(() => {
+        pauseRequest = null;
+      });
+    return pauseRequest;
   };
   const getRecord = async (explicitResume = false) => {
     if (disposed || isBusy.value) return;
@@ -146,7 +154,7 @@ export function useTourActions(options: TourActionsOptions) {
     }
   };
   const resumeTour = async () => {
-    if (isBusy.value) return;
+    if (isBusy.value || pauseRequest) return;
     if (
       !(
         tourStore.currentTourRecord?.audio_data ||
@@ -171,10 +179,17 @@ export function useTourActions(options: TourActionsOptions) {
   };
   const onAudioEnded = async () => {
     if (disposed) return;
+    const record = tourStore.currentTourRecord;
     setState(STATE.RECORD_FINISHED);
     try {
       if (await options.completeBufferedStory?.()) return;
       await acknowledge("COMPLETED");
+      if (
+        !disposed &&
+        state.value === STATE.RECORD_FINISHED &&
+        tourStore.currentTourRecord === record
+      )
+        options.onStoryCompleted?.();
     } catch (error) {
       fail(error);
     }
@@ -189,6 +204,7 @@ export function useTourActions(options: TourActionsOptions) {
     }
   };
   const handleTourButtonClick = async () => {
+    if (state.value === STATE.RECORD_ACTIVE) return pauseTour();
     if (isBusy.value) return;
     switch (state.value) {
       case STATE.INITIAL:
@@ -197,8 +213,6 @@ export function useTourActions(options: TourActionsOptions) {
         return getRecord(true);
       case STATE.RECORD_RECEIVED:
         return playChunk();
-      case STATE.RECORD_ACTIVE:
-        return pauseTour();
       case STATE.RECORD_PAUSED:
         return resumeTour();
     }

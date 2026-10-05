@@ -9,8 +9,7 @@ export const useAuth = () => {
     syncToServer: boolean = true,
   ) => {
     const previous = { ...userStore.userPreferences };
-    const uid = userStore.user?.uid;
-    userStore.updatePreferences(preferences);
+    const rollback = userStore.updatePreferences(preferences);
 
     if (
       syncToServer &&
@@ -20,7 +19,7 @@ export const useAuth = () => {
       try {
         await userStore.syncPreferencesToServer();
       } catch (error) {
-        if (userStore.user?.uid === uid) userStore.updatePreferences(previous);
+        rollback();
         throw error;
       }
     }
