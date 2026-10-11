@@ -7,6 +7,7 @@ import CreateRoute from "../app/pages/create-route/index.vue";
 import en from "../i18n/locales/en.json";
 import ru from "../i18n/locales/ru.json";
 import { useCreateTour } from "../app/composables/api/tours/useCreateTour";
+import type { ICreatedTour } from "../app/types";
 vi.mock("../app/composables/api/tours/useCreateTour", () => ({
   useCreateTour: vi.fn(),
 }));
@@ -250,4 +251,45 @@ it("locks the route draft while creation is pending", async () => {
   complete({ id: "created" });
   await pending;
   app.unmount();
+});
+
+it("keeps the pending creation locked when the route page is remounted", async () => {
+  const route = draft("30");
+  const deferred = Promise.withResolvers<ICreatedTour>();
+  vi.mocked(useCreateTour).mockImplementationOnce(() => deferred.promise);
+  const first = render();
+  const submit = findAll(first.root, (node) => node.type === "button").at(-1)!;
+  const pending = submit.props.onClick();
+  first.unmount();
+  const second = render();
+  try {
+    await Vue.nextTick();
+    const controls = findAll(
+      second.root,
+      (node) => node.type === "fieldset",
+    )[0];
+    expect(controls.props.disabled).toBe(true);
+    expect(controls.props.inert).toBe(true);
+    const slider = findAll(
+      second.root,
+      (node) => node.type === "input" && node.props.type === "range",
+    )[0];
+    slider.props.onInput({ target: { value: "45" } });
+    expect(route.duration).toBe("30");
+    const resubmit = findAll(second.root, (node) => node.type === "button").at(
+      -1,
+    )!;
+    expect(resubmit.props.disabled).toBe(true);
+    await resubmit.props.onClick();
+    expect(useCreateTour).toHaveBeenCalledTimes(1);
+    deferred.resolve({ id: "created" } as ICreatedTour);
+    await pending;
+    await Vue.nextTick();
+    expect(controls.props.disabled).toBe(false);
+    expect(push).not.toHaveBeenCalled();
+  } finally {
+    deferred.resolve({ id: "created" } as ICreatedTour);
+    await pending;
+    second.unmount();
+  }
 });

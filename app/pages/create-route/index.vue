@@ -246,7 +246,7 @@ const geo = useGeolocationStore();
 const router = useRouter();
 const { t } = useI18n();
 const isSuggesting = ref(false);
-const isCreating = ref(false);
+const isCreating = computed(() => routeStore.isCreating);
 let pageAlive = true;
 onBeforeUnmount(() => {
   pageAlive = false;
@@ -373,14 +373,11 @@ const getRouteSuggestions = async () => {
 
 const approveRoute = async () => {
   if (isCreating.value || isSuggesting.value) return;
-  isCreating.value = true;
   try {
     const created = await routeStore.fetchCreateRoute();
     if (created && pageAlive) await router.push({ name: "tours" });
   } catch (error) {
     useNotification().showApiError(error, "Could not create the tour");
-  } finally {
-    isCreating.value = false;
   }
 };
 

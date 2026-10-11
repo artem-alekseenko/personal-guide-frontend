@@ -1,8 +1,8 @@
 import { getAuth, type User } from "firebase/auth";
 import { getCurrentUser } from "vuefire";
+import { resolveAuthRedirect } from "~/utils/navigation";
 
 const LOGIN_ROUTE = "/";
-const AFTER_LOGIN_ROUTE = "/tours";
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return;
@@ -24,14 +24,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path === LOGIN_ROUTE) {
     if (user) {
       // Respect ?next=/some/path if present, but allow only same-origin internal paths
-      const nextParam =
-        typeof to.query.next === "string" ? to.query.next : undefined;
-      const target =
-        nextParam &&
-        /^\/(?![\/\\])/.test(nextParam) &&
-        !/[\\\r\n]/.test(nextParam)
-          ? nextParam
-          : AFTER_LOGIN_ROUTE;
+      const target = resolveAuthRedirect(to.query.next);
 
       // Don't redirect to the same page to avoid unnecessary navigation
       if (to.path !== target) {

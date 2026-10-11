@@ -1,3 +1,4 @@
+import type { Feature, LineString } from "geojson";
 import type { Map, GeoJSONSource } from "mapbox-gl";
 export const STORED_ROUTE_ID = "pg-stored-route";
 const ROUTE_OUTLINE_ID = `${STORED_ROUTE_ID}-outline`;
@@ -11,7 +12,7 @@ export function renderStoredRoute(
     coordinates.some((p) => !p.every(Number.isFinite))
   )
     return false;
-  const data: GeoJSON.Feature<GeoJSON.LineString> = {
+  const data: Feature<LineString> = {
     type: "Feature",
     properties: {},
     geometry: { type: "LineString", coordinates },

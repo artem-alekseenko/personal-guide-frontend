@@ -20,7 +20,7 @@ The layout fills a mobile viewport and uses a phone-style frame on desktop. Rout
 
 Nuxt 4, Vue 3, TypeScript, Pinia, Nuxt UI, Tailwind CSS, VueUse, Firebase/VueFire, Nuxt i18n, and Mapbox GL. The app renders in the browser (`ssr: false`); Nitro serves its authenticated `/api/*` proxy.
 
-Use Node 24 and the pinned `pnpm@10.33.0` through Corepack. Preserve `pnpm-lock.yaml` when installing dependencies.
+Use NVM to install and select the pinned Node.js LTS release, `24.21.0`, with its latest compatible npm. `.nvmrc` and Docker use that release. The package engine range is `^24.21.0 || >=26.0.0`; Node 26 is allowed but is not the recommended development runtime. Use the pinned `pnpm@10.34.6` through Corepack and preserve `pnpm-lock.yaml` when installing dependencies.
 
 ## Local setup
 
@@ -36,7 +36,11 @@ From `frontend/`, install dependencies and create a local configuration file:
 
 ```sh
 source "$HOME/.nvm/nvm.sh"
-nvm use
+nvm install v24.21.0 --latest-npm
+nvm use v24.21.0
+node --version
+npm --version
+corepack enable
 corepack pnpm install --frozen-lockfile
 # Keep an existing .env; copy the example only for a new checkout.
 test -f .env || cp .env.example .env
@@ -67,15 +71,38 @@ See [.env.example](.env.example) for the complete template. Keep `.env` out of s
 | `VUEFIRE_STORAGE_BUCKET`, `VUEFIRE_MESSAGING_SENDER_ID`, `VUEFIRE_APP_ID` | Remaining Firebase client configuration.                                                            |
 | `NUXT_PUBLIC_MAPBOX_GL_ACCESS_TOKEN`                                      | Public browser Mapbox token.                                                                        |
 | `RECAPTCHA_KEY`                                                           | Optional Firebase App Check site key.                                                               |
-| `NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED`                                     | Enables the current-stop text panel; defaults to `false`.                                           |
+| `NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED`                                     | Enables the current-stop text panel; defaults to `true`.                                            |
+| `NUXT_PUBLIC_STORY_BUFFER_ENABLED`                                        | Enables automatic continuation; defaults to `true`, with separate backend support required.         |
 
 Endpoint overrides such as `PG_API_GUIDES_URL` and `PG_API_CREATE_ROUTE_URL` are optional. The proxy defaults match the sibling backend's `/guides/`, `/tours/`, and `/users/me/` paths. See [AGENTS.md](AGENTS.md#endpoint-mapping-and-environment) for the full mapping.
 
 Firebase client configuration comes from `nuxt.config.ts` at build time. Rebuild after changing it. The backend origin stays private: browser API clients call the same-origin `/api/*` routes, attach Firebase ID tokens, and let Nitro forward them to the backend for validation and ownership checks.
 
+## Try a tour before research finishes
+
+Original-tour cards and detail views offer **Stop research and try draft** while
+preparation is active, or **Try saved research** after failure, cancellation or
+completion. Confirmation creates a separate experimental draft from saved
+source-grounded findings; the original tour, published package and history stay
+unchanged. Missing research remains an explicit gap, including route-only drafts.
+The draft is unverified and is not a normally published tour.
+
+Opening a draft does not request narration or start audio. Its detail view keeps
+the warning visible and offers the ordinary **Start tour** control. Drafts cannot
+recursively create another draft. Uncertain creation retries preserve their
+original generation, payload and idempotency key; a saved draft can be reopened
+after failed navigation without another creation request.
+
+Verification used the production-built list-to-draft-detail journey with a
+controlled in-memory identity and intercepted API responses at mobile and desktop
+widths. Only the research-preview mutation was sent; narration/media were not
+started. Separate browser component checks covered pending, running, failed,
+cancelled, ready, generated, started and finished originals. These are fixture
+checks, not real Firebase, live research, Mapbox/GPS or heard-audio verification.
+
 ## Current-stop text experience
 
-Enable both sides:
+The frontend text panel defaults to enabled. To set it explicitly:
 
 ```dotenv
 # Frontend .env
@@ -199,9 +226,77 @@ corepack pnpm exec prettier --check README.md AGENTS.md
 
 `test:text` covers text interactions, interaction preferences, route contracts, GPS update coordination, navigation display, safe rendering, saved preferences, request serialization, authentication boundaries, route draft restoration, map following, accessible controls, notifications, and loading/error states. Its Vue component checks render in Node; they do not launch a browser.
 
-**Audio verification requires explicit human approval.** Do not generate, listen to, test, or benchmark audio under the current milestone. The full `test`, `test:smoke`, and `test:dev` suites include audio and are excluded until that approval. After approval, `test:smoke` requires a build; run `test:dev` separately from builds because both write `.nuxt` files.
+**Audio verification requires explicit human approval.** Do not generate, listen to, test, or benchmark audio under the current milestone. The full `test` suite includes audio checks; `test:smoke` and `test:dev` exercise the narration contract. All three are excluded until that approval. This does not prohibit the approved nonaudio `test:text`, typecheck, build, or focused formatting checks. After approval, `test:smoke` requires a build; run `test:dev` separately from builds because both write `.nuxt` files.
 
 Check sign-in, maps, GPS, and provider-backed text in a configured browser. Passing unit tests and a build does not establish live provider behavior or route accessibility. Format changed files rather than running `pnpm prettier` across unrelated files.
+
+### Dependency and omp skill maintenance
+
+Use compatible stable releases rather than treating every new major as a required
+upgrade. Firebase 12 and Firebase Admin 13 remain inside VueFire's declared peer
+ranges; Pinia 3, VueUse 14 and TypeScript 6 remain the current application
+contracts. Vite and its Vue plugin are explicit test-tool dependencies rather
+than accidental hoisted imports. Mapbox GL supplies its own types; the deprecated
+`@types/mapbox-gl` stub is not needed. GeoJSON annotations use explicit imports
+from the separately declared `@types/geojson` package instead of an implicit
+global namespace.
+
+`package.json` contains scoped security overrides for Firebase's gRPC transport,
+Google GAX and its HTTP helpers' UUIDs, fontless's esbuild, typography's selector
+parser and Git's argument parser. The parser 2.0.1 override preserves the API and
+default Git export used by Nuxt's existing `simple-git` 3 consumer; a controlled
+smoke check confirmed that `VISUAL` is now blocked while safe Git reads still
+work. Nuxt UI's Tiptap peers are pinned together because they require matching
+versions; updating only the editor core leaves incompatible extensions. Review
+these overrides when their parent packages adopt fixed releases, and keep the
+lockfile in sync.
+
+The dependency audit still reports upstream issues. `node-forge` and `braces`
+have no published fixed versions. Nuxt DevTools still imports the default export
+from `simple-git` 3; the patched major 4 removes that export, so a forced override
+would break the consumer. DevTools is disabled in `nuxt.config.ts`, but that does
+not remove its packages or advisories. Do not suppress these findings; revisit
+them when compatible upstream fixes are available.
+
+The omp skill audit added `pinia`, `pnpm`, `vitest`, `vueuse-functions`,
+`firebase-auth-basics` and `mapbox-web-integration-patterns` to the user-level
+`~/.agents/skills` directory, alongside the existing Nuxt, Vue, UI, review,
+security and browser-testing skills. Restart omp to refresh a session's cached
+skill inventory. The Pinia and pnpm skills use revisions matching Pinia 3 and
+pnpm 10; do not blindly update them to guides for newer majors. Skills are local
+agent tooling, not application dependencies or deployment requirements.
+
+The initial 2026-10-11 maintenance check passed 295 approved nonaudio tests, the focused
+stored-route regression, type checking, production build, focused formatting and
+a frozen-lockfile install. Read-only HTTP fixtures exercised production and
+development SPA serving, authentication rejection and proxy responses without
+calling narration endpoints. Browser checks covered mobile/desktop sign-in
+rendering, the registration-form transition and the unauthenticated tour
+redirect; no account was created or signed in. These checks do not qualify live
+Firebase authentication, Mapbox/GPS, provider-backed text or audio. The dependency
+audit decreased from 122 findings to six (four high, two critical), all in the
+upstream dependencies described above.
+
+The subsequent correctness review fixed lost preparation polling after page
+reentry, duplicate creation after remounting, and delayed responses consuming
+newer drafts. Creation now uses an account-fenced store-level lock. Navigation
+storage is UID-scoped, rejects unsafe/malformed entries and tolerates blocked
+storage; ownerless legacy navigation data is discarded. Authentication redirects
+share one internal-path validator, and tour identifiers remain single encoded
+API path segments.
+
+Controlled-identity browser checks against a nonaudio fixture backend exercised
+the actual mobile/desktop creation controls, remount locking, late draft edits,
+account-switch clearing, malformed navigation, blocked-storage settings return
+and resumed preparation polling. These are fixture checks, not real Firebase
+sign-in, live Mapbox/GPS or provider verification. No audio or narration requests
+were made.
+
+The follow-up review passed 322 approved nonaudio tests across 51 files, type
+checking, the production build and a frozen-lockfile install. The compatible
+argument-parser override removed one critical advisory; the final audit reports
+five remaining upstream advisories (four high, one critical). These findings
+remain visible rather than being suppressed.
 
 ## Docker and deployment
 
@@ -224,30 +319,31 @@ Deploy the Nitro server as well as the browser assets. A static-only host cannot
 
 ## Repository map
 
-| Path                   | Responsibility                                                                    |
-| ---------------------- | --------------------------------------------------------------------------------- |
-| `app/pages/`           | Login, guides, route creation, tours, and settings.                               |
-| `app/components/tour/` | Route preview, playback text, and current-stop experience.                        |
-| `app/stores/`          | User preferences, route drafts, tours, text state, GPS, and request coordination. |
-| `app/composables/`     | API clients, authentication, maps, tour actions, and UI helpers.                  |
-| `shared/`              | Interaction preference types, context defaults, and command reconciliation.       |
-| `server/api/`          | Authenticated backend proxy handlers.                                             |
-| `server/utils/http.ts` | Upstream URLs, auth forwarding, request IDs, timeouts, and retry rules.           |
-| `i18n/locales/`        | UI translations; English and Russian are offered.                                 |
-| `tests/`               | Vitest regressions and component rendering checks.                                |
-| `scripts/smoke.mjs`    | Production/development HTTP fixture checks, subject to audio approval.            |
+| Path                           | Responsibility                                                                            |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `app/pages/`                   | Login, guides, route creation, tours, and settings.                                       |
+| `app/components/tour/`         | Route preview, playback text, and current-stop experience.                                |
+| `app/stores/`                  | User preferences, route drafts, tours, text state, GPS, and request coordination.         |
+| `app/composables/`             | API clients, authentication, maps, tour actions, and UI helpers.                          |
+| `shared/`                      | Interaction preference types, context defaults, and command reconciliation.               |
+| `server/api/`                  | Authenticated backend proxy handlers.                                                     |
+| `server/utils/http.ts`         | Upstream URLs, auth forwarding, request IDs, timeouts, and retry rules.                   |
+| `i18n/locales/`                | UI translations; English and Russian are offered.                                         |
+| `tests/`                       | Vitest regressions and component rendering checks.                                        |
+| `scripts/smoke.mjs`            | Production/development HTTP fixture checks, subject to audio approval.                    |
+| `docs/future-self-guidance.md` | Durable advice for future frontend changes, contract boundaries, and verification limits. |
 
 ## Troubleshooting
 
 | Symptom                                                        | Check                                                                                                                                            |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node or pnpm is missing                                        | Source NVM, run `nvm use`, and use `corepack pnpm`.                                                                                              |
+| Node or pnpm is missing                                        | Source NVM, run `nvm install v24.21.0 --latest-npm` followed by `nvm use v24.21.0`, then use `corepack pnpm`.                                    |
 | Sign-in fails or the API rejects a token                       | Check Firebase client configuration, enabled sign-in providers, and the backend's Firebase project. Rebuild after changing client configuration. |
 | Proxy reports an upstream configuration or connection error    | Check the backend origin, port 3001, and backend availability. Inside Docker, use the host-gateway origin rather than container `localhost`.     |
-| A tour remains in preparation                                  | Check backend preparation/generation workers and the preparation error shown on the tour list.                                                   |
+| A tour remains in preparation                                  | Check the backend generation worker, the preparation error shown on the tour list, and the read-only preparation progress snapshot.              |
 | No route variants appear                                       | Read the backend explanation and adjust start, duration, or preferences. Empty suggestions can indicate an infeasible or unverified route.       |
 | The map or GPS is unavailable                                  | Check the Mapbox token, browser location permission, and secure context. Manual simulation allows route exploration without a live fix.          |
 | The text panel is missing or unavailable                       | Check both feature flags and backend text-provider configuration.                                                                                |
-| Development reports `Vite Node IPC socket path not configured` | Install the pinned lockfile dependencies. This project uses Nuxt 4.4.7; avoid downgrading to the affected 4.4.4 release.                         |
+| Development reports `Vite Node IPC socket path not configured` | Install the pinned lockfile dependencies. This project uses Nuxt 4.6.1; avoid downgrading to the affected 4.4.4 release.                         |
 
 For integration changes, read [AGENTS.md](AGENTS.md), the [backend API reference](../personal-guide.ai/current_implementation/api_reference.md), and the [backend architecture](../personal-guide.ai/current_implementation/architecture.md). Check executable handlers and Python models when documentation and client types disagree.

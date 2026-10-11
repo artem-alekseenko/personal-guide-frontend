@@ -6,7 +6,6 @@ export const LLM_TYPES = [
   "OPENAI_FULL",
   "GEMINI",
   "MOCK",
-  "PERPLEXITY",
 ] as const;
 export type LlmType = (typeof LLM_TYPES)[number];
 export const DEFAULT_LLM_TYPE: LlmType = "DEFAULT";

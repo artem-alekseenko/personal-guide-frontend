@@ -20,7 +20,12 @@
         v-for="tour in routeStore.allTours"
         :key="tour.id"
         :description="tour.description"
-        :generatingPercent="tour.generating_percent"
+        :preparationProgress="tour.preparation_progress"
+        :latestGenerationId="
+          tour.latest_generation_id || tour.active_generation_id
+        "
+        :researchPreview="tour.research_preview"
+        :routeStops="tour.route?.points"
         :generatingText="
           tour.preparation_error
             ? $t('pages.tours.preparationFailed')

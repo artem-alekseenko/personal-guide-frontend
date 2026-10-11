@@ -30,30 +30,35 @@
       <p class="tour-card__guide">
         {{ $t("components.tourCard.guide") }} {{ guideName }}
       </p>
+      <TourResearchPreviewWarning
+        v-if="researchPreview"
+        :preview="researchPreview"
+        :stops="routeStops"
+      />
+      <TourPreparationProgress
+        v-if="preparationProgress && !researchPreview"
+        :progress="preparationProgress"
+      />
       <p
-        v-if="status === 'GENERATING' && !preparationError"
-        class="tour-card__progress-wrap"
+        v-else-if="!researchPreview"
+        class="tour-card__generating-text"
+        :role="preparationError ? 'alert' : 'status'"
       >
-        <span
-          :aria-valuenow="generatingPercent"
-          aria-valuemax="100"
-          aria-valuemin="0"
-          class="tour-card__progress"
-          role="progressbar"
-        >
-          <span
-            :style="{ width: `${generatingPercent}%` }"
-            class="tour-card__progress-bar"
-          />
-          <span class="tour-card__progress-label"
-            >{{ generatingPercent }}%</span
-          >
-        </span>
+        {{ generatingText }}
       </p>
-      <p class="tour-card__generating-text">{{ generatingText }}</p>
+      <TourResearchPreviewAction
+        v-if="!researchPreview"
+        :tour-id="tourId"
+        :generation-id="
+          latestGenerationId || preparationProgress?.generation_id
+        "
+        :research-status="preparationProgress?.status"
+        :status="status"
+        :preparation-error="preparationError"
+      />
       <NuxtLink
         v-if="['GENERATED', 'STARTED'].includes(status)"
-        :to="`/tours/${tourId}`"
+        :to="`/tours/${encodeURIComponent(tourId)}`"
         class="tour-card__link"
       >
         {{ $t("navigation.goToTour") }}
@@ -63,14 +68,23 @@
 </template>
 
 <script lang="ts" setup>
+import TourPreparationProgress from "./tour/TourPreparationProgress.vue";
+import TourResearchPreviewAction from "./tour/TourResearchPreviewAction.vue";
+import TourResearchPreviewWarning from "./tour/TourResearchPreviewWarning.vue";
+import type { IRoutePoint, ResearchPreview } from "~/types";
+import type { PreparationProgress } from "#shared/types/preparationProgress";
 import { nextTick, onMounted, onBeforeUnmount, ref, toRefs, watch } from "vue";
 
 const props = defineProps<{
   status: string;
   preparationError?: string | null;
+  preparationProgress?: PreparationProgress | null;
+  latestGenerationId?: string | null;
+  researchPreview?: ResearchPreview | null;
+  routeStops?: IRoutePoint[];
   name: string;
   description: string;
-  generatingPercent: number;
+  generatingPercent?: number;
   generatingText: string;
   tourId: string;
   imageUrl: string;
@@ -80,9 +94,9 @@ const props = defineProps<{
 const {
   status,
   preparationError,
+  preparationProgress,
   name,
   description,
-  generatingPercent,
   generatingText,
   tourId,
   imageUrl,
@@ -233,39 +247,6 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
 
 .tour-card__guide {
   color: oklch(0.968 0.007 247.896);
-}
-
-.tour-card__progress-wrap {
-  margin: 0;
-}
-
-.tour-card__progress {
-  position: relative;
-  display: block;
-  overflow: hidden;
-  block-size: 1.25rem;
-  border-radius: 9999px;
-  background-color: oklch(1 0 0 / 0.2);
-}
-
-.tour-card__progress-bar {
-  display: block;
-  block-size: 100%;
-  border-radius: 9999px;
-  background-color: var(--fill-green-500);
-  transition: width 0.4s ease;
-}
-
-.tour-card__progress-label {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: oklch(1 0 0);
-  line-height: 1;
-  pointer-events: none;
 }
 
 .tour-card__generating-text {

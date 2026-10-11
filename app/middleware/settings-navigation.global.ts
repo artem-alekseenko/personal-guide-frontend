@@ -1,3 +1,5 @@
+import { useUserStore } from "~/stores/userStore";
+
 export default defineNuxtRouteMiddleware((to, from) => {
   if (
     import.meta.client &&
@@ -5,6 +7,15 @@ export default defineNuxtRouteMiddleware((to, from) => {
     from.name &&
     from.name !== "settings"
   ) {
-    sessionStorage.setItem("settingsReturnRoute", from.path);
+    const uid = useUserStore().user?.uid;
+    if (!uid) return;
+    try {
+      sessionStorage.setItem(
+        "settingsReturnRoute",
+        JSON.stringify({ uid, path: from.path }),
+      );
+    } catch {
+      // Settings remain navigable when browser storage is unavailable.
+    }
   }
 });

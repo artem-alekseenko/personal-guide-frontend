@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
+import { resolveAuthRedirect } from "~/utils/navigation";
 
 export type AuthErrorCode =
   | "auth/invalid-email"
@@ -46,15 +47,8 @@ export const useAuthActions = () => {
   const auth = getAuth();
   const route = useRoute();
 
-  const getNextPath = (): string => {
-    const nextParam = (route.query.next as string) || "/tours";
-    return typeof nextParam === "string" && nextParam.startsWith("/")
-      ? nextParam
-      : "/tours";
-  };
-
   const navigateAfterAuth = () => {
-    const next = getNextPath();
+    const next = resolveAuthRedirect(route.query.next);
     navigateTo(next, { replace: true });
   };
 

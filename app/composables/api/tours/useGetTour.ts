@@ -5,7 +5,9 @@ export const useGetTour = async (tourId: string): Promise<ICreatedTour> => {
   const apiFetch = $apiFetch as typeof $fetch;
 
   try {
-    const data = await apiFetch<ICreatedTour>(`/api/get-tour/${tourId}`);
+    const data = await apiFetch<ICreatedTour>(
+      `/api/get-tour/${encodeURIComponent(tourId)}`,
+    );
     return data;
   } catch (error) {
     throw createError({

@@ -1,15 +1,32 @@
+import type { ComputedRef } from "vue";
 import { throttle } from "~/utils/throttleDebounce";
 import { useAuth } from "~/composables/auth/useAuth";
+import { isInternalPath } from "~/utils/navigation";
 
 type NavigationHistoryEntry = string;
+
+export interface BackNavigation {
+  shouldShow: ComputedRef<boolean>;
+  goBack: () => void;
+}
 
 const MAX_HISTORY_SIZE = 10;
 const HISTORY_SAVE_THROTTLE_MS = 300;
 
-export const useBackNavigation = () => {
+const isHistoryRoute = (value: unknown): value is string => {
+  if (!isInternalPath(value)) {
+    return false;
+  }
+  const path = value.split(/[?#]/, 1)[0];
+  return (
+    path !== "/" && path !== "/settings" && !path?.startsWith("/settings/")
+  );
+};
+
+export const useBackNavigation = (): BackNavigation => {
   const route = useRoute();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const navigationHistory = ref<NavigationHistoryEntry[]>([]);
   const isNavigatingBack = ref<boolean>(false);
@@ -18,7 +35,8 @@ export const useBackNavigation = () => {
     if (!import.meta.client) return false;
     return (
       window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone || // iOS Safari
+      ("standalone" in window.navigator &&
+        window.navigator.standalone === true) || // iOS Safari
       document.referrer.includes("android-app://") // Android TWA
     );
   });
@@ -26,11 +44,14 @@ export const useBackNavigation = () => {
   // ----- Storage helpers -----
 
   const saveNavigationHistoryToStorage = (): void => {
-    if (import.meta.client && isAuthenticated.value) {
+    if (!import.meta.client || !user.value) return;
+    try {
       localStorage.setItem(
         "navigationHistory",
-        JSON.stringify(navigationHistory.value),
+        JSON.stringify({ uid: user.value.uid, paths: navigationHistory.value }),
       );
+    } catch {
+      // Storage is optional; retain the current session's in-memory history.
     }
   };
 
@@ -46,14 +67,24 @@ export const useBackNavigation = () => {
       return;
     }
 
-    const saved = localStorage.getItem("navigationHistory");
-    if (!saved) return;
-
     try {
-      const parsed = JSON.parse(saved);
-      navigationHistory.value = Array.isArray(parsed)
-        ? parsed.slice(-MAX_HISTORY_SIZE)
-        : [];
+      const saved = localStorage.getItem("navigationHistory");
+      if (!saved) return;
+      const parsed: unknown = JSON.parse(saved);
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        !("uid" in parsed) ||
+        parsed.uid !== user.value?.uid ||
+        !("paths" in parsed) ||
+        !Array.isArray(parsed.paths)
+      ) {
+        clearNavigationHistory();
+        return;
+      }
+      navigationHistory.value = parsed.paths
+        .filter(isHistoryRoute)
+        .slice(-MAX_HISTORY_SIZE);
     } catch {
       navigationHistory.value = [];
     }
@@ -65,13 +96,22 @@ export const useBackNavigation = () => {
     throttledSaveNavigationHistory.cancel();
     navigationHistory.value = [];
     if (import.meta.client) {
-      localStorage.removeItem("navigationHistory");
+      try {
+        localStorage.removeItem("navigationHistory");
+      } catch {
+        // A blocked storage area must not prevent account isolation.
+      }
+      try {
+        sessionStorage.removeItem("settingsReturnRoute");
+      } catch {
+        // Session storage can be independently unavailable.
+      }
     }
   };
 
   const addToNavigationHistory = (routePath: NavigationHistoryEntry): void => {
     if (!isAuthenticated.value) return;
-    if (routePath.includes("/settings") || routePath === "/") return;
+    if (!isHistoryRoute(routePath)) return;
 
     const last = navigationHistory.value[navigationHistory.value.length - 1];
     if (last === routePath) return;
@@ -123,8 +163,24 @@ export const useBackNavigation = () => {
     isNavigatingBack.value = true;
 
     if (route.name === "settings") {
-      const returnRoute = sessionStorage.getItem("settingsReturnRoute");
-      sessionStorage.removeItem("settingsReturnRoute");
+      let returnRoute = "/tours";
+      try {
+        const saved = sessionStorage.getItem("settingsReturnRoute");
+        sessionStorage.removeItem("settingsReturnRoute");
+        const parsed: unknown = saved ? JSON.parse(saved) : null;
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "uid" in parsed &&
+          parsed.uid === user.value?.uid &&
+          "path" in parsed &&
+          isHistoryRoute(parsed.path)
+        ) {
+          returnRoute = parsed.path;
+        }
+      } catch {
+        // Fall back to the tour list when storage is blocked or malformed.
+      }
 
       if (navigationHistory.value.length > 0) {
         popFromNavigationHistory();
@@ -133,7 +189,7 @@ export const useBackNavigation = () => {
       if (window.history.length > 1) {
         router.back();
       } else {
-        router.replace(returnRoute || "/tours");
+        router.replace(returnRoute);
       }
       return;
     }
@@ -156,11 +212,17 @@ export const useBackNavigation = () => {
 
   // ----- Watchers & lifecycle -----
 
-  watch(isAuthenticated, (newValue, oldValue) => {
-    if (oldValue && !newValue) {
-      clearNavigationHistory();
-    }
-  });
+  watch(
+    () => user.value?.uid ?? null,
+    (uid, previousUid) => {
+      if (uid !== previousUid) {
+        clearNavigationHistory();
+        // Do not add the previous owner's page during the redirect.
+        if (previousUid !== null) isNavigatingBack.value = true;
+      }
+    },
+    { flush: "sync" },
+  );
 
   watch(
     () => route.fullPath,

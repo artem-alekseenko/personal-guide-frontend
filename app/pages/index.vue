@@ -24,6 +24,7 @@
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import type { TypeFrom } from "~/types";
 import { definePageMeta } from "#imports";
+import { resolveAuthRedirect } from "~/utils/navigation";
 
 definePageMeta({ public: true });
 
@@ -52,14 +53,7 @@ onMounted(() => {
   unsubscribe = onAuthStateChanged(auth, (user) => {
     if (user) {
       state.value = STATE.USER_ENTERED;
-      const next = route.query.next;
-      router.push(
-        typeof next === "string" &&
-          /^\/(?![\/\\])/.test(next) &&
-          !/[\\\r\n]/.test(next)
-          ? next
-          : "/tours",
-      );
+      router.push(resolveAuthRedirect(route.query.next));
     } else {
       state.value = STATE.USER_NOT_ENTERED;
     }

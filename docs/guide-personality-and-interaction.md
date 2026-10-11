@@ -24,9 +24,9 @@ Backend source of truth: `../personal-guide.ai/app/models/guide.py`, `personal_c
 | Personal context `interaction_mode`    | `guide`, `interactive`, `leading` | `guide`                             |
 | Experience response `interaction_mode` | `interactive`, `leading`          | Effective mode, resolved by backend |
 
-Update `app/types/index.ts` (`IGuide`), `app/types/personalContext.ts` and `emptyPersonalContext()`, and `app/types/tourExperience.ts`. Preserve missing-field defaults when reading older responses. A legacy card without the field defaults to interactive; explicitly mark a non-interactive card `leading`.
+`app/types/index.ts` (`IGuide`) and `app/types/tourExperience.ts` expose the card and effective response modes. `shared/types/personalContext.ts` owns the context type and `emptyPersonalContext()`; `app/types/personalContext.ts` re-exports them for existing callers. Preserve missing-field defaults when reading older responses. A legacy card without the field defaults to interactive; explicitly mark a non-interactive card `leading`.
 
-Add the choice to `app/components/tour/PersonalContextForm.vue`; use existing creation/profile settings flows. Saving a tour preference must not silently save a future profile preference. Keep the current personal context's other fields when changing this one.
+`app/components/tour/PersonalContextForm.vue` implements the selector through the existing creation/profile settings flows. Saving a tour preference must not silently save a future profile preference. Keep the current personal context's other fields when changing this one.
 
 For an active tour, use the existing authenticated interaction request:
 
@@ -119,11 +119,12 @@ stored selector. Main-tour visitor messages reconcile text state before the
 shared queue releases, including when the remaining request fails. Failed reads
 leave text mutations blocked; automatic reads preserve pending payloads and keys.
 
-One backend ambiguity remains: `effective_context()` falls back to profile
-preferences if the tour context equals all defaults. Choosing `guide` with every
-other field at its default can therefore inherit a saved profile style. The
-client sends the explicit selection unchanged; backend presence tracking is
-needed to distinguish this from an absent tour preference.
+One backend ambiguity remains at creation: when no explicit experience context
+exists, `effective_context()` falls back to profile preferences if the tour
+context equals all defaults. An all-default `guide` choice can therefore inherit
+a saved profile style. An active-tour `UPDATE_CONTEXT` persists explicit context
+and takes precedence. The client sends the selection unchanged; backend presence
+tracking is needed to distinguish the creation-time choice from an absent preference.
 
 Development builds also expose a Next step button beside Pause/Resume. It uses
 the existing next-step action; no audio verification was performed for this work.

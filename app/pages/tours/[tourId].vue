@@ -22,6 +22,38 @@
     v-else-if="tourStore.tour"
     class="container mx-auto flex grow flex-col gap-y-4 py-4"
   >
+    <div class="mx-4">
+      <TourResearchPreviewWarning
+        v-if="tourStore.tour.research_preview"
+        :preview="tourStore.tour.research_preview"
+        :stops="tourStore.tour.route.points"
+      />
+      <TourResearchPreviewAction
+        v-else
+        :tour-id="tourId"
+        :generation-id="
+          tourStore.tour.latest_generation_id ||
+          preparationProgress?.generation_id ||
+          tourStore.tour.active_generation_id
+        "
+        :research-status="preparationProgress?.status"
+        :status="tourStore.tour.status"
+        :preparation-error="tourStore.tour.preparation_error"
+      />
+    </div>
+    <div
+      v-if="preparationProgress && !tourStore.tour.research_preview"
+      class="mx-4"
+    >
+      <TourPreparationProgress :progress="preparationProgress" />
+      <p
+        v-if="preparationRefreshFailed"
+        class="mt-2 text-sm text-amber-700 dark:text-amber-300"
+        role="status"
+      >
+        {{ $t("preparationProgress.refreshFailed") }}
+      </p>
+    </div>
     <!-- Map -->
     <div class="relative mx-4">
       <client-only>
@@ -274,6 +306,10 @@ import { tourWaitHint } from "#shared/utils/tourNarration";
 import { useExperienceStore } from "~/stores/experienceStore";
 import { useUserStore } from "~/stores/userStore";
 import TourProgressSummary from "~/components/tour/TourProgressSummary.vue";
+import TourPreparationProgress from "~/components/tour/TourPreparationProgress.vue";
+import TourResearchPreviewAction from "~/components/tour/TourResearchPreviewAction.vue";
+import TourResearchPreviewWarning from "~/components/tour/TourResearchPreviewWarning.vue";
+import { useTourPreparationProgress } from "~/composables/tour/useTourPreparationProgress";
 import TourReadingPanel from "~/components/tour/TourReadingPanel.vue";
 import { useRouteWalk } from "~/composables/map/useRouteWalk";
 import type { MapPoint } from "#shared/utils/routeMovement";
@@ -296,6 +332,13 @@ const { t } = useI18n();
 const tourId = route.params.tourId as string;
 const experiences = useExperienceStore();
 const users = useUserStore();
+const {
+  progress: preparationProgress,
+  refreshFailed: preparationRefreshFailed,
+} = useTourPreparationProgress(
+  computed(() => (tourStore.tour?.id === tourId ? tourStore.tour : null)),
+  computed(() => users.user?.uid ?? null),
+);
 const tourProgress = useTourProgress({
   tour: computed(() => tourStore.tour),
   record: computed(() => tourStore.currentTourRecord),

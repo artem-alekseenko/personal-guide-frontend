@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRouteStore } from "../app/stores/routeStore";
 const suggest = vi.hoisted(() => vi.fn());
 const list = vi.hoisted(() => vi.fn());
@@ -12,6 +12,11 @@ const create = vi.fn().mockResolvedValue({ id: "tour-1" });
 vi.mock("../app/composables/api/tours/useCreateTour", () => ({
   useCreateTour: (p: unknown) => create(p),
 }));
+beforeEach(() => {
+  suggest.mockReset();
+  list.mockReset();
+  create.mockReset().mockResolvedValue({ id: "tour-1" });
+});
 Object.assign(globalThis, {
   useGuidesStore: () => ({ selectedGuide: { id: "guide-1" } }),
 });
@@ -396,4 +401,129 @@ it("keeps a reset list request from clearing a newer request's loading state", a
   expect(store.isLoading).toBe(false);
   expect(store.allTours.map((tour) => tour.id)).toEqual(["new"]);
   store.stopPolling();
+});
+
+it.each(["pending", "failure"])(
+  "resumes %s list polling after remounting during an unfinished request",
+  async (result) => {
+    vi.useFakeTimers();
+    const store = useRouteStore();
+    try {
+      const deferred = Promise.withResolvers<unknown>();
+      list.mockImplementationOnce(() => deferred.promise);
+      const loading = store.fetchListTours();
+      store.stopPolling();
+      await store.fetchListTours();
+      expect(list).toHaveBeenCalledTimes(1);
+      if (result === "pending")
+        deferred.resolve([{ id: "preparing", status: "GENERATING" }]);
+      else deferred.reject(new Error("Offline"));
+      await loading;
+      list.mockResolvedValueOnce([{ id: "ready", status: "GENERATED" }]);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(store.allTours.map((tour) => tour.id)).toEqual(["ready"]);
+      expect(store.error).toBeNull();
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      store.stopPolling();
+      vi.useRealTimers();
+    }
+  },
+);
+
+it.each(["duration", "context", "variant"])(
+  "does not consume a %s draft edited after its creation was submitted",
+  async (field) => {
+    const store = useRouteStore();
+    store.setStartPoint({ lat: "1", lng: "2" });
+    store.personalContext.note = "Original draft";
+    store.setRouteSuggestion({
+      routes: [variant("easy"), variant("highlights")],
+      coordinates: [],
+      description: "",
+      high_places: [],
+    });
+    const deferred = Promise.withResolvers<unknown>();
+    create.mockImplementationOnce(() => deferred.promise);
+    const creating = store.fetchCreateRoute();
+    if (field === "duration") store.setDuration("30");
+    else if (field === "context") store.personalContext.note = "Later draft";
+    else store.selectRoute(1);
+    deferred.resolve({ id: "created" });
+    expect(await creating).toBe(true);
+    await store.initializePersonalContext();
+    expect(store.startPoint).toEqual({ lat: "1", lng: "2" });
+    expect(store.personalContext.note).toBe(
+      field === "context" ? "Later draft" : "Original draft",
+    );
+    if (field === "duration") expect(store.duration).toBe("30");
+    if (field === "variant")
+      expect(store.selectedRoute?.name).toBe("highlights");
+  },
+);
+
+it("serializes creation attempts and releases the creation lock after failure", async () => {
+  const store = useRouteStore();
+  store.setRouteSuggestion({
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  });
+  const deferred = Promise.withResolvers<unknown>();
+  create.mockImplementationOnce(() => deferred.promise);
+  const creating = store.fetchCreateRoute();
+  const offline = new Error("Offline");
+  const outcome = creating.catch((error: unknown) => error);
+  try {
+    expect(await store.fetchCreateRoute()).toBe(false);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(store.isCreating).toBe(true);
+    deferred.reject(offline);
+    expect(await outcome).toBe(offline);
+    expect(store.isCreating).toBe(false);
+    expect(store.canCreate).toBe(true);
+    create.mockResolvedValueOnce({ id: "retried" });
+    expect(await store.fetchCreateRoute()).toBe(true);
+    expect(store.isCreating).toBe(false);
+    expect(store.actualTour?.id).toBe("retried");
+  } finally {
+    deferred.reject(offline);
+    await outcome;
+  }
+});
+
+it("does not release a newer account's creation lock from an old completion", async () => {
+  const store = useRouteStore();
+  const suggestions = {
+    routes: [variant("easy")],
+    coordinates: [],
+    description: "",
+    high_places: [],
+  };
+  store.setRouteSuggestion(suggestions);
+  const oldDeferred = Promise.withResolvers<unknown>();
+  const newDeferred = Promise.withResolvers<unknown>();
+  create.mockImplementationOnce(() => oldDeferred.promise);
+  const oldCreation = store.fetchCreateRoute();
+  store.reset();
+  store.setRouteSuggestion(suggestions);
+  create.mockImplementationOnce(() => newDeferred.promise);
+  const newCreation = store.fetchCreateRoute();
+  try {
+    oldDeferred.resolve({ id: "old" });
+    expect(await oldCreation).toBe(false);
+    expect(await store.fetchCreateRoute()).toBe(false);
+    expect(store.isCreating).toBe(true);
+    expect(store.actualTour).toBeNull();
+    newDeferred.resolve({ id: "new" });
+    expect(await newCreation).toBe(true);
+    expect(store.isCreating).toBe(false);
+    expect(store.actualTour?.id).toBe("new");
+  } finally {
+    newDeferred.resolve({ id: "new" });
+    await newCreation;
+  }
 });

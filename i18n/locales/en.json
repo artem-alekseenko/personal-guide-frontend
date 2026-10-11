@@ -1,4 +1,72 @@
 {
+  "researchPreview": {
+    "stopAndTry": "Stop research and try draft",
+    "trySaved": "Try saved research",
+    "confirmStop": "Stop this tour’s ongoing research and create a separate experimental draft from the findings saved so far? The original tour, published package and history will not be replaced.",
+    "confirmSaved": "Create a separate experimental draft from this tour’s saved findings? The original tour, published package and history will not be replaced.",
+    "warning": "Unverified, incomplete research draft. It uses only findings collected so far, without independent review or additional research. Route feasibility and access have not been verified. Information may be inaccurate or missing; this is not a fully prepared tour.",
+    "noAutomaticPlayback": "Opening the draft will not start narration or audio.",
+    "confirm": "Try an experimental draft immediately",
+    "creating": "Stopping active research if needed and saving the draft…",
+    "failed": "The draft could not be opened or its creation confirmed. Try again to safely retry the same request; no successful tour opening has been confirmed.",
+    "openSaved": "Open saved draft",
+    "confirmOpen": "Open the separate experimental draft already saved for this tour? No additional research or new draft will be requested.",
+    "opening": "Opening the saved draft…",
+    "openingFailed": "The draft was saved, but navigation did not complete. Try again to open that same draft without creating another one.",
+    "originalPreserved": "The original tour, published package and history are preserved separately.",
+    "title": "Experimental research draft — unverified",
+    "coverage": "Stops with saved findings: {available}. Stops missing research: {missing}.",
+    "missingStops": "Research gaps: {names}. These stops remain on the route, without invented stories to fill the gaps.",
+    "routeOnly": "No structured findings were saved. This is a route-only draft with explicit research gaps."
+  },
+  "preparationProgress": {
+    "rateLimited": "Research stopped because of provider rate limits. Saved sources are kept.",
+    "budgetUnavailable": "Research stopped: the tour’s spending limit was reached or its remaining budget could not be verified.",
+    "creditsExhausted": "The research provider has no credits. Add credits before retrying.",
+    "refreshFailed": "Progress could not be refreshed. Showing the last update; retrying.",
+    "title": "Tour preparation",
+    "details": "Research progress",
+    "activeResearchers": "Researchers working",
+    "completedStops": "Stops researched",
+    "attempt": "Attempt",
+    "updatedAt": "Last update:",
+    "savedNotice": "Facts and words appear after a research submission is accepted. Turns and gathered sources include retries. These counts are not a completion percentage.",
+    "statuses": {
+      "PENDING": "Preparation queued",
+      "RUNNING": "Preparing your tour",
+      "READY": "Tour prepared",
+      "FAILED": "Preparation failed",
+      "CANCELLED": "Preparation cancelled"
+    },
+    "phases": {
+      "CAPTURE": "Saving your request",
+      "ROUTE": "Checking the route",
+      "RESEARCH": "Researching the stops",
+      "COMPOSITION": "Assembling the tour",
+      "REVIEW": "Checking the evidence",
+      "PUBLICATION": "Saving the prepared tour"
+    },
+    "stopPhases": {
+      "QUEUED": "Waiting for a researcher",
+      "THINKING": "Reading and planning",
+      "SEARCHING": "Searching for sources",
+      "FETCHING": "Reading a source",
+      "SUBMITTING": "Checking submitted research",
+      "COMPLETED": "Research saved",
+      "FAILED": "Research failed",
+      "CANCELLED": "Research cancelled"
+    },
+    "metrics": {
+      "turns_started": "Research turns started",
+      "turns_completed": "Research turns completed",
+      "tool_calls_completed": "Research actions completed",
+      "sources_count": "Sources gathered",
+      "source_bytes": "Source text (bytes)",
+      "claims_count": "Saved facts",
+      "word_count": "Saved fact words",
+      "archive_bytes": "Saved files (bytes)"
+    }
+  },
   "storyBuffer": {
     "uncertain": "The story request could not be confirmed. Try again or reload the tour."
   },
@@ -240,8 +308,7 @@
     "OPENAI_MINI": "OpenAI Mini",
     "OPENAI_FULL": "OpenAI Full",
     "GEMINI": "Gemini",
-    "MOCK": "Sample responses",
-    "PERPLEXITY": "Perplexity"
+    "MOCK": "Sample responses"
   },
   "tourProgress": {
     "title": "Your walk",

@@ -1,3 +1,4 @@
+import type { PreparationProgress } from "#shared/types/preparationProgress";
 import type { PersonalContext } from "./personalContext";
 import type { LlmType } from "./llm";
 import type { GuideInteractionMode } from "#shared/types/guideInteraction";
@@ -114,7 +115,18 @@ export interface ICreateTourRequest {
   personal_context?: PersonalContext;
 }
 
+export interface ResearchPreview {
+  source_tour_id: string;
+  source_generation_id: string;
+  unverified: true;
+  available_stop_ids: string[];
+  missing_stop_ids: string[];
+  captured_at: string;
+}
+
 export interface ICreatedTour {
+  research_preview?: ResearchPreview | null;
+  preparation_progress?: PreparationProgress | null;
   experience?: ProgressState;
   personal_context?: PersonalContext;
   id: string;
@@ -155,13 +167,7 @@ export interface ITourGuidance {
   stop_id?: string | null;
   stop_name?: string | null;
   action:
-    | "ARRIVE"
-    | "CONTINUE"
-    | "WALK"
-    | "ANSWER"
-    | "LOCATE"
-    | "COMPLETE"
-    | "WAIT";
+    "ARRIVE" | "CONTINUE" | "WALK" | "ANSWER" | "LOCATE" | "COMPLETE" | "WAIT";
   reason: string;
   wait_seconds: number;
   requires_resume: boolean;
@@ -207,12 +213,7 @@ import type { VoiceType } from "./voice";
 
 export interface ITourRecordRequest {
   requested_mode?:
-    | "WALKING"
-    | "ARRIVAL"
-    | "STATIONARY"
-    | "QUESTION"
-    | "TRANSITION"
-    | "QUIET";
+    "WALKING" | "ARRIVAL" | "STATIONARY" | "QUESTION" | "TRANSITION" | "QUIET";
   duration: number;
   point: ICoordinate;
   user_text: string;

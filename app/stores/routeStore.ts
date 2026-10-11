@@ -43,6 +43,7 @@ export const useRouteStore = defineStore("routeStore", () => {
   ]);
   const _interval = ref<NodeJS.Timeout | null>(null);
   const isLoading = ref(false);
+  const isCreating = ref(false);
   let pollingEnabled = true;
   let suggestionVersion = 0;
   // Account resets invalidate all work; draft revisions only invalidate suggestions.
@@ -232,6 +233,7 @@ export const useRouteStore = defineStore("routeStore", () => {
   };
 
   const fetchCreateRoute = async (): Promise<boolean> => {
+    if (isCreating.value) return false;
     const selected = selectedRoute.value;
     if (!canCreate.value || !selected?.stops)
       throw new Error("Select a validated route first");
@@ -260,6 +262,7 @@ export const useRouteStore = defineStore("routeStore", () => {
 
     if (!guidesStore.selectedGuide?.id) throw new Error("Select a guide first");
     const session = accountEpoch;
+    const draftVersion = suggestionVersion;
     const user = useUserStore();
     const uid = user.user?.uid;
     const payload: ICreateTourRequest = {
@@ -274,24 +277,29 @@ export const useRouteStore = defineStore("routeStore", () => {
       duration_minutes: Number(_duration.value),
       personal_context: effectiveContext.value,
     };
+    isCreating.value = true;
 
     try {
       error.value = null;
       const tour = await useCreateTour(payload);
       if (session !== accountEpoch || user.user?.uid !== uid) return false;
       setActualTour(tour);
-      draftConsumed = true;
+      draftConsumed =
+        draftVersion === suggestionVersion && selectedRoute.value === selected;
       return true;
     } catch (e) {
       if (session !== accountEpoch || user.user?.uid !== uid) return false;
       error.value = e instanceof Error ? e.message : "Failed to create route";
       throw e;
+    } finally {
+      if (session === accountEpoch && user.user?.uid === uid)
+        isCreating.value = false;
     }
   };
 
   const fetchListTours = async (): Promise<void> => {
-    if (isLoading.value) return;
     pollingEnabled = true;
+    if (isLoading.value) return;
     const session = accountEpoch;
     const user = useUserStore();
     const uid = user.user?.uid;
@@ -309,8 +317,10 @@ export const useRouteStore = defineStore("routeStore", () => {
       if (session === accountEpoch && user.user?.uid === uid) {
         isLoading.value = false;
         if (_interval.value) clearTimeout(_interval.value);
-        const pending = _allTours.value.some(
-          (tour) => tour.status === "GENERATING" && !tour.preparation_error,
+        const pending = _allTours.value.some((tour) =>
+          tour.preparation_progress
+            ? ["PENDING", "RUNNING"].includes(tour.preparation_progress.status)
+            : tour.status === "GENERATING" && !tour.preparation_error,
         );
         if (import.meta.client && pollingEnabled && (pending || error.value)) {
           _interval.value = setTimeout(() => {
@@ -338,6 +348,7 @@ export const useRouteStore = defineStore("routeStore", () => {
     _tags.value = _tags.value.map((tag) => ({ ...tag, is_selected: false }));
     error.value = null;
     isLoading.value = false;
+    isCreating.value = false;
   };
 
   return {
@@ -356,6 +367,7 @@ export const useRouteStore = defineStore("routeStore", () => {
     tags,
     error,
     isLoading,
+    isCreating,
     reset,
     setStartPoint,
     setDuration,

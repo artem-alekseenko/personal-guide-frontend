@@ -1,4 +1,5 @@
 declare module "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions" {
+  import type { Feature, Point } from "geojson";
   import { Map } from "mapbox-gl";
 
   export interface PaddingOptions {
@@ -52,11 +53,11 @@ declare module "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions" {
     reverse(): MapboxDirections; // Меняет местами отправление и назначение
     addWaypoint(
       index: number,
-      waypoint: [number, number] | GeoJSON.Feature<GeoJSON.Point>,
+      waypoint: [number, number] | Feature<Point>,
     ): MapboxDirections; // Добавляет путевую точку
     setWaypoint(
       index: number,
-      waypoint: [number, number] | GeoJSON.Feature<GeoJSON.Point>,
+      waypoint: [number, number] | Feature<Point>,
     ): MapboxDirections; // Меняет путевую точку
     removeWaypoint(index: number): MapboxDirections; // Удаляет путевую точку
     getWaypoints(): any[]; // Получает все путевые точки

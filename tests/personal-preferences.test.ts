@@ -257,3 +257,14 @@ it("ignores a save from an earlier session of the same account", async () => {
   expect(user.savedPersonalContext?.note).toBe("New session");
   expect(user.isSavingPreferences).toBe(false);
 });
+
+it("resets a removed Perplexity selection before sending new tour requests", () => {
+  const saved = (globalThis as any).useLocalStorage(
+    "personal-guide-llm",
+    "PERPLEXITY",
+  );
+  saved.value = "PERPLEXITY";
+  const user = useUserStore();
+  expect(user.userPreferences.llmType).toBe("DEFAULT");
+  expect(saved.value).toBe("DEFAULT");
+});
