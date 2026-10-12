@@ -178,3 +178,73 @@ it("does not send a queued text mutation after its tour is reset", async () => {
     fetchApi.mock.calls.filter(([, options]) => options?.method === "POST"),
   ).toEqual([]);
 });
+
+it("fences old in-flight text reads across accepted generation resets", async () => {
+  const s = await store();
+  fetchApi.mockResolvedValueOnce({
+    ...view(12),
+    generation_id: "old-package",
+  });
+  await s.load("tour", "owner", "old-package");
+  const oldRead = Promise.withResolvers<unknown>();
+  fetchApi.mockImplementationOnce(() => oldRead.promise);
+  const delayed = s.load("tour", "owner", "old-package");
+  s.acceptGeneration("tour", "owner", "new-package");
+  expect(s.view).toBeNull();
+  expect(s.needsReconciliation).toBe(true);
+  fetchApi.mockResolvedValueOnce({
+    ...view(0),
+    generation_id: "new-package",
+  });
+  await s.load("tour", "owner", "new-package");
+  oldRead.resolve({ ...view(13), generation_id: "old-package" });
+  await delayed;
+  expect(s.view?.generation_id).toBe("new-package");
+  expect(s.view?.revision).toBe(0);
+  expect(s.ready).toBe(true);
+});
+
+it("rejects an old-generation reload and blocks mutations until the accepted text state arrives", async () => {
+  const s = await store();
+  fetchApi.mockResolvedValueOnce({ ...view(7), generation_id: "old-package" });
+  await s.load("tour", "owner", "old-package");
+  s.acceptGeneration("tour", "owner", "new-package");
+  fetchApi.mockResolvedValueOnce({ ...view(8), generation_id: "old-package" });
+  await expect(s.reconcile()).rejects.toThrow("another generation");
+  expect(s.view).toBeNull();
+  expect(s.needsReconciliation).toBe(true);
+  const count = fetchApi.mock.calls.length;
+  await expect(s.act({ action: "PHOTO" })).rejects.toThrow();
+  expect(fetchApi.mock.calls).toHaveLength(count);
+});
+
+it("does not supersede another owner's text retry on acceptance", async () => {
+  const s = await store();
+  fetchApi.mockResolvedValueOnce({ ...view(7), generation_id: "old-package" });
+  await s.load("tour", "owner", "old-package");
+  fetchApi.mockRejectedValueOnce(new Error("Response lost"));
+  await expect(s.act({ action: "PHOTO" })).rejects.toThrow();
+  s.acceptGeneration("tour", "other-owner", "new-package");
+  s.acceptGeneration("other-tour", "owner", "new-package");
+  expect(s.view?.generation_id).toBe("old-package");
+  expect(s.hasPending).toBe(true);
+});
+
+it("does not send a queued old-generation text action after confirmed acceptance", async () => {
+  const s = await store();
+  fetchApi.mockResolvedValueOnce({ ...view(7), generation_id: "old-package" });
+  await s.load("tour", "owner", "old-package");
+  const gate = Promise.withResolvers<void>();
+  const blocking = useTourRequestStore().run("tour", () => gate.promise);
+  const pending = s.act({ action: "PHOTO" });
+  const superseded = expect(pending).rejects.toThrow("active tour changed");
+  s.acceptGeneration("tour", "owner", "new-package");
+  gate.resolve();
+  await blocking;
+  await superseded;
+  expect(s.hasPending).toBe(false);
+  expect(s.view).toBeNull();
+  expect(
+    fetchApi.mock.calls.filter(([, options]) => options?.method === "POST"),
+  ).toEqual([]);
+});

@@ -19,12 +19,27 @@ const interpolate = (a: MapPoint, b: MapPoint, t: number): MapPoint => [
   a[1] + (b[1] - a[1]) * t,
 ];
 
+/** Half-open provider-leg ranges; absent boundaries denote one stored path. */
+export function routeLegRanges(pointCount: number, legStarts: readonly number[] = []) {
+  const starts = legStarts.length ? legStarts : [0];
+  if (
+    pointCount < 1 ||
+    starts[0] !== 0 ||
+    starts.some((start, index) =>
+      !Number.isInteger(start) || start < 0 || start >= pointCount ||
+      (index > 0 && start <= starts[index - 1]!),
+    )
+  ) return null;
+  return starts.map((start, index) => [start, starts[index + 1] ?? pointCount] as const);
+}
+
 /** Walk the returned path, using metres of path length rather than a straight line. */
 export function createRouteWalk(
   points: readonly MapPoint[],
   start: MapPoint,
   metres: number,
   fromDistance?: number,
+  legStarts: readonly number[] = [],
 ) {
   if (
     points.length < 2 ||
@@ -34,9 +49,11 @@ export function createRouteWalk(
     metres <= 0
   )
     return null;
+  if (!routeLegRanges(points.length, legStarts)) return null;
+  const boundaries = new Set(legStarts);
   const lengths = points
     .slice(1)
-    .map((point, i) => distance(points[i]!, point));
+    .map((point, i) => boundaries.has(i + 1) ? 0 : distance(points[i]!, point));
   const offsets = [0];
   for (const length of lengths) offsets.push(offsets.at(-1)! + length);
   const totalDistance = offsets.at(-1)!;
@@ -57,6 +74,7 @@ export function createRouteWalk(
   // Project onto nearby segments in a local metre-scaled plane.
   const scale = Math.cos(radians(start[1]));
   for (let i = 0; i < lengths.length; i++) {
+    if (!lengths[i]) continue;
     const a = points[i]!,
       b = points[i + 1]!;
     const x = (b[0] - a[0]) * scale,

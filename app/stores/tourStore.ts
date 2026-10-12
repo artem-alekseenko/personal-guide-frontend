@@ -107,11 +107,14 @@ export const useTourStore = defineStore("tourStore", () => {
   };
 
   // Mutations
-  const setTour = (tour: ICreatedTour): void => {
+  const setTour = (
+    tour: ICreatedTour,
+    options: { restoreRecovery?: boolean } = {},
+  ): void => {
     const changed = _tour.value?.id !== tour.id;
     if (changed) reset();
     _tour.value = tour;
-    if (changed) restoreRecovery();
+    if (changed && options.restoreRecovery !== false) restoreRecovery();
   };
 
   const setCurrentTourRecord = (tourRecord: ITourRecord): void => {

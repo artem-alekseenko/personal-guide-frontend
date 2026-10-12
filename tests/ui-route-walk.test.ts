@@ -211,3 +211,16 @@ it("keeps the stopped position and continues forward after an explicit interrupt
   expect(f.position()?.[1]).toBeCloseTo(0.00159728, 7);
   f.scope.stop();
 });
+
+it("local walking excludes disconnected leg gaps from progress and never traverses the connector", () => {
+  const legs: [number, number][] = [[0, 0], [0.001, 0], [0.004, 0.003], [0.005, 0.003]];
+  const walk = createRouteWalk(legs, [0, 0], 1000, undefined, [0, 2])!;
+  expect(walk.totalDistance).toBeCloseTo(222.39, 1);
+  expect(walk.positionAt(0.25)[0]).toBeCloseTo(0.0005, 8);
+  expect(walk.positionAt(0.25)[1]).toBe(0);
+  expect(walk.positionAt(0.75)[0]).toBeCloseTo(0.0045, 6);
+  expect(walk.positionAt(0.75)[1]).toBe(0.003);
+  const offPath = createRouteWalk(legs, [0.0025, 0.0015], 1000, undefined, [0, 2])!;
+  expect(offPath.positionAt(0)).not.toEqual([0.0025, 0.0015]);
+  expect(createRouteWalk(legs, [0, 0], 300, undefined, [0, 1, 2, 3])).toBeNull();
+});

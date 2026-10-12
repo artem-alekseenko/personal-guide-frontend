@@ -1,5 +1,9 @@
 <template>
-  <div :style="{ backgroundImage: `url(${imageUrl})` }" class="tour-card">
+  <div
+    ref="cardRef"
+    :style="{ backgroundImage: `url(${imageUrl})` }"
+    class="tour-card"
+  >
     <div class="tour-card__overlay"></div>
     <div class="tour-card__content">
       <h2 class="tour-card__title">{{ name }}</h2>
@@ -35,27 +39,6 @@
         :preview="researchPreview"
         :stops="routeStops"
       />
-      <TourPreparationProgress
-        v-if="preparationProgress && !researchPreview"
-        :progress="preparationProgress"
-      />
-      <p
-        v-else-if="!researchPreview"
-        class="tour-card__generating-text"
-        :role="preparationError ? 'alert' : 'status'"
-      >
-        {{ generatingText }}
-      </p>
-      <TourResearchPreviewAction
-        v-if="!researchPreview"
-        :tour-id="tourId"
-        :generation-id="
-          latestGenerationId || preparationProgress?.generation_id
-        "
-        :research-status="preparationProgress?.status"
-        :status="status"
-        :preparation-error="preparationError"
-      />
       <NuxtLink
         v-if="['GENERATED', 'STARTED'].includes(status)"
         :to="`/tours/${encodeURIComponent(tourId)}`"
@@ -63,17 +46,78 @@
       >
         {{ $t("navigation.goToTour") }}
       </NuxtLink>
+      <TourResearchControls
+        v-if="!researchPreview"
+        :tour-id="tourId"
+        :latest-generation-id="
+          latestGenerationId || preparationProgress?.generation_id
+        "
+        :preparation-progress="livePreparationProgress"
+        :status="status"
+        :preparation-error="preparationError"
+        @updated="emit('updated')"
+      />
+      <TourPreparationProgress
+        v-if="livePreparationProgress && !researchPreview"
+        :progress="livePreparationProgress"
+        :refreshing="preparationRefreshing"
+        :refresh-failed="preparationRefreshFailed"
+        :caption-uncertain="preparationCaptionUncertain"
+        @refresh="refreshPreparation"
+        compact
+      />
+      <div v-else-if="!researchPreview" class="mt-3">
+        <p
+          v-if="
+            !preparationError &&
+            (preparationRefreshing || status === 'GENERATING')
+          "
+          role="status"
+          class="border-default bg-elevated text-default flex items-center gap-2 rounded-lg border p-3 text-sm"
+        >
+          <span
+            aria-hidden="true"
+            class="border-primary/30 border-t-primary size-5 shrink-0 animate-spin rounded-full border-2 motion-reduce:animate-none"
+          />
+          {{ $t("preparationProgress.waitingForSnapshot") }}
+        </p>
+        <p
+          v-if="generatingText || preparationError"
+          class="tour-card__generating-text"
+          :role="preparationError ? 'alert' : 'status'"
+        >
+          {{ generatingText || preparationError }}
+        </p>
+        <p
+          v-if="preparationRefreshFailed"
+          class="bg-elevated text-warning mt-2 rounded p-2 text-sm"
+          role="status"
+        >
+          {{ $t("preparationProgress.refreshFailed") }}
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import TourPreparationProgress from "./tour/TourPreparationProgress.vue";
-import TourResearchPreviewAction from "./tour/TourResearchPreviewAction.vue";
+import TourResearchControls from "./tour/TourResearchControls.vue";
 import TourResearchPreviewWarning from "./tour/TourResearchPreviewWarning.vue";
 import type { IRoutePoint, ResearchPreview } from "~/types";
 import type { PreparationProgress } from "#shared/types/preparationProgress";
-import { nextTick, onMounted, onBeforeUnmount, ref, toRefs, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+  ref,
+  shallowRef,
+  toRefs,
+  watch,
+} from "vue";
+import { useTourPreparationProgress } from "~/composables/tour/useTourPreparationProgress";
+import { useUserStore } from "~/stores/userStore";
 
 const props = defineProps<{
   status: string;
@@ -84,12 +128,12 @@ const props = defineProps<{
   routeStops?: IRoutePoint[];
   name: string;
   description: string;
-  generatingPercent?: number;
   generatingText: string;
   tourId: string;
   imageUrl: string;
   guideName: string;
 }>();
+const emit = defineEmits<{ updated: [] }>();
 
 const {
   status,
@@ -102,6 +146,30 @@ const {
   imageUrl,
   guideName,
 } = toRefs(props);
+
+const users = useUserStore();
+const cardRef = shallowRef<HTMLElement | null>(null);
+const cardVisible = shallowRef(false);
+const {
+  progress: livePreparationProgress,
+  refreshFailed: preparationRefreshFailed,
+  refreshing: preparationRefreshing,
+  captionUncertain: preparationCaptionUncertain,
+  refresh: refreshPreparation,
+} = useTourPreparationProgress(
+  computed(() =>
+    props.researchPreview
+      ? null
+      : {
+          id: props.tourId,
+          latest_generation_id: props.latestGenerationId,
+          preparation_progress: props.preparationProgress,
+        },
+  ),
+  computed(() => users.user?.uid ?? null),
+  undefined,
+  { visible: cardVisible },
+);
 
 const isExpanded = ref(false);
 const shouldShowToggle = ref(false);
@@ -134,6 +202,7 @@ const measureDescription = async () => {
   shouldShowToggle.value = fullHeight > maxHeight;
 };
 let resizeObserver: ResizeObserver | undefined;
+let intersectionObserver: IntersectionObserver | undefined;
 watch(
   description,
   () => {
@@ -143,6 +212,12 @@ watch(
 );
 onMounted(() => {
   void measureDescription();
+  if (cardRef.value && typeof IntersectionObserver !== "undefined") {
+    intersectionObserver = new IntersectionObserver(([entry]) => {
+      cardVisible.value = !!entry?.isIntersecting;
+    });
+    intersectionObserver.observe(cardRef.value);
+  }
   if (descriptionRef.value && typeof ResizeObserver !== "undefined") {
     resizeObserver = new ResizeObserver(() => {
       void measureDescription();
@@ -150,7 +225,10 @@ onMounted(() => {
     resizeObserver.observe(descriptionRef.value);
   }
 });
-onBeforeUnmount(() => resizeObserver?.disconnect());
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  intersectionObserver?.disconnect();
+});
 </script>
 
 <style scoped>

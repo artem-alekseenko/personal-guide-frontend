@@ -498,3 +498,51 @@ it("rejects a preview that does not match the immutable requested research gener
   expect(text(app.root)).toContain(en.researchPreview.failed);
   app.unmount();
 });
+
+it("requires an explicit new-draft action for newer research and preserves uncertain retries", async () => {
+  const store = useResearchPreviewStore();
+  api.mockResolvedValueOnce(result());
+  await store.open("source/tour", "generation-1", async () => {});
+  const originalKey = api.mock.calls[0]![1].headers["Idempotency-Key"];
+  await store.open("source/tour", "generation-2", async () => {});
+  expect(api).toHaveBeenCalledTimes(1);
+  expect(store.forTour("source/tour")?.result?.id).toBe(result().id);
+
+  api.mockRejectedValueOnce(new Error("Unknown network outcome"));
+  await expect(
+    store.openNew("source/tour", "generation-2", async () => {}),
+  ).rejects.toThrow("Unknown network outcome");
+  const pendingKey = api.mock.calls[1]![1].headers["Idempotency-Key"];
+  expect(pendingKey).not.toBe(originalKey);
+  api.mockResolvedValueOnce({
+    ...result(),
+    id: "second-draft",
+    research_preview: { ...metadata, source_generation_id: "generation-2" },
+  });
+  await store.openNew("source/tour", "generation-3", async () => {});
+  expect(api.mock.calls[2]![1].headers["Idempotency-Key"]).toBe(pendingKey);
+  expect(api.mock.calls[2]![1].body).toEqual({ generation_id: "generation-2" });
+  expect(store.forTour("source/tour")?.result?.id).toBe("second-draft");
+});
+
+it("cancelling a new-version draft confirmation leaves opening the saved draft unchanged", async () => {
+  api.mockResolvedValueOnce(result());
+  await useResearchPreviewStore().open(
+    "source/tour",
+    "generation-1",
+    async () => {},
+  );
+  const app = render("FAILED");
+  app.props.generationId = "generation-2";
+  await flush();
+  button(app.root, en.researchPreview.newDraft).props.onClick();
+  await flush();
+  button(app.root, en.common.cancel).props.onClick();
+  await flush();
+  button(app.root, en.researchPreview.openSaved).props.onClick();
+  await flush();
+  await button(app.root, en.researchPreview.openSaved).props.onClick();
+  expect(api).toHaveBeenCalledTimes(1);
+  expect(navigate).toHaveBeenCalledWith("/tours/new%2Fdraft%3Fwalk");
+  app.unmount();
+});

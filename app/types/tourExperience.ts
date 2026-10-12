@@ -2,6 +2,7 @@ import type { LlmType } from "./llm";
 import type { PersonalContext } from "./personalContext";
 import type { ICoordinate } from "./index";
 import type { GuideInteractionMode } from "#shared/types/guideInteraction";
+import type { DiscoveredPlace, RouteDiscovery } from "./routeDiscovery";
 export type Intent =
   | "ASK"
   | "MORE"
@@ -21,6 +22,7 @@ export type Intent =
 export interface Interaction {
   action: Intent;
   stop_id?: string;
+  subject_place_id?: string;
   cue_id?: string;
   text?: string;
   context?: PersonalContext;
@@ -30,6 +32,8 @@ export interface Interaction {
   type_llm?: LlmType;
 }
 export interface Navigation {
+  route_context?: "local_route" | "remote_travel";
+  current_maneuver?: string | null;
   status:
     | "available"
     | "location_required"
@@ -37,7 +41,8 @@ export interface Navigation {
     | "destination_required"
     | "time_limit"
     | "complete"
-    | "unavailable";
+    | "unavailable"
+    | "remote_travel";
   target_name?: string;
   target_id?: string;
   destination_kind?: "requested" | "route_start" | "route_end" | "next";
@@ -47,7 +52,24 @@ export interface Navigation {
   walking_minutes?: number;
   remaining_minutes?: number;
 }
+export interface StoryReadiness {
+  status:
+    | "NOT_SELECTED"
+    | "AVAILABLE"
+    | "CONTEXT_ONLY"
+    | "UNCHECKED_ACCOUNT"
+    | "EXHAUSTED"
+    | "MISSING";
+  eligible_fact_count: number;
+  unspoken_fact_count: number;
+  unchecked_account_count: number;
+  prepared_story_available: boolean;
+}
 export interface Experience {
+  language?: string;
+  story_readiness?: StoryReadiness;
+  route_places?: DiscoveredPlace[];
+  route_discovery?: RouteDiscovery | null;
   interaction_mode?: GuideInteractionMode;
   navigation?: Navigation | null;
   schema_version: number;
@@ -55,6 +77,8 @@ export interface Experience {
   generation_id: string | null;
   stop_id: string | null;
   stop_name: string | null;
+  topic_place_id?: string | null;
+  topic_place_name?: string | null;
   stops: { id: string; name: string }[];
   location_status: "GPS_CONFIRMED" | "USER_SELECTED" | "UNCERTAIN" | "REMOTE";
   activity: string | null;
@@ -63,6 +87,7 @@ export interface Experience {
   turns: {
     id: string;
     stop_id: string;
+    subject_place_id?: string | null;
     role: "visitor" | "guide";
     kind?: "story" | "navigation";
     fact_ids?: string[];

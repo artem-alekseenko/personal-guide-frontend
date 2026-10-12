@@ -18,7 +18,7 @@ const missingNames = computed(() =>
     class="border-warning bg-elevated text-default my-3 grid gap-2 rounded-lg border p-3 text-sm"
     role="note"
   >
-    <strong class="text-warning">{{ $t("researchPreview.title") }}</strong>
+    <strong>{{ $t("researchPreview.title") }}</strong>
     <p>{{ $t("researchPreview.warning") }}</p>
     <p>{{ $t("researchPreview.originalPreserved") }}</p>
     <p>

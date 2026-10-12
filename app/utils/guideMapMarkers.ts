@@ -1,10 +1,12 @@
 import type { Map as MapboxMap, Marker } from "mapbox-gl";
 import type { GuideMapObject } from "#shared/utils/guideMapObjects";
 import type { ProgressPoint } from "#shared/utils/tourProgress";
+import type { DiscoveredPlace } from "~/types/routeDiscovery";
 import createPlacesMarkerElem, {
   setPlaceMarkerHighlight,
 } from "./pages/createPlacesMarkerElem";
 import { addMarkerElemToMap } from "./mapMarkers";
+import { escapeHtml } from "./safeText";
 
 /** Own one map's markers; changing discussion preserves stop elements and keyboard focus. */
 export function createGuideMapMarkers() {
@@ -23,6 +25,8 @@ export function createGuideMapMarkers() {
     stops: readonly ProgressPoint[],
     objects: readonly GuideMapObject[],
     label: string,
+    leads: readonly DiscoveredPlace[] = [],
+    leadLabel = "",
   ) => {
     if (map !== currentMap) {
       clear();
@@ -39,8 +43,22 @@ export function createGuideMapMarkers() {
         valid: !!point.lat?.trim() && !!point.lng?.trim(),
       }))
       .concat(
+        leads.map((place) => ({
+          key: `lead:${place.id}`,
+          name: place.name,
+          number: 0,
+          coordinates: [Number(place.lng), Number(place.lat)] as [number, number],
+          highlighted: objects.some((object) =>
+            object.stopPosition === null && object.name === place.name &&
+            object.coordinates[0] === Number(place.lng) && object.coordinates[1] === Number(place.lat)),
+          valid: !!place.lat.trim() && !!place.lng.trim(),
+        })),
+      )
+      .concat(
         objects
-          .filter((object) => object.stopPosition === null)
+          .filter((object) => object.stopPosition === null && !leads.some((place) =>
+            place.name === object.name && Number(place.lng) === object.coordinates[0] &&
+            Number(place.lat) === object.coordinates[1]))
           .map((object) => ({
             key: `place:${JSON.stringify([object.coordinates, object.name])}`,
             name: object.name,
@@ -64,10 +82,13 @@ export function createGuideMapMarkers() {
       retained.add(object.key);
       const coords = object.coordinates.join(",");
       let entry = entries.get(object.key);
-      if (entry && (entry.coords !== coords || entry.name !== object.name)) {
-        entry.marker.remove();
-        entries.delete(object.key);
-        entry = undefined;
+      if (entry && entry.coords !== coords) {
+        entry.marker.setLngLat(object.coordinates);
+        entry.coords = coords;
+      }
+      if (entry && entry.name !== object.name) {
+        entry.marker.getPopup()?.setHTML(`<h3>${escapeHtml(object.name)}</h3>`);
+        entry.name = object.name;
       }
       if (!entry) {
         const element = createPlacesMarkerElem(
@@ -87,6 +108,13 @@ export function createGuideMapMarkers() {
         highlighted: object.highlighted,
         label,
       });
+      if (object.key.startsWith("lead:")) {
+        entry.element.classList.add("pg-place-marker--lead");
+        if (!object.highlighted) {
+          entry.element.ariaLabel = `${leadLabel}: ${object.name}`;
+          entry.element.title = entry.element.ariaLabel;
+        }
+      }
     }
     for (const [key, entry] of entries) {
       if (!retained.has(key)) {

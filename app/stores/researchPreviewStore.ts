@@ -7,6 +7,7 @@ import {
 } from "~/composables/api/tours/useResearchPreview";
 import { useTourRequestStore } from "./tourRequestStore";
 import { useUserStore } from "./userStore";
+import { useResearchLifecycleStore } from "./researchLifecycleStore";
 
 interface PreviewOperation {
   key: string;
@@ -37,6 +38,8 @@ export const useResearchPreviewStore = defineStore("researchPreview", () => {
     const uid = users.user?.uid;
     if (!uid) throw new Error("Sign in before trying a draft");
     if (forTour(id)?.busy) return null;
+    if (!forTour(id)?.result && useResearchLifecycleStore().forTour(id))
+      return null;
     if (!forTour(id)) {
       operations.value[id] = {
         key: crypto.randomUUID(),
@@ -91,6 +94,8 @@ export const useResearchPreviewStore = defineStore("researchPreview", () => {
     const uid = users.user?.uid;
     if (!uid) throw new Error("Sign in before trying a draft");
     if (forTour(id)?.busy || forTour(id)?.opening) return null;
+    if (!forTour(id)?.result && useResearchLifecycleStore().forTour(id))
+      return null;
     const current = epoch;
     const pending = start(id, generationId);
     const operation = forTour(id)!;
@@ -111,5 +116,26 @@ export const useResearchPreviewStore = defineStore("researchPreview", () => {
       if (isCurrent()) operation.opening = false;
     }
   }
-  return { forTour, start, open };
+  async function openNew(
+    id: string,
+    generationId: string,
+    navigate: (result: ICreatedTour) => Promise<void>,
+  ) {
+    const previous = forTour(id);
+    if (
+      previous?.busy ||
+      previous?.opening ||
+      useResearchLifecycleStore().forTour(id)
+    )
+      return null;
+    // Only an explicitly confirmed, completed snapshot may be replaced locally.
+    // An uncertain request always keeps its original body and operation key.
+    if (
+      previous?.result &&
+      previous.result.research_preview?.source_generation_id !== generationId
+    )
+      delete operations.value[id];
+    return open(id, generationId, navigate);
+  }
+  return { forTour, start, open, openNew };
 });

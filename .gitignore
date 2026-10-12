@@ -33,3 +33,14 @@ logs
 # Vercel
 .vercel
 upload-env.sh
+
+# Test artifacts and local browser authentication
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.auth/
+
+# Private research and disposable review probes
+.private/
+tests/.review-*

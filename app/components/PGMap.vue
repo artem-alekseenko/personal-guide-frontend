@@ -3,6 +3,7 @@
     ref="baseMapRef"
     :show-user-location="true"
     :on-map-click="selectPoint"
+    :route-coordinates="routeCoordinates"
     @map-initialized="handleMapInitialized"
   />
 </template>
@@ -33,6 +34,7 @@ const {
   cleanup,
   setRoute,
   isInitialized,
+  routeCoordinates,
 } = useMapboxDirections(mapInstance, {
   enableBounds: true,
   interactive: false,
@@ -128,24 +130,10 @@ watch(
               number,
             ],
         ),
+        (routeStore.selectedRoute?.stops ?? []).map((stop) => stop.name),
       );
     }
   },
   { flush: "post" },
 );
 </script>
-
-<style>
-.waypoint-marker {
-  width: 24px;
-  height: 24px;
-  background-color: #22c55e;
-  border-radius: 50%;
-  border: 2px solid white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 12px;
-}
-</style>

@@ -1,34 +1,86 @@
 <template>
-  <div class="base-map">
-    <div ref="mapContainerRef" class="base-map__canvas"></div>
-    <button
-      v-if="showUserLocation"
-      type="button"
-      class="base-map__follow"
-      :disabled="!geolocationStore.coordinates || !!geolocationStore.error"
-      :aria-pressed="following"
-      @click="toggleFollowing"
-    >
-      {{
-        $t(
-          following
-            ? "components.map.stopFollowing"
-            : "components.map.followLocation",
-        )
-      }}
-    </button>
-    <p v-if="mapError" role="alert" class="base-map__error">
-      {{ $t("components.map.unavailable") }}
-    </p>
+  <div class="base-map" :style="MAP_APPEARANCE_VARS[mapTheme]">
+    <div class="base-map__viewport">
+      <div
+        ref="mapContainerRef"
+        class="base-map__canvas"
+        :data-pg-map-theme="mapTheme"
+      ></div>
+      <div
+        class="base-map__controls"
+        role="group"
+        :aria-label="$t('components.map.controls')"
+      >
+        <button
+          v-if="showUserLocation"
+          type="button"
+          class="base-map__control"
+          :disabled="
+            !mapReady ||
+            !geolocationStore.coordinates ||
+            !!geolocationStore.error
+          "
+          :aria-pressed="following"
+          :aria-label="
+            $t(
+              following
+                ? 'components.map.stopFollowing'
+                : 'components.map.followLocation',
+            )
+          "
+          @click="toggleFollowing"
+        >
+          {{
+            $t(
+              following
+                ? "components.map.stopFollowingShort"
+                : "components.map.followShort",
+            )
+          }}
+        </button>
+        <button
+          v-if="routeCoordinates && routeCoordinates.length > 1"
+          type="button"
+          class="base-map__control"
+          :disabled="!mapReady"
+          @click="showWholeRoute"
+        >
+          {{ $t("components.map.wholeRoute") }}
+        </button>
+        <button
+          type="button"
+          class="base-map__control"
+          :disabled="!mapReady"
+          :aria-pressed="exploring"
+          @click="toggleExploration"
+        >
+          {{
+            $t(
+              exploring
+                ? "components.map.flatView"
+                : "components.map.explore3d",
+            )
+          }}
+        </button>
+      </div>
+      <p v-if="mapError" role="alert" class="base-map__error">
+        {{ $t("components.map.unavailable") }}
+      </p>
+    </div>
+    <slot />
   </div>
 </template>
 
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
-import { onMounted, onUnmounted, readonly, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
+import { usePreferredReducedMotion } from "@vueuse/core";
 import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useLogger } from "~/composables/utils/useLogger";
 import { createPositionMarker } from "~/utils/positionMarker";
+import { MAP_APPEARANCE_VARS, standardMapConfig } from "~/utils/mapAppearance";
+import type { MapTheme } from "~/utils/mapAppearance";
+import { fitMapRoute } from "~/utils/storedRoute";
 
 const props = defineProps<{
   initialCenter?: [number, number];
@@ -37,13 +89,14 @@ const props = defineProps<{
   initialPitch?: number;
   showUserLocation?: boolean;
   onMapClick?: (e: mapboxgl.MapMouseEvent) => void;
+  routeCoordinates?: readonly (readonly [number, number])[];
 }>();
 
 const emit = defineEmits<{
   (e: "map-initialized", map: mapboxgl.Map): void;
 }>();
 
-const MAP_PITCH = 45;
+const MAP_PITCH = 0;
 const DEFAULT_ZOOM = 16;
 const DEFAULT_BEARING = 0;
 const DEFAULT_CENTER: [number, number] = [-79.3832, 43.6532];
@@ -54,6 +107,55 @@ mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 const { t } = useI18n();
+const colorMode = useColorMode();
+const reducedMotion = usePreferredReducedMotion();
+const mapTheme = computed<MapTheme>(() =>
+  colorMode.value === "dark" ? "dark" : "light",
+);
+const exploring = shallowRef(false);
+const mapReady = shallowRef(false);
+let appearancePending = true;
+
+function applyAppearance() {
+  if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+  mapInstance.getContainer().dataset.pgMapTheme = mapTheme.value;
+  for (const [key, value] of Object.entries(
+    standardMapConfig(mapTheme.value, exploring.value),
+  )) {
+    if (mapInstance.getConfigProperty("basemap", key) !== value)
+      mapInstance.setConfigProperty("basemap", key, value);
+  }
+  appearancePending = false;
+  mapInstance.fire("pg:appearance");
+}
+watch(
+  [mapTheme, exploring],
+  () => {
+    appearancePending = true;
+    applyAppearance();
+  },
+  { flush: "post" },
+);
+
+function showWholeRoute() {
+  if (!mapInstance || !mapReady.value || !props.routeCoordinates) return;
+  following.value = false;
+  mapInstance.stop();
+  fitMapRoute(
+    mapInstance,
+    props.routeCoordinates,
+    reducedMotion.value === "reduce" ? 0 : 400,
+  );
+}
+function toggleExploration() {
+  if (!mapInstance || !mapReady.value) return;
+  exploring.value = !exploring.value;
+  mapInstance.stop();
+  mapInstance.easeTo({
+    pitch: exploring.value ? 40 : 0,
+    duration: reducedMotion.value === "reduce" ? 0 : 400,
+  });
+}
 const mapContainerRef = ref<HTMLElement | null>(null);
 let mapInstance: mapboxgl.Map | null = null;
 let userMarker: mapboxgl.Marker | null = null;
@@ -67,7 +169,10 @@ const followLocation = () => {
     geolocationStore.coordinates &&
     !geolocationStore.error
   ) {
-    mapInstance.flyTo({ center: geolocationStore.coordinates, duration: 500 });
+    mapInstance.flyTo({
+      center: geolocationStore.coordinates,
+      duration: reducedMotion.value === "reduce" ? 0 : 500,
+    });
   }
 };
 const toggleFollowing = () => {
@@ -121,30 +226,18 @@ const initializeMap = async () => {
       zoom: props.initialZoom ?? DEFAULT_ZOOM,
       bearing: props.initialBearing ?? DEFAULT_BEARING,
       pitch: props.initialPitch ?? MAP_PITCH,
+      config: { basemap: standardMapConfig(mapTheme.value, false) },
+      pitchWithRotate: false,
+      touchPitch: false,
     });
 
-    if (props.showUserLocation) {
-      // mapInstance.addControl(
-      //   new mapboxgl.GeolocateControl({
-      //     positionOptions: { enableHighAccuracy: true },
-      //     trackUserLocation: true,
-      //     showUserHeading: true,
-      //   }),
-      // );
-    }
-
     mapInstance.on("style.load", () => {
-      logger.log("Map style loaded, configuring...");
-      if (!mapInstance) return;
-      mapInstance.setConfigProperty("basemap", "showRoadLabels", true);
-      mapInstance.setConfigProperty("basemap", "showTransitLabels", false);
-      mapInstance.setConfigProperty("basemap", "theme", "faded");
-      mapInstance.setConfigProperty(
-        "basemap",
-        "showPointOfInterestLabels",
-        false,
-      );
-      logger.log("Map configuration applied");
+      mapReady.value = true;
+      appearancePending = true;
+      applyAppearance();
+    });
+    mapInstance.on("idle", () => {
+      if (appearancePending) applyAppearance();
     });
 
     mapInstance.on("load", () => {
@@ -221,6 +314,7 @@ const initializeMap = async () => {
 onUnmounted(() => {
   logger.log("Component unmounting, cleaning up map...");
   if (mapInstance) {
+    mapReady.value = false;
     mapInstance.remove();
     mapInstance = null;
   }
@@ -237,7 +331,7 @@ onMounted(() => {
 
 // Expose map instance and user marker functions to parent components
 defineExpose({
-  getMap: () => (mapInstance ? readonly(mapInstance) : null),
+  getMap: () => mapInstance,
   addUserMarker,
 });
 </script>
@@ -248,32 +342,64 @@ defineExpose({
   inline-size: 100%;
   overflow: hidden;
   border-radius: 1rem;
-  border: 1px solid var(--ui-border);
+  border: 1px solid var(--pg-map-border);
+  background: var(--pg-map-surface);
+  color: var(--pg-map-text);
+}
+.base-map__viewport {
+  position: relative;
 }
 .base-map__canvas {
   inline-size: 100%;
-  block-size: clamp(14rem, 40dvh, 24rem);
+  block-size: clamp(16rem, 42dvh, 25rem);
 }
-.base-map__follow {
+.base-map__controls {
   position: absolute;
-  inset-block-start: 0.75rem;
-  inset-inline-start: 0.75rem;
-  z-index: 1;
-  max-inline-size: calc(100% - 1.5rem);
-  min-block-size: 2.75rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  background: var(--fill-white);
-  color: var(--fill-gray-900);
-  box-shadow: 0 1px 5px #0003;
+  inset-block-start: max(0.75rem, env(safe-area-inset-top));
+  inset-inline: 0.75rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0.375rem;
+  z-index: 2;
 }
-.base-map__follow:disabled {
-  opacity: 0.7;
+.base-map__control {
+  min-inline-size: 0;
+  min-block-size: 2.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--pg-map-border);
+  border-radius: 0.75rem;
+  background: var(--pg-map-surface);
+  color: var(--pg-map-text);
+  box-shadow: 0 2px 8px var(--pg-map-shadow);
+  font:
+    600 0.75rem/1.35 Inter,
+    system-ui,
+    sans-serif;
+  text-wrap: balance;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+.base-map__control:hover:not(:disabled),
+.base-map__control[aria-pressed="true"] {
+  border-color: var(--pg-map-route);
+  box-shadow: 0 0 0 1px var(--pg-map-route);
+}
+.base-map__control:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
-.base-map__follow:focus-visible {
-  outline: 2px solid var(--fill-green-700);
+.base-map__control:focus-visible {
+  outline: 3px solid var(--pg-map-route);
   outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .base-map__control {
+    transition: none;
+  }
 }
 .base-map__error {
   position: absolute;
@@ -281,7 +407,7 @@ defineExpose({
   inset-block-end: 0.75rem;
   padding: 0.75rem;
   border-radius: 0.5rem;
-  background: var(--fill-white);
-  color: var(--fill-gray-900);
+  background: var(--pg-map-surface);
+  color: var(--pg-map-text);
 }
 </style>

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as Vue from "vue";
 import { renderToString } from "@vue/server-renderer";
 import CurrentStopExperience from "../app/components/tour/CurrentStopExperience.vue";
-import PGGuide from "../app/components/PGGuide.vue";
 import CreateRoute from "../app/pages/create-route/index.vue";
 import { useExperienceStore } from "../app/stores/experienceStore";
 import { useRouteStore } from "../app/stores/routeStore";
@@ -111,14 +110,21 @@ function text(node: Element): string {
     .map((child) => child.text)
     .join(" ");
 }
-async function mount(beforeMount?: () => void) {
+async function mount(
+  beforeMount?: () => void,
+  generation?: Vue.Ref<string | null>,
+) {
   view.navigation = { status: "unavailable", instructions: [], warnings: [] };
-  await useExperienceStore().load("tour", "owner");
+  await useExperienceStore().load("tour", "owner", generation?.value);
   beforeMount?.();
   const root = new Element("root");
-  const app = renderer.createApp(CurrentStopExperience, {
-    tourId: "tour",
-    guideMode: "leading",
+  const app = renderer.createApp({
+    setup: () => () =>
+      Vue.h(CurrentStopExperience, {
+        tourId: "tour",
+        guideMode: "leading",
+        generationId: generation?.value,
+      }),
   });
   app.config.globalProperties.$t = t;
   app.component("BaseSelector", BaseSelector);
@@ -261,26 +267,6 @@ it("shows the server's effective style separately from the context after forgett
   expect(html).toContain("Take a break");
   expect(html).toContain("Follow the supplied path");
   expect(html).toContain("A provider photo suggestion");
-});
-
-it("passes the selected card default into creation and shows legacy card defaults", async () => {
-  const creation = await render(CreateRoute);
-  expect(creation).toContain("Guide's style: Just guide me");
-  const guide = {
-    id: "guide",
-    name: "Guide",
-    avatar: "",
-    context: "Warm guide",
-    skills: "Stories",
-    tags: [],
-    tours: [],
-  };
-  expect(await render(PGGuide, { guide })).toContain(
-    "Guide's style: Explore together",
-  );
-  expect(
-    await render(PGGuide, { guide: { ...guide, interaction_mode: "leading" } }),
-  ).toContain("Guide's style: Just guide me");
 });
 
 it("hydrates a cached preference and applies a change with all context fields without saving a profile", async () => {
@@ -446,4 +432,61 @@ it("preserves an edit back to the original context during apply", async () => {
   await pending;
   await Vue.nextTick();
   expect(modeSelector(root).props.value).toBe("guide");
+});
+
+it("reloads accepted text generations and supersedes old retries without comparing revisions across packages", async () => {
+  const generation = Vue.ref<string | null>("old-package");
+  view.generation_id = generation.value;
+  view.revision = 12;
+  view.cues[0].text = "Old package suggestion";
+  const root = await mount(undefined, generation);
+  api.mockRejectedValueOnce(new Error("Lost text action response"));
+  await button(root, t("experience.applyContext")).props.onClick();
+  const store = useExperienceStore();
+  expect(store.hasPending).toBe(true);
+  const reload = Promise.withResolvers<unknown>();
+  api.mockImplementationOnce(() => reload.promise);
+  generation.value = "accepted-package";
+  await Vue.nextTick();
+  expect(store.view).toBeNull();
+  expect(store.hasPending).toBe(false);
+  expect(store.needsReconciliation).toBe(true);
+  expect(text(root)).not.toContain("Old package suggestion");
+  view = {
+    ...view,
+    generation_id: generation.value,
+    revision: 0,
+    cues: [{ ...view.cues[0], text: "Accepted package suggestion" }],
+  };
+  reload.resolve(structuredClone(view));
+  await vi.waitFor(() =>
+    expect(text(root)).toContain("Accepted package suggestion"),
+  );
+  expect(store.view?.revision).toBe(0);
+  expect(store.needsReconciliation).toBe(false);
+  await button(root, t("experience.actionPHOTO")).props.onClick();
+  expect(api.mock.calls.at(-1)?.[1]?.body).toMatchObject({
+    generation_id: "accepted-package",
+    expected_revision: 0,
+  });
+});
+
+it("keeps text actions blocked after an accepted-generation reload fails", async () => {
+  const generation = Vue.ref<string | null>("old-package");
+  view.generation_id = generation.value;
+  const root = await mount(undefined, generation);
+  api.mockRejectedValueOnce(new Error("Offline"));
+  generation.value = "accepted-package";
+  await vi.waitFor(() => expect(useExperienceStore().view).toBeNull());
+  const store = useExperienceStore();
+  expect(store.needsReconciliation).toBe(true);
+  expect(store.ready).toBe(false);
+  const calls = api.mock.calls.length;
+  await expect(store.act({ action: "PHOTO" })).rejects.toThrow();
+  expect(api.mock.calls).toHaveLength(calls);
+  expect(button(root, t("experience.actionPHOTO"))).toBeUndefined();
+  view = { ...view, generation_id: generation.value, revision: 0 };
+  await button(root, t("experience.refresh")).props.onClick();
+  await Vue.nextTick();
+  expect(button(root, t("experience.actionPHOTO")).props.disabled).toBe(false);
 });

@@ -39,6 +39,18 @@ function node(type: string, text = ""): TestNode {
   });
   return el;
 }
+function insertNode(
+  el: TestNode,
+  parent: TestNode,
+  anchor: TestNode | null = null,
+) {
+  if (el.parent)
+    el.parent.children = el.parent.children.filter((child) => child !== el);
+  el.parent = parent;
+  const index = anchor ? parent.children.indexOf(anchor) : -1;
+  if (index < 0) parent.children.push(el);
+  else parent.children.splice(index, 0, el);
+}
 const renderer = createRenderer<TestNode, TestNode>({
   createElement: (type) => node(type),
   createText: (text) => node("#text", text),
@@ -55,13 +67,12 @@ const renderer = createRenderer<TestNode, TestNode>({
   patchProp: (el, key, _old, value) => {
     el.props[key] = value;
   },
-  insert: (el, parent, anchor) => {
-    if (el.parent)
-      el.parent.children = el.parent.children.filter((child) => child !== el);
-    el.parent = parent;
-    const index = anchor ? parent.children.indexOf(anchor) : -1;
-    if (index < 0) parent.children.push(el);
-    else parent.children.splice(index, 0, el);
+  insert: insertNode,
+  insertStaticContent: (content, parent, anchor) => {
+    // Static HTML is opaque to this non-DOM host, but retains its content and position.
+    const el = node("#static", content);
+    insertNode(el, parent, anchor);
+    return [el, el];
   },
   remove: (el) => {
     if (el.parent)

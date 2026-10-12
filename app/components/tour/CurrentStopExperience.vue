@@ -28,6 +28,18 @@
         {{ $t("experience.refresh") }}
       </button>
     </div>
+    <RoutePlacesPanel
+      v-if="routePlaces"
+      :places="routePlaces"
+      :discovery="routeDiscovery"
+      :busy="discoveryBusy"
+      :failed="discoveryFailed"
+      :pending="discoveryPending"
+      :can-ask="!!store.view && !blocked"
+      @ask="askPlace"
+      @retry="perform(async () => retryDiscovery?.())"
+      @reconcile="perform(async () => reconcileDiscovery?.())"
+    />
     <template v-if="store.view">
       <p class="text-sm" role="status">
         {{
@@ -35,6 +47,42 @@
             mode: $t(`experience.interactionModes.${effectiveInteractionMode}`),
           })
         }}
+      </p>
+      <p v-if="store.view.topic_place_name" class="font-medium">
+        {{
+          $t("routePlaces.discussing", { name: store.view.topic_place_name })
+        }}
+      </p>
+      <aside
+        v-if="store.view.story_readiness"
+        class="grid gap-1 rounded border p-3"
+        :aria-label="$t('experience.storyReadiness')"
+      >
+        <h3 class="font-medium">{{ $t("experience.storyReadiness") }}</h3>
+        <p role="status">
+          {{ $t(`experience.readiness.${store.view.story_readiness.status}`) }}
+        </p>
+        <p class="text-sm">
+          {{
+            $t("experience.readinessCounts", {
+              eligible: store.view.story_readiness.eligible_fact_count,
+              unspoken: store.view.story_readiness.unspoken_fact_count,
+              unchecked: store.view.story_readiness.unchecked_account_count,
+            })
+          }}
+        </p>
+        <p class="text-sm">
+          {{
+            $t(
+              store.view.story_readiness.prepared_story_available
+                ? "experience.preparedStoryAvailable"
+                : "experience.preparedStoryMissing",
+            )
+          }}
+        </p>
+      </aside>
+      <p v-if="store.view.language" class="text-sm">
+        {{ $t("experience.language", { language: store.view.language }) }}
       </p>
       <label class="grid gap-1"
         >{{ $t("experience.stop") }}
@@ -125,18 +173,18 @@
             })
           }}
         </p>
-        <div v-if="directions.length">
+        <div v-if="maneuver">
           <h4 class="font-medium">{{ $t("experience.nextInstruction") }}</h4>
-          <p>{{ directions[0] }}</p>
-          <details v-if="directions.length > 1" class="mt-2">
-            <summary>{{ $t("experience.allInstructions") }}</summary>
-            <ol class="list-inside list-decimal">
-              <li v-for="(instruction, index) in directions" :key="index">
-                {{ instruction }}
-              </li>
-            </ol>
-          </details>
+          <p>{{ maneuver }}</p>
         </div>
+        <details v-if="directions.length" class="mt-2">
+          <summary>{{ $t("experience.allInstructions") }}</summary>
+          <ol class="list-inside list-decimal">
+            <li v-for="(instruction, index) in directions" :key="index">
+              {{ instruction }}
+            </li>
+          </ol>
+        </details>
         <p
           v-for="warning in store.view.navigation.warnings"
           :key="warning"
@@ -204,7 +252,7 @@
         :aria-label="$t('experience.conversation')"
       >
         <li
-          v-for="turn in store.view.turns"
+          v-for="turn in visibleTurns"
           :key="turn.id"
           class="rounded bg-gray-50 p-3 whitespace-pre-wrap dark:bg-gray-900"
         >
@@ -330,8 +378,13 @@ import {
   emptyPersonalContext,
   type PersonalContext,
 } from "~/types/personalContext";
-import { navigationInstructions } from "~/utils/navigationInstructions";
+import {
+  navigationInstructions,
+  currentManeuver,
+} from "~/utils/navigationInstructions";
 import PersonalContextForm from "./PersonalContextForm.vue";
+import RoutePlacesPanel from "./RoutePlacesPanel.vue";
+import type { DiscoveredPlace, RouteDiscovery } from "~/types/routeDiscovery";
 import {
   normalizeGuideInteractionMode,
   type GuideInteractionMode,
@@ -339,8 +392,16 @@ import {
 const props = defineProps<{
   beforeVisitorAction?: () => Promise<void>;
   tourId: string;
+  generationId?: string | null;
   requestBusy?: boolean;
   guideMode?: GuideInteractionMode;
+  routePlaces?: DiscoveredPlace[];
+  routeDiscovery?: RouteDiscovery | null;
+  discoveryBusy?: boolean;
+  discoveryFailed?: boolean;
+  discoveryPending?: boolean;
+  retryDiscovery?: () => Promise<unknown>;
+  reconcileDiscovery?: () => Promise<unknown>;
 }>();
 const { positionMode } = usePositionMode();
 const requests = useTourRequestStore();
@@ -363,6 +424,7 @@ const requestBusy = computed(
 const blocked = computed(
   () =>
     requestBusy.value ||
+    !store.ready ||
     store.busy ||
     store.hasPending ||
     store.needsReconciliation ||
@@ -373,6 +435,10 @@ const effectiveInteractionMode = computed(() =>
 );
 const directions = computed(() =>
   navigationInstructions(store.view?.navigation),
+);
+const maneuver = computed(() => currentManeuver(store.view?.navigation));
+const visibleTurns = computed(() =>
+  (store.view?.turns ?? []).filter((turn) => turn.text.trim()),
 );
 const stopName = (id: string) =>
   store.view?.stops.find((stop) => stop.id === id)?.name ??
@@ -468,6 +534,14 @@ async function ask() {
     if (question.value === text) question.value = "";
   }
 }
+async function askPlace(place: DiscoveredPlace) {
+  // A topic identity is separate from the mandatory stop and visit progress.
+  await send({
+    action: "ASK",
+    subject_place_id: place.id,
+    text: t("routePlaces.topicQuery", { name: place.name }),
+  });
+}
 async function saveFuture(value: PersonalContext | null) {
   if (blocked.value) return;
   const current = session;
@@ -532,8 +606,8 @@ const location = useExperienceLocation({
   send,
 });
 watch(
-  () => [props.tourId, auth.user.value?.uid] as const,
-  async ([tour, uid]) => {
+  () => [props.tourId, auth.user.value?.uid, props.generationId] as const,
+  async ([tour, uid, generation]) => {
     session++;
     question.value = "";
     error.value = "";
@@ -547,8 +621,8 @@ watch(
     if (uid) {
       const current = session;
       await perform(async () => {
-        const loading = store.load(tour, uid);
-        // load resets a changed tour/account before returning its promise.
+        const loading = store.load(tour, uid, generation);
+        // load resets a changed tour/account/generation before awaiting a read.
         if (store.view) {
           syncContext(store.view.personal_context);
           selected.value = store.view.stop_id ?? "";
@@ -567,7 +641,7 @@ watch(
       });
     } else store.reset();
   },
-  { immediate: true },
+  { immediate: true, flush: "sync" },
 );
 function onVisibility() {
   visible.value = !document.hidden;

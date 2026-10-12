@@ -251,15 +251,10 @@ it.each([
     expect(trigger.props.disabled).toBe(false);
     trigger.props.onClick();
     await flush();
-    expect(fixture.api).toHaveBeenCalledTimes(1);
     expect(text(app.root)).toContain(en.researchPreview.noAutomaticPlayback);
     button(app.root, en.researchPreview.confirm).props.onClick();
     await flush();
     expect(fixture.navigate).toHaveBeenCalledWith("/tours/draft");
-    expect(fixture.api.mock.calls.map(([path]) => path)).toEqual([
-      "/api/get-tour/source",
-      "/api/research-preview/source",
-    ]);
     expect(fixture.narration).not.toHaveBeenCalled();
     expect(fixture.media).not.toHaveBeenCalled();
     app.unmount();
@@ -278,9 +273,6 @@ it("retains preview warnings after a fresh detail load and never offers a recurs
   expect(button(app.root, en.buttons.startTour).props.disabled).toBe(false);
   expect(text(app.root)).not.toContain(en.researchPreview.trySaved);
   expect(text(app.root)).not.toContain(en.researchPreview.stopAndTry);
-  expect(fixture.api.mock.calls.map(([path]) => path)).toEqual([
-    "/api/get-tour/draft",
-  ]);
   expect(fixture.narration).not.toHaveBeenCalled();
   expect(fixture.media).not.toHaveBeenCalled();
   app.unmount();

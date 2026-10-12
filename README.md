@@ -7,14 +7,89 @@ This repository contains the browser UI and a Nuxt server proxy. The sibling [Pe
 ## Features
 
 - Firebase sign-in with email/password or Google, with account-scoped tour state.
-- Guide selection, route variants, ordered stop previews, and generation progress.
+- Searchable guide discovery, style and topic filters, route variants, ordered stop previews, and generation progress.
 - Optional interests, excluded topics, pace, and personal context for route planning.
-- Mapbox maps, GPS positioning, and a draggable marker for manual simulation.
+- Theme-aware Mapbox maps, numbered stops, GPS following, a whole-route view, optional 3D exploration, and a draggable manual-simulation marker.
 - Narration controls, visitor questions, and durable playback recovery.
 - English and Russian UI, with language, voice, and model preferences.
 - An opt-in text experience with stop selection, questions, backend navigation instructions, and explicit save/clear actions for future preferences.
 
-The layout fills a mobile viewport and uses a phone-style frame on desktop. Route previews report unknown access and opening conditions; step-free routing needs verified accessibility along the whole path. Generation-management and account-deletion screens remain outside the current UI scope.
+The layout fills a mobile viewport and uses a phone-style frame on desktop. Route previews report unknown access and opening conditions; step-free routing needs verified accessibility along the whole path. Research-management controls are available on original tour cards and detail views; account-deletion screens remain outside the current UI scope.
+
+## Preparation progress and ordinary places
+
+Owner-scoped cheap status polling reports stage-weighted percent, elapsed time,
+and a research deadline or explicitly unknown remaining time. The current-work
+caption keeps source activity timestamps separate from caption generation time;
+the server's stale classification invalidates cached live-sounding captions.
+Percent/READY and source counters are not evidence approval or story availability.
+
+Rich progress is enabled by default. Set `RICH_PROGRESS_ENABLED=false` in the
+**backend** `.env` and recreate its environment-bearing processes to keep only
+basic phase/status/percent without new paid caption requests. No duplicate client
+environment switch is needed; the owner response carries the setting.
+
+Visible list/detail consumers share explicit small-model caption operations.
+Hidden/offscreen consumers do not request paid refreshes. Session storage retains
+an uncertain operation's original generation, language, body and idempotency key;
+manual reconciliation retries that operation, never a fresh paid key. Restoration
+happens before terminal-state and rich-mode gates, so a reload still offers recovery.
+Disabling and re-enabling rich mode does not discard or automatically replay unknown
+work. Provider-unavailable uncertainty also blocks automatic replacement requests.
+Storage failures conservatively block new paid captions while cheap polling works.
+Caption metadata never replaces authoritative timing, numeric facts, source clocks
+or factual `status_text`, including spending embedded in that status sentence.
+
+Public ordinary-place labels appear separately from required numbered stops.
+Their Google IDs distinguish same-name buildings; labels are not historical
+evidence or safe-access instructions. Selecting a typed ordinary subject requests
+its own coverage/qualified content without visiting an attraction or borrowing
+another place's story. Discovery uncertainty keeps its original lookup key/body.
+Routed geometry retains `geometry_leg_starts`; map lines, navigation distances and
+walking simulation do not bridge disconnected legs. Unrecoverable legacy discovery
+geometry is withheld rather than displayed as a fabricated continuous path.
+
+Latest local text-only verification: 606 tests in 65 files, typecheck and an isolated
+production build passed. The actual Nuxt preparation component was browser-exercised
+with labelled fixtures: a full terminal-state reload restored manual recovery with
+the original request key; provider-timeout uncertainty prevented new paid POSTs;
+fresh GET status and spending remained visible after a lost caption response.
+This is render/recovery proof, not authenticated tour delivery, live-model caption
+wording, field navigation or heard audio. No live services were restarted for this
+verification; the existing duplicated `IGeolocationStore` auto-import warning remains.
+
+## Choose your guide
+
+Search guide names, expertise and interests, then combine a conversation-style
+filter with a topic. Cards show the guide's starting style, a short introduction
+and interest tags; **Get to know this guide** expands the full profile and your
+own saved tours with that guide. Missing portraits use a name initial.
+
+Browsing and filtering do not change your route draft. **Plan a walk with…**
+explicitly selects the guide, resets the previous route draft and opens route
+planning. You can change the interaction style while planning. Discovery stays
+on one page, with no extra requests or browser storage for filters.
+
+## Maps
+
+Creation and walking maps start flat. **Follow me** follows available GPS until
+the visitor stops following, gestures on the map or chooses **Whole route**.
+Missing GPS disables following without blocking route exploration. **Explore in
+3D** enables buildings and landmarks at a restrained 40-degree pitch; **Flat map**
+returns to the walking view. Reduced-motion preferences remove control animations.
+
+Light/dark palettes cover the basemap, outlined routes, markers, labels, popups and
+legend. Theme changes retain the map, route geometry, markers and camera.
+Stored and legacy routes share zoom-dependent styling; style reloads restore
+displayed geometry without another route request or automatic fit. Landmark
+buttons support keyboard activation and never relocate the simulation marker.
+
+Verification: 433 approved nonaudio tests across 58 files, typecheck and production
+build passed. Real Mapbox Standard rendering was exercised at mobile and desktop
+viewport sizes in both themes, with 3D/flat controls, reduced motion, keyboard
+popups, controlled denied-GPS state, style restoration and disposal. The browser
+used software WebGL and isolated GPS/route metadata: live GPS, live Directions
+responses, physical-device performance, authentication and audio remain unqualified.
 
 ## Stack
 
@@ -47,6 +122,10 @@ test -f .env || cp .env.example .env
 ```
 
 Fill in `.env` using the configuration below. Use the same Firebase project as the backend and enable the sign-in methods you intend to use. Keep provider keys and Firebase service-account credentials on the backend; this frontend uses public Firebase client configuration and a public Mapbox token.
+
+Git excludes local environment files, Nuxt output, coverage/browser reports,
+Playwright authentication state, private research and hidden `tests/.review-*`
+probes. `.env.example` and permanent regression tests remain versioned.
 
 Start the backend **and its workers** using the [backend setup guide](../personal-guide.ai/current_implementation/setup_and_operations.md). Running the API alone does not process queued tour preparation. The backend Compose stack exposes the API on port 3001.
 
@@ -93,12 +172,68 @@ recursively create another draft. Uncertain creation retries preserve their
 original generation, payload and idempotency key; a saved draft can be reopened
 after failed navigation without another creation request.
 
-Verification used the production-built list-to-draft-detail journey with a
-controlled in-memory identity and intercepted API responses at mobile and desktop
-widths. Only the research-preview mutation was sent; narration/media were not
-started. Separate browser component checks covered pending, running, failed,
-cancelled, ready, generated, started and finished originals. These are fixture
-checks, not real Firebase, live research, Mapbox/GPS or heard-audio verification.
+**Research details and controls** opens generation history, current status,
+saved research downloads and separate background-enrichment inspection. Only
+eligible actions appear:
+
+- **Finish research with completed stops** requests normal composition/review
+  early when research is running and at least one stop is completed. It does not
+  make the tour ready immediately or bypass publication checks.
+- **Stop research only** cancels the selected generation without opening a draft.
+- **Research again** explicitly queues another version and can incur provider
+  costs; the existing published version stays available.
+- **Use prepared version** accepts the latest normal ready generation only when
+  ordinary backend publication/session checks allow it.
+
+Advanced counters and files stay collapsed by default. Selected versions use
+localized dates and readable file labels. After saving a draft, ordinary opening
+reuses it; **Try the newly selected research** explicitly creates another snapshot
+when a different generation is selected. An uncertain operation must be retried
+or reconciled before another mutation. Cancelling preparation does not stop
+background enrichment: the backend currently exposes no enrichment-cancel route.
+
+Verification exercised the real Vue controls at mobile and desktop widths with
+English/Russian copy, a controlled identity, a production-built Nitro proxy and
+an isolated real backend/MongoDB fixture. History, private JSON download,
+enrichment inspection, finish-early, regeneration, cancellation, experimental
+navigation and a 503 retry were exercised without narration/media requests.
+The persisted preview knowledge consumer retained two source-linked findings,
+excluded a contradicted finding and returned no invented facts at two missing
+stops. Research progress was simulated; this does not qualify real Firebase,
+live provider research, Mapbox/GPS, normal early-finish publication or audio.
+
+## Live research progress
+
+Tour cards and detail views show the backend's stage-weighted preparation
+percentage, time since queued, latest recorded activity and research gaps.
+Remaining time is explicitly a current-stage deadline or unknown—not a promised
+finish time. Ended processing is distinct from success, and 100% does not mean
+every stop has a usable story.
+
+Compact cards keep the main measurements visible and put full status, source/action
+counts, saved findings, per-stop work and spending in **Research details and
+spending**. Saved findings are not proof of independently reviewed facts.
+The stop-and-try action appears above progress. Pending research and refreshes
+have reduced-motion-aware spinners; failed reads retain the last measured values.
+
+Visible cards and tour details read the current generation every five seconds;
+hidden/offscreen cards suspend their reads and terminal states stop polling.
+The backend's `RICH_PROGRESS_ENABLED` defaults to true; when disabled, the UI
+keeps basic stage/percentage display without enhanced details or paid captions.
+
+The new `progress-message` endpoint provides guarded status wording through a
+separate backend Nano role and can incur provider costs. The UI identifies
+model-generated, fallback and recorded text. It never substitutes generated
+wording for measured progress. Uncertain caption requests retain their original
+payload/key in owner-scoped session storage and require explicit reconciliation,
+not a fresh paid request.
+
+Verification covered mobile/light and desktop/dark views, English/Russian
+activity, pending/failed/recovered reads, terminal states, preview-gap metadata,
+keyboard disclosures and backend feature disablement. Snapshots came from the
+real backend serializer; HTTP checks exercised the built Nitro proxy against
+a metadata-only fixture. Live research, paid caption generation, Firebase
+validation and audio remain unqualified.
 
 ## Current-stop text experience
 

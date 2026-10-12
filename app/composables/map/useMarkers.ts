@@ -1,5 +1,7 @@
-import mapboxgl, { type LngLatLike } from "mapbox-gl";
+import mapboxgl from "mapbox-gl";
 import createHighPlacesMarkerElem from "~/utils/pages/createHighPlacesMarkerElem";
+import createPlacesMarkerElem from "~/utils/pages/createPlacesMarkerElem";
+import { addMarkerElemToMap } from "~/utils/mapMarkers";
 import type { ShallowRef } from "vue";
 import { useLogger } from "~/composables/utils/useLogger";
 
@@ -27,7 +29,15 @@ export const useMarkers = (mapInstance: ShallowRef<mapboxgl.Map | null>) => {
 
     removeMarker();
     const coordinates: [number, number] = [lng, lat];
-    marker = new mapboxgl.Marker()
+    const element = document.createElement("div");
+    element.className = "pg-position-marker";
+    element.role = "img";
+    element.ariaLabel = `${lat}, ${lng}`;
+    const dot = document.createElement("span");
+    dot.className = "pg-position-marker__dot";
+    dot.ariaHidden = "true";
+    element.appendChild(dot);
+    marker = new mapboxgl.Marker(element)
       .setLngLat(coordinates)
       .addTo(mapInstance.value);
     logger.log("Marker successfully added");
@@ -54,40 +64,31 @@ export const useMarkers = (mapInstance: ShallowRef<mapboxgl.Map | null>) => {
       return [];
     }
 
+    clearHighPlacesMarkers();
     if (!highPlaces?.length) {
       logger.warn("No high places provided for markers");
       return [];
     }
 
-    clearHighPlacesMarkers();
-
-    const geojson = {
-      type: "FeatureCollection",
-      features: highPlaces.map((place) => ({
+    highPlaces.forEach((place, index) => {
+      const coordinates: [number, number] = [
+        Number(place.point.lng),
+        Number(place.point.lat),
+      ];
+      if (
+        !coordinates.every(Number.isFinite) ||
+        Math.abs(coordinates[0]) > 180 ||
+        Math.abs(coordinates[1]) > 90
+      )
+        return;
+      logger.log(`Creating high place marker ${index + 1}:`, place.name);
+      const element = createHighPlacesMarkerElem(place.name);
+      const mapMarker = addMarkerElemToMap(mapInstance.value, element, {
         type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [Number(place.point.lng), Number(place.point.lat)],
-        },
-        properties: {
-          title: place.name,
-        },
-      })),
-    };
-
-    geojson.features.forEach((markerData, index) => {
-      logger.log(
-        `Creating high place marker ${index + 1}:`,
-        markerData.properties.title,
-      );
-
-      const el = createHighPlacesMarkerElem(markerData.properties.title);
-
-      const mapMarker = new mapboxgl.Marker(el)
-        .setLngLat(markerData.geometry.coordinates as LngLatLike)
-        .addTo(mapInstance.value!);
-
-      highPlacesMarkers.push(mapMarker);
+        properties: { title: place.name },
+        geometry: { type: "Point", coordinates },
+      });
+      if (mapMarker) highPlacesMarkers.push(mapMarker);
     });
 
     logger.log(
@@ -106,7 +107,10 @@ export const useMarkers = (mapInstance: ShallowRef<mapboxgl.Map | null>) => {
     }
   };
 
-  const addWaypointMarkers = (coordinates: [number, number][]) => {
+  const addWaypointMarkers = (
+    coordinates: readonly [number, number][],
+    titles: readonly string[] = [],
+  ) => {
     logger.log("Adding waypoint markers:", coordinates?.length || 0, "points");
 
     if (!mapInstance.value) {
@@ -114,39 +118,27 @@ export const useMarkers = (mapInstance: ShallowRef<mapboxgl.Map | null>) => {
       return [];
     }
 
+    clearWaypointMarkers();
     if (!coordinates?.length) {
       logger.warn("No coordinates provided for waypoint markers");
       return [];
     }
 
-    clearWaypointMarkers();
-
-    const geojson = {
-      type: "FeatureCollection",
-      features: coordinates.map((coordinate) => ({
+    coordinates.forEach((coordinate, index) => {
+      if (
+        !coordinate.every(Number.isFinite) ||
+        Math.abs(coordinate[0]) > 180 ||
+        Math.abs(coordinate[1]) > 90
+      )
+        return;
+      const title = titles[index] ?? "";
+      const element = createPlacesMarkerElem(title, index + 1);
+      const mapMarker = addMarkerElemToMap(mapInstance.value, element, {
         type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [coordinate[0], coordinate[1]],
-        },
-      })),
-    };
-
-    geojson.features.forEach((feature, index: number) => {
-      logger.log(
-        `Creating waypoint marker ${index + 1} at:`,
-        feature.geometry.coordinates,
-      );
-
-      const el = document.createElement("div");
-      el.className = "waypoint-marker";
-      el.innerHTML = `<span><b>${index + 1}</b></span>`;
-
-      const mapMarker = new mapboxgl.Marker(el)
-        .setLngLat(feature.geometry.coordinates as LngLatLike)
-        .addTo(mapInstance.value!);
-
-      waypointMarkers.push(mapMarker);
+        properties: { title },
+        geometry: { type: "Point", coordinates: coordinate },
+      });
+      if (mapMarker) waypointMarkers.push(mapMarker);
     });
 
     logger.log("Waypoint markers successfully added:", waypointMarkers.length);
@@ -158,18 +150,6 @@ export const useMarkers = (mapInstance: ShallowRef<mapboxgl.Map | null>) => {
       logger.log("Clearing waypoint markers:", waypointMarkers.length);
       waypointMarkers.forEach((m) => m.remove());
       waypointMarkers = [];
-
-      // Additional cleanup: remove any remaining waypoint-marker DOM elements
-      const existingWaypointMarkers = mapInstance.value
-        ?.getContainer()
-        .querySelectorAll(".waypoint-marker");
-      if (existingWaypointMarkers?.length) {
-        logger.log(
-          "Removing remaining waypoint marker DOM elements:",
-          existingWaypointMarkers.length,
-        );
-        existingWaypointMarkers.forEach((el) => el.remove());
-      }
 
       logger.log("Waypoint markers cleared");
     }

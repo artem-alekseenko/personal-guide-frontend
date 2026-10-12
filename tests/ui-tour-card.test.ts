@@ -10,6 +10,7 @@ beforeEach(() => {
   resize.callbacks.length = 0;
   Object.assign(globalThis, {
     getComputedStyle: () => ({ lineHeight: "24px" }),
+    useNuxtApp: () => ({ $apiFetch: vi.fn() }),
     ResizeObserver: class {
       constructor(callback: Function) {
         resize.callbacks.push(callback);
@@ -35,7 +36,6 @@ it("offers Show more when a polled description becomes longer", async () => {
       description: "Preparing",
       status: "GENERATING",
       name: "Tour",
-      generatingPercent: 1,
       generatingText: "",
       tourId: "tour",
       imageUrl: "",
@@ -59,7 +59,6 @@ it("rechecks truncation when the available text width changes", async () => {
     description: "Short",
     status: "GENERATING",
     name: "Tour",
-    generatingPercent: 1,
     generatingText: "",
     tourId: "tour",
     imageUrl: "",

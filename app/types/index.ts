@@ -3,6 +3,7 @@ import type { PersonalContext } from "./personalContext";
 import type { LlmType } from "./llm";
 import type { GuideInteractionMode } from "#shared/types/guideInteraction";
 import type { ProgressRecord, ProgressState } from "#shared/utils/tourProgress";
+import type { DiscoveredPlace, RouteDiscovery } from "./routeDiscovery";
 export interface ITour {
   id: number;
   image: string;
@@ -23,7 +24,7 @@ export interface IGuide {
   skills: string;
   avatar: string;
   context: string;
-  tags: string[];
+  tags: { id: string; name: string }[];
   tours: ITour[];
 }
 
@@ -45,6 +46,7 @@ export interface IRoutePoint extends ICoordinate {
 
 export interface IRoute {
   geometry?: ICoordinate[];
+  geometry_leg_starts?: number[];
   name: string;
   points: ICoordinate[];
   provider?: string;
@@ -58,7 +60,10 @@ export interface IRoute {
 }
 
 interface IGeneratedRoute {
+  discovered_places?: DiscoveredPlace[];
+  discovery?: RouteDiscovery | null;
   geometry?: ICoordinate[];
+  geometry_leg_starts?: number[];
   variant?: string | null;
   id: string;
   points: IRoutePoint[];

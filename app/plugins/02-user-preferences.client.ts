@@ -1,4 +1,5 @@
 import { useExperienceStore } from "~/stores/experienceStore";
+import { useRoutePlacesStore } from "~/stores/routePlacesStore";
 import { useCurrentUser } from "vuefire";
 import { useUserStore } from "~/stores/userStore";
 import { useGuidesStore } from "~/stores/guidesStore";
@@ -20,6 +21,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         routes.reset();
         tours.reset();
         useExperienceStore().reset();
+        useRoutePlacesStore().reset();
         useTourRequestStore().reset();
         // Audio state is account-specific; do not revive another user's session.
         try {

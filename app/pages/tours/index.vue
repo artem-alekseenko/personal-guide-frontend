@@ -37,6 +37,7 @@
         :imageUrl="tour.image"
         :name="tour.name"
         :tourId="tour.id"
+        @updated="routeStore.fetchListTours()"
       />
     </div>
     <div v-else-if="routeStore.isLoading" class="tours-page__empty">

@@ -6,6 +6,7 @@ export function useRouteWalk(input: {
   enabled: Readonly<Ref<boolean>>;
   busy: Readonly<Ref<boolean>>;
   geometry: Readonly<Ref<readonly MapPoint[]>>;
+  legStarts?: Readonly<Ref<readonly number[]>>;
   getPosition: () => MapPoint | null;
   setPosition: (position: MapPoint) => void;
 }) {
@@ -25,7 +26,9 @@ export function useRouteWalk(input: {
   };
   const usable = computed(() => {
     const first = input.geometry.value[0];
-    return !!first && !!createRouteWalk(input.geometry.value, first, 300);
+    return !!first && !!createRouteWalk(
+      input.geometry.value, first, 300, undefined, input.legStarts?.value,
+    );
   });
   const canMove = computed(
     () =>
@@ -39,7 +42,7 @@ export function useRouteWalk(input: {
     if (!canMove.value) return;
     const start = input.getPosition() ?? input.geometry.value[0];
     const walk = start
-      ? createRouteWalk(input.geometry.value, start, 300, cursor)
+      ? createRouteWalk(input.geometry.value, start, 300, cursor, input.legStarts?.value)
       : null;
     if (!walk) return;
     const place = (fraction: number) => {
@@ -70,6 +73,7 @@ export function useRouteWalk(input: {
     frame = requestAnimationFrame(tick);
   };
   watch(input.geometry, reset, { flush: "sync" });
+  if (input.legStarts) watch(input.legStarts, reset, { flush: "sync" });
   watch(
     input.enabled,
     (enabled) => {

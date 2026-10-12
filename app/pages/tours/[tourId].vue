@@ -28,31 +28,59 @@
         :preview="tourStore.tour.research_preview"
         :stops="tourStore.tour.route.points"
       />
-      <TourResearchPreviewAction
+      <TourResearchControls
         v-else
         :tour-id="tourId"
-        :generation-id="
+        :latest-generation-id="
           tourStore.tour.latest_generation_id ||
           preparationProgress?.generation_id ||
           tourStore.tour.active_generation_id
         "
-        :research-status="preparationProgress?.status"
+        :preparation-progress="preparationProgress"
         :status="tourStore.tour.status"
         :preparation-error="tourStore.tour.preparation_error"
+        @updated="routeStore.fetchListTours()"
       />
     </div>
-    <div
-      v-if="preparationProgress && !tourStore.tour.research_preview"
-      class="mx-4"
-    >
-      <TourPreparationProgress :progress="preparationProgress" />
-      <p
-        v-if="preparationRefreshFailed"
-        class="mt-2 text-sm text-amber-700 dark:text-amber-300"
-        role="status"
-      >
-        {{ $t("preparationProgress.refreshFailed") }}
-      </p>
+    <div v-if="!tourStore.tour.research_preview" class="mx-4">
+      <TourPreparationProgress
+        v-if="preparationProgress"
+        :progress="preparationProgress"
+        :refreshing="preparationRefreshing"
+        :refresh-failed="preparationRefreshFailed"
+        :caption-uncertain="preparationCaptionUncertain"
+        @refresh="refreshPreparation"
+      />
+      <template v-else>
+        <p
+          v-if="
+            !tourStore.tour.preparation_error &&
+            (preparationRefreshing || tourStore.tour.status === 'GENERATING')
+          "
+          role="status"
+          class="border-default bg-elevated text-default flex items-center gap-2 rounded-lg border p-3 text-sm"
+        >
+          <span
+            aria-hidden="true"
+            class="border-primary/30 border-t-primary size-5 shrink-0 animate-spin rounded-full border-2 motion-reduce:animate-none"
+          />
+          {{ $t("preparationProgress.waitingForSnapshot") }}
+        </p>
+        <p
+          v-if="tourStore.tour.preparation_error"
+          role="alert"
+          class="text-error break-words"
+        >
+          {{ tourStore.tour.preparation_error }}
+        </p>
+        <p
+          v-if="preparationRefreshFailed"
+          class="text-warning mt-2 text-sm"
+          role="status"
+        >
+          {{ $t("preparationProgress.refreshFailed") }}
+        </p>
+      </template>
     </div>
     <!-- Map -->
     <div class="relative mx-4">
@@ -61,52 +89,69 @@
           ref="baseMapRef"
           :show-user-location="positionMode === 'gps'"
           :initial-pitch="0"
+          :route-coordinates="routeCoordinates"
           @map-initialized="handleMapInitialized"
-        />
+        >
+          <ul class="pg-map-legend" :aria-label="$t('components.map.legend')">
+            <li class="pg-map-legend__item">
+              <span
+                aria-hidden="true"
+                class="pg-map-legend__swatch pg-map-legend__swatch--gps"
+              ></span>
+              {{ $t("components.map.yourLocation") }}
+            </li>
+            <li class="pg-map-legend__item">
+              <span
+                aria-hidden="true"
+                class="pg-map-legend__swatch pg-map-legend__swatch--simulation"
+              ></span>
+              {{ $t("components.map.simulatedWalker") }}
+            </li>
+            <li class="pg-map-legend__item">
+              <span
+                aria-hidden="true"
+                class="pg-map-legend__swatch pg-map-legend__swatch--stop"
+              ></span>
+              {{ $t("components.map.tourStops") }}
+            </li>
+            <li
+              v-if="routePlaces.places.value.length"
+              class="pg-map-legend__item"
+            >
+              <span
+                aria-hidden="true"
+                class="pg-map-legend__swatch pg-map-legend__swatch--lead"
+              ></span>
+              {{ $t("routePlaces.mapLabel") }}
+            </li>
+            <li v-if="guideObjects.length" class="pg-map-legend__item">
+              <span
+                aria-hidden="true"
+                class="pg-map-legend__swatch pg-map-legend__swatch--discussed"
+              ></span>
+              {{ $t("components.map.guideDiscussing") }}
+            </li>
+          </ul>
+          <p v-if="guideObjects.length" class="pg-map-caption">
+            {{
+              $t("components.map.discussedObjects", {
+                names: guideObjects.map((object) => object.name).join(", "),
+              })
+            }}
+          </p>
+        </BaseMap>
       </client-only>
-      <div
-        class="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-neutral-600 dark:text-neutral-300"
-        :aria-label="$t('components.map.legend')"
-      >
-        <span class="flex items-center gap-1.5"
-          ><span
-            aria-hidden="true"
-            class="h-2.5 w-2.5 rounded-full bg-blue-600"
-          ></span
-          >{{ $t("components.map.yourLocation") }}</span
-        >
-        <span class="flex items-center gap-1.5"
-          ><span
-            aria-hidden="true"
-            class="h-2.5 w-2.5 rounded bg-violet-600"
-          ></span
-          >{{ $t("components.map.simulatedWalker") }}</span
-        >
-        <span class="flex items-center gap-1.5"
-          ><span
-            aria-hidden="true"
-            class="h-2.5 w-2.5 rounded-full bg-green-700"
-          ></span
-          >{{ $t("components.map.tourStops") }}</span
-        >
-        <span v-if="guideObjects.length" class="flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            class="h-2.5 w-2.5 rounded-full bg-amber-700 ring-2 ring-amber-300"
-          ></span>
-          {{ $t("components.map.guideDiscussing") }}
-        </span>
-      </div>
-      <p
-        v-if="guideObjects.length"
-        class="mt-2 px-1 text-sm break-words text-neutral-700 dark:text-neutral-200"
-      >
-        {{
-          $t("components.map.discussedObjects", {
-            names: guideObjects.map((object) => object.name).join(", "),
-          })
-        }}
-      </p>
+    </div>
+    <div v-if="!publicConfig.textExperienceEnabled" class="mx-4">
+      <RoutePlacesPanel
+        :places="routePlaces.places.value"
+        :discovery="routePlaces.discovery.value"
+        :busy="routePlaces.busy.value"
+        :failed="routePlaces.failed.value"
+        :pending="routePlaces.pending.value"
+        @retry="retryRoutePlaces"
+        @reconcile="reconcileRoutePlaces"
+      />
     </div>
 
     <!-- Position Mode Toggle -->
@@ -209,9 +254,17 @@
     <CurrentStopExperience
       v-if="publicConfig.textExperienceEnabled"
       :tour-id="tourId"
+      :generation-id="tourStore.tour.playback_generation_id ?? null"
       :guide-mode="tourStore.tour?.guide?.interaction_mode"
       :request-busy="actions.isBusy.value"
       :before-visitor-action="() => continuation.suspend('question')"
+      :route-places="routePlaces.places.value"
+      :route-discovery="routePlaces.discovery.value"
+      :discovery-busy="routePlaces.busy.value"
+      :discovery-failed="routePlaces.failed.value"
+      :discovery-pending="routePlaces.pending.value"
+      :retry-discovery="retryRoutePlaces"
+      :reconcile-discovery="reconcileRoutePlaces"
     />
 
     <!-- Text block -->
@@ -288,6 +341,7 @@ import { useMapboxDirections } from "@/composables/map/useMapboxDirections";
 import { useTourTextSync } from "@/composables/tour/useTourTextSync";
 import { useLogger } from "@/composables/utils/useLogger";
 import { useGeolocationStore } from "~/stores/geolocationStore";
+import { useRouteStore } from "~/stores/routeStore";
 import { useStoryContinuation } from "~/composables/tour/useStoryContinuation";
 import { usePositionMode } from "~/composables/map/usePositionMode";
 import { useSimulationMarker } from "~/composables/map/useSimulationMarker";
@@ -307,13 +361,15 @@ import { useExperienceStore } from "~/stores/experienceStore";
 import { useUserStore } from "~/stores/userStore";
 import TourProgressSummary from "~/components/tour/TourProgressSummary.vue";
 import TourPreparationProgress from "~/components/tour/TourPreparationProgress.vue";
-import TourResearchPreviewAction from "~/components/tour/TourResearchPreviewAction.vue";
+import TourResearchControls from "~/components/tour/TourResearchControls.vue";
 import TourResearchPreviewWarning from "~/components/tour/TourResearchPreviewWarning.vue";
 import { useTourPreparationProgress } from "~/composables/tour/useTourPreparationProgress";
 import TourReadingPanel from "~/components/tour/TourReadingPanel.vue";
 import { useRouteWalk } from "~/composables/map/useRouteWalk";
 import type { MapPoint } from "#shared/utils/routeMovement";
 import { isTourButtonBlocked } from "~/utils/tourControls";
+import { useRoutePlaces } from "~/composables/tour/useRoutePlaces";
+import RoutePlacesPanel from "~/components/tour/RoutePlacesPanel.vue";
 
 const { public: publicConfig } = useRuntimeConfig();
 const isDevelopment = import.meta.dev;
@@ -325,6 +381,7 @@ mapboxgl.accessToken = publicConfig.mapboxGlAccessToken;
 const route = useRoute();
 const tourStore = useTourStore();
 const requests = useTourRequestStore();
+const routeStore = useRouteStore();
 const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 const { t } = useI18n();
@@ -335,6 +392,9 @@ const users = useUserStore();
 const {
   progress: preparationProgress,
   refreshFailed: preparationRefreshFailed,
+  refreshing: preparationRefreshing,
+  captionUncertain: preparationCaptionUncertain,
+  refresh: refreshPreparation,
 } = useTourPreparationProgress(
   computed(() => (tourStore.tour?.id === tourId ? tourStore.tour : null)),
   computed(() => users.user?.uid ?? null),
@@ -350,6 +410,44 @@ const tourProgress = useTourProgress({
   },
 });
 const guideObjects = computed(() => tourProgress.value?.guideObjects ?? []);
+const routePlaces = useRoutePlaces({
+  tour: computed(() => (tourStore.tour?.id === tourId ? tourStore.tour : null)),
+  ownerId: computed(() => users.user?.uid ?? null),
+  language: computed(() => users.userPreferences.language),
+  experience: computed(() =>
+    experiences.viewFor(tourId, users.user?.uid ?? ""),
+  ),
+});
+const mapTour = computed(() => {
+  const tour = tourStore.tour;
+  const discovery = routePlaces.discovery.value;
+  if (!tour || tour.id !== tourId) return null;
+  // Use only the accepted provider corridor; do not alter stops, visits or saved geometry.
+  return discovery?.geometry_provider && discovery.geometry.length >= 2
+    ? {
+        ...tour,
+        route: {
+          ...tour.route,
+          geometry: discovery.geometry,
+          geometry_leg_starts: discovery.geometry_leg_starts ?? [],
+        },
+      }
+    : tour;
+});
+async function retryRoutePlaces() {
+  try {
+    await routePlaces.retry();
+  } catch (error) {
+    useNotification().showApiError(error, t("routePlaces.failed"));
+  }
+}
+async function reconcileRoutePlaces() {
+  try {
+    await routePlaces.reconcile();
+  } catch (error) {
+    useNotification().showApiError(error, t("routePlaces.failed"));
+  }
+}
 let tourPageAlive = true;
 const {
   loading: tourLoading,
@@ -461,11 +559,16 @@ const guideMapMarkers = createGuideMapMarkers();
 const isMapFullyLoaded = ref(false);
 
 const mapInstanceRef = shallowRef<mapboxgl.Map | null>(null);
-const { initializeDirections, addRouteToMap, cleanup, routeCoordinates } =
-  useMapboxDirections(mapInstanceRef, {
-    enableBounds: true,
-    interactive: false,
-  });
+const {
+  initializeDirections,
+  addRouteToMap,
+  cleanup,
+  routeCoordinates,
+  routeLegStarts,
+} = useMapboxDirections(mapInstanceRef, {
+  enableBounds: true,
+  interactive: false,
+});
 const walking = useRouteWalk({
   enabled: computed(
     () =>
@@ -478,6 +581,7 @@ const walking = useRouteWalk({
   geometry: computed(() =>
     routeCoordinates.value.map((point) => [point[0], point[1]] as MapPoint),
   ),
+  legStarts: routeLegStarts,
   getPosition: simulationMarker.getMarkerPosition,
   setPosition: simulationMarker.addSimulationMarker,
 });
@@ -504,7 +608,7 @@ function tryAddRouteWithCheck(retries = 5, delay = 100) {
   const interval = (routeTimer = setInterval(() => {
     if (mapInstance && tourStore.tour && isMapFullyLoaded.value) {
       logger.log(`Adding route, attempt ${retries - attempts + 1}`);
-      addRouteToMap(tourStore.tour, isMapFullyLoaded);
+      if (mapTour.value) addRouteToMap(mapTour.value, isMapFullyLoaded);
       clearInterval(interval);
     } else if (--attempts <= 0) {
       clearInterval(interval);
@@ -669,6 +773,8 @@ watch(
     () => tourStore.tour?.route.points,
     guideObjects,
     () => t("components.map.guideDiscussing"),
+    routePlaces.places,
+    () => t("routePlaces.mapLabel"),
   ],
   () => {
     if (!isMapFullyLoaded.value || tourStore.tour?.id !== tourId) {
@@ -684,20 +790,19 @@ watch(
       })),
       guideObjects.value,
       t("components.map.guideDiscussing"),
+      routePlaces.places.value,
+      t("routePlaces.mapLabel"),
     );
   },
   { immediate: true },
 );
 
-watch(
-  () => tourStore.tour,
-  (newTour) => {
-    if (newTour && isMapFullyLoaded.value && mapInstance) {
-      logger.log("Tour data loaded, adding route to fully loaded map");
-      tryAddRouteWithDelay();
-    }
-  },
-);
+watch(mapTour, (newTour) => {
+  if (newTour && isMapFullyLoaded.value && mapInstance) {
+    logger.log("Tour data loaded, adding route to fully loaded map");
+    tryAddRouteWithDelay();
+  }
+});
 
 watch(
   state,

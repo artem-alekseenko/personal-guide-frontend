@@ -24,6 +24,7 @@ export const useExperienceStore = defineStore("experience", () => {
     needsReconciliation = ref(false);
   let tourId = "",
     ownerId = "",
+    generationId: string | null | undefined,
     epoch = 0,
     readVersion = 0,
     operation: Operation | null = null;
@@ -46,31 +47,68 @@ export const useExperienceStore = defineStore("experience", () => {
     tourId = "";
     ownerId = "";
     view.value = null;
+    generationId = undefined;
     sourceCatalog.value = {};
     busy.value = false;
     operation = null;
     hasPending.value = false;
     needsReconciliation.value = false;
   };
-  const load = async (id: string, owner: string) => {
-    if (id !== tourId || owner !== ownerId) {
+  const load = async (
+    id: string,
+    owner: string,
+    expectedGeneration: string | null | undefined = id === tourId &&
+    owner === ownerId
+      ? generationId
+      : undefined,
+  ) => {
+    if (
+      id !== tourId ||
+      owner !== ownerId ||
+      expectedGeneration !== generationId
+    ) {
       reset();
       tourId = id;
       ownerId = owner;
+      generationId = expectedGeneration;
+      needsReconciliation.value = true;
     }
     const current = epoch;
     const reading = ++readVersion;
     const result = await api()<Experience>(
       `/api/tour-experience/${encodeURIComponent(id)}`,
     );
-    if (
-      current === epoch &&
-      reading === readVersion &&
-      (!view.value || result.revision >= view.value.revision)
-    ) {
-      applyView(result);
-      needsReconciliation.value = false;
+    if (current !== epoch || reading !== readVersion) return false;
+    if (generationId !== undefined && result.generation_id !== generationId) {
+      needsReconciliation.value = true;
+      throw new Error("The current stop belongs to another generation");
     }
+    // Revisions are scoped to a generation, and start again after acceptance.
+    if (
+      view.value &&
+      view.value.generation_id === result.generation_id &&
+      result.revision < view.value.revision
+    )
+      return false;
+    applyView(result);
+    needsReconciliation.value = false;
+    return true;
+  };
+  // Confirmed acceptance supersedes an old-generation retry without replaying
+  // it. Clear the visible text synchronously, before the panel reloads.
+  const acceptGeneration = (id: string, owner: string, generation: string) => {
+    if (
+      id !== tourId ||
+      owner !== ownerId ||
+      (generationId === generation &&
+        (!view.value || view.value.generation_id === generation))
+    )
+      return;
+    reset();
+    tourId = id;
+    ownerId = owner;
+    generationId = generation;
+    needsReconciliation.value = true;
   };
   const invalidate = (id: string) => {
     if (id && id === tourId) {
@@ -179,8 +217,8 @@ export const useExperienceStore = defineStore("experience", () => {
     const current = epoch;
     busy.value = true;
     try {
-      await load(tourId, ownerId);
-      if (current === epoch) {
+      const loaded = await load(tourId, ownerId);
+      if (loaded && current === epoch) {
         operation = null;
         hasPending.value = false;
       }
@@ -203,6 +241,7 @@ export const useExperienceStore = defineStore("experience", () => {
     retry: send,
     refresh,
     invalidate,
+    acceptGeneration,
     reconcile,
     withCommand,
     reset,
@@ -210,6 +249,6 @@ export const useExperienceStore = defineStore("experience", () => {
       turn.source_ids
         .map((id) => sourceCatalog.value[id])
         .filter((s): s is ExperienceSource => !!s),
-    ready: computed(() => !!view.value),
+    ready: computed(() => !!view.value && !needsReconciliation.value),
   };
 });

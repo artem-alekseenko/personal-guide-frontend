@@ -18,12 +18,55 @@ export const addMarkerElemToMap = (
   if (!map) return;
 
   const popupHTML = `<h3>${escapeHtml(feature.properties.title)}</h3>`;
+  const popup = new mapboxgl.Popup({
+    offset: 22,
+    focusAfterOpen: false,
+  }).setHTML(popupHTML);
   const marker = new mapboxgl.Marker(markerElem)
     .setLngLat(feature.geometry.coordinates)
-    .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(popupHTML))
+    .setPopup(popup)
     .addTo(map);
 
-  return marker as mapboxgl.Marker;
+  // Stable listener identity avoids stacking handlers when the popup reopens.
+  const stopPopupClick = (event: MouseEvent) => event.stopPropagation();
+  markerElem.ariaExpanded = "false";
+  popup.on("open", () => {
+    markerElem.classList.toggle("pg-place-marker--selected", true);
+    markerElem.ariaExpanded = "true";
+    // Popup controls are also inside the clickable simulation map.
+    popup.getElement()?.addEventListener("click", stopPopupClick);
+  });
+  popup.on("close", () => {
+    markerElem.classList.toggle("pg-place-marker--selected", false);
+    markerElem.ariaExpanded = "false";
+  });
+  markerElem.addEventListener("click", (event) => {
+    event.stopPropagation();
+    marker.togglePopup();
+  });
+  markerElem.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      marker.togglePopup();
+    } else if (event.key === "Escape" && popup.isOpen()) {
+      event.stopPropagation();
+      popup.remove();
+    }
+  });
+  // Suppress Mapbox's legacy keypress toggle after our button keydown handler.
+  markerElem.addEventListener(
+    "keypress",
+    (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    },
+    true,
+  );
+
+  return marker;
 };
 
 /**

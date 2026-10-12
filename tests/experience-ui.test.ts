@@ -24,7 +24,7 @@ const t = (key: string, params: Record<string, unknown> = {}) => {
   const value = key.split(".").reduce((v: any, part) => v?.[part], en) ?? key;
   return String(value).replace(/\{(\w+)\}/g, (_, p) => String(params[p] ?? ""));
 };
-async function render(overrides = {}) {
+async function render(overrides = {}, props = {}) {
   const view = {
     schema_version: 1,
     revision: 0,
@@ -63,6 +63,7 @@ async function render(overrides = {}) {
     ],
     navigation: {
       status: "available",
+      current_maneuver: "Follow the provider path",
       target_name: "Square",
       instructions: ["Follow the provider path", "Second instruction"],
       walking_minutes: 4,
@@ -75,7 +76,7 @@ async function render(overrides = {}) {
     useI18n: () => ({ t, locale: ref("en") }),
   });
   await useExperienceStore().load("tour", "owner");
-  const app = createSSRApp(CurrentStopExperience, { tourId: "tour" });
+  const app = createSSRApp(CurrentStopExperience, { tourId: "tour", ...props });
   app.config.globalProperties.$t = t;
   return renderToString(app);
 }
@@ -102,4 +103,42 @@ it("does not imply current-stop sources support an unresolved earlier answer", a
     "Supporting links for this earlier reply are unavailable",
   );
   expect(html).not.toContain('href="javascript:');
+});
+it("shows stop evidence readiness independently of tour preparation and suppresses intentional silence", async () => {
+  const html = await render({
+    language: "en",
+    story_readiness: {
+      status: "EXHAUSTED", eligible_fact_count: 4, unspoken_fact_count: 0,
+      unchecked_account_count: 2, prepared_story_available: false,
+    },
+    turns: [{ id: "silent", role: "guide", stop_id: "museum", text: "  ", source_ids: [], created_at: "2026-10-12" }],
+  });
+  expect(html).toContain(en.experience.readiness.EXHAUSTED);
+  expect(html).toContain("Eligible facts: 4; not yet told: 0; unchecked accounts: 2.");
+  expect(html).toContain(en.experience.preparedStoryMissing);
+  expect(html).toContain("Experience language: en");
+  expect(html).not.toContain("<strong>AI guide</strong>");
+});
+it("never substitutes the first overview instruction for an authoritative current maneuver", async () => {
+  const html = await render({
+    navigation: { status: "available", current_maneuver: "Cross at the lights", instructions: ["Later turn", "Future crossing"] },
+  });
+  expect(html).toContain("<p>Cross at the lights</p>");
+  expect(html).toContain(en.experience.allInstructions);
+  const noCurrent = await render({
+    navigation: { status: "available", current_maneuver: null, instructions: ["Later turn"] },
+  });
+  expect(noCurrent).not.toContain(en.experience.nextInstruction);
+});
+it("keeps remote travel distinct from local walking and exposes route-wide places without a selected-stop change", async () => {
+  const html = await render({
+    navigation: { status: "remote_travel", route_context: "remote_travel", instructions: ["Do not walk across the country"] },
+  }, {
+    routePlaces: [{ id: "school", name: "Public school", source: "google", source_id: "g1", lat: "47", lng: "19", types: ["school"], address: null, distance_to_route_meters: 10, along_route_meters: 500 }],
+  });
+  expect(html).toContain(en.experience.navigationStatus.remote_travel);
+  expect(html).not.toContain("Do not walk across the country");
+  expect(html).toContain("Public school");
+  expect(html).toContain(en.routePlaces.caveat);
+  expect(html).toContain("Museum");
 });

@@ -9,6 +9,7 @@ const props = defineProps<{
   researchStatus?: string | null;
   status: string;
   preparationError?: string | null;
+  blocked?: boolean;
 }>();
 const users = useUserStore();
 const stopping = computed(() =>
@@ -16,22 +17,38 @@ const stopping = computed(() =>
     ? ["PENDING", "RUNNING"].includes(props.researchStatus)
     : props.status === "GENERATING" && !props.preparationError,
 );
-const { confirming, busy, failed, saved, confirm } =
-  useTourResearchPreviewAction(
-    () => props.tourId,
-    () => props.generationId ?? null,
-  );
+const {
+  confirming,
+  busy,
+  failed,
+  saved,
+  creatingNew,
+  canCreateNew,
+  beginSaved,
+  beginNew,
+  cancelConfirmation,
+  confirm,
+} = useTourResearchPreviewAction(
+  () => props.tourId,
+  () => props.generationId ?? null,
+);
 </script>
 
 <template>
   <div
     class="border-warning bg-elevated text-default my-3 grid gap-2 rounded-lg border p-3 text-sm"
   >
+    <template v-if="!confirming">
+      <p class="font-semibold">{{ $t("researchPreview.actionTitle") }}</p>
+      <p class="text-muted">{{ $t("researchPreview.actionHint") }}</p>
+    </template>
     <PGButton
       v-if="!confirming"
-      variant="outline"
-      :disabled="busy || !users.user"
-      @click="confirming = true"
+      :variant="['GENERATED', 'STARTED'].includes(status) ? 'outline' : 'solid'"
+      color="warning"
+      block
+      :disabled="busy || blocked || !users.user"
+      @click="!blocked && beginSaved()"
     >
       {{
         $t(
@@ -43,11 +60,21 @@ const { confirming, busy, failed, saved, confirm } =
         )
       }}
     </PGButton>
-    <template v-else>
+    <PGButton
+      v-if="!confirming && canCreateNew"
+      variant="outline"
+      color="warning"
+      block
+      :disabled="busy || blocked || !users.user"
+      @click="!blocked && beginNew()"
+    >
+      {{ $t("researchPreview.newDraft") }}
+    </PGButton>
+    <template v-if="confirming">
       <p>
         {{
           $t(
-            saved
+            saved && !creatingNew
               ? "researchPreview.confirmOpen"
               : stopping
                 ? "researchPreview.confirmStop"
@@ -59,15 +86,15 @@ const { confirming, busy, failed, saved, confirm } =
       <p>{{ $t("researchPreview.noAutomaticPlayback") }}</p>
       <div class="flex flex-wrap gap-2">
         <PGButton
-          :disabled="busy || !users.user"
+          :disabled="busy || blocked || !users.user"
           :loading="busy"
-          @click="confirm"
+          @click="!blocked && confirm()"
         >
           {{
             $t(
               failed
                 ? "buttons.tryAgain"
-                : saved
+                : saved && !creatingNew
                   ? "researchPreview.openSaved"
                   : "researchPreview.confirm",
             )
@@ -76,14 +103,20 @@ const { confirming, busy, failed, saved, confirm } =
         <PGButton
           variant="outline"
           :disabled="busy"
-          @click="confirming = false"
+          @click="cancelConfirmation"
         >
           {{ $t("common.cancel") }}
         </PGButton>
       </div>
     </template>
     <p v-if="busy" role="status">
-      {{ $t(saved ? "researchPreview.opening" : "researchPreview.creating") }}
+      {{
+        $t(
+          saved && !creatingNew
+            ? "researchPreview.opening"
+            : "researchPreview.creating",
+        )
+      }}
     </p>
     <p v-if="failed" class="text-error" role="alert">
       {{
