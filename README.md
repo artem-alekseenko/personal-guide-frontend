@@ -397,21 +397,25 @@ from the separately declared `@types/geojson` package instead of an implicit
 global namespace.
 
 `pnpm-workspace.yaml` contains scoped security overrides for Firebase's gRPC transport,
-Google GAX and its HTTP helpers' UUIDs, fontless's esbuild, typography's selector
-parser and Git's argument parser. The parser 2.0.1 override preserves the API and
-default Git export used by Nuxt's existing `simple-git` 3 consumer; a controlled
-smoke check confirmed that `VISUAL` is now blocked while safe Git reads still
-work. Nuxt UI's Tiptap peers are pinned together because they require matching
+Google GAX and its HTTP helpers' UUIDs, fontless's esbuild and typography's selector
+parser. Nuxt UI's Tiptap peers are pinned together because they require matching
 versions; updating only the editor core leaves incompatible extensions. Review
 these overrides when their parent packages adopt fixed releases, and keep the
 lockfile in sync.
 
-The dependency audit still reports upstream issues. `node-forge` and `braces`
-have no published fixed versions. Nuxt DevTools still imports the default export
-from `simple-git` 3; the patched major 4 removes that export, so a forced override
-would break the consumer. DevTools is disabled in `nuxt.config.ts`, but that does
-not remove its packages or advisories. Do not suppress these findings; revisit
-them when compatible upstream fixes are available.
+Nuxt DevTools 3.4.3 removes `simple-git` from the dependency graph, resolving its
+critical and two high advisories without forcing an incompatible Git major.
+The obsolete Git argument-parser override has been removed.
+
+The dependency audit still reports two high upstream advisories:
+
+- [`node-forge` 1.4.0: nested DigestAlgorithm signature verification](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
+- [`braces` 3.0.3: stack exhaustion from deeply nested patterns](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
+
+Neither has a published fixed version as of 2026-10-15. These are transitive
+development/build dependencies; that classification does not establish runtime
+exploitability or safety. Do not suppress these findings; revisit them when
+compatible upstream fixes are available.
 
 The frontend-only compatible upgrade uses Pinia 4.0.3 with `@pinia/nuxt` 1.0.2,
 VueUse 15.0.0, Vitest 5.0.4, logos 1.2.16 and pnpm 12.11.2; remaining direct
@@ -434,8 +438,8 @@ at mobile/desktop sizes; a controlled browser fixture exercised guide filtering,
 selection, accepted-generation text reload and original-key caption recovery with
 zero media execution. The browser blocked the external Iconify request, so the
 Google icon was not visually qualified. Live sign-in, providers, GPS/Mapbox and
-audio remain unqualified. The audit still reports four high and one critical
-upstream advisory described above.
+audio remain unqualified. The current audit reports the two high upstream
+advisories described above; no critical advisories remain.
 
 Docker's build stage also completed a clean frozen install and Nuxt build with
 the migrated workspace configuration. No image was deployed or live service

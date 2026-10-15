@@ -37,7 +37,7 @@ The package declares Nuxt 4.6.1, Vue 3.5.43, TypeScript 6.0.3, Pinia 4.0.3, Nuxt
 
 - Required Node range: `^24.21.0 || >=26.0.0` in `package.json`; use the pinned Node 24.21.0 LTS release for development. Node 26 is permitted, not recommended over the pinned LTS runtime.
 - Package manager: `pnpm@12.11.2`; preserve `pnpm-lock.yaml`. `pnpm-workspace.yaml` owns hoisting, pre/post scripts, exact-version saves, security overrides and explicit dependency-build approvals. pnpm 12 reads only auth/registry configuration from `.npmrc`; the obsolete project file was removed. Docker copies the workspace configuration before its frozen install.
-- Security override: `simple-git>@simple-git/argv-parser` uses 2.0.1. Its consumed `vulnerabilityCheck` API remains compatible with `simple-git` 3 and rejects unsafe `VISUAL` editor settings; the Git 3 default export is retained for Nuxt DevTools. Do not force Git 4 until its consumer stops requiring that removed export.
+- Nuxt DevTools is locked at 3.4.3, which removes `simple-git` and its critical/high advisories without a forced major override. The obsolete Git argument-parser override was removed. The audit still reports two high upstream advisories in `node-forge` 1.4.0 and `braces` 3.0.3; neither has a published fixed version as of 2026-10-15. Do not suppress these findings; revisit them when compatible fixes are published.
 - `pnpm install --frozen-lockfile`: install dependencies; `postinstall` runs `nuxt prepare`.
 - `pnpm dev`: development server, normally port 3000.
 - `pnpm build`: production build, with Nuxt TypeScript checking enabled.
