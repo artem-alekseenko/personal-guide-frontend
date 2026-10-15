@@ -1,20 +1,31 @@
 {
   "routePlaces": {
-    "title": "Named places along the whole route",
-    "source": "Source: Google Places · optional public map leads",
-    "mapLabel": "Google map leads · unnumbered",
-    "caveat": "Google labels alone are not researched stories or mandatory stops. Public listing does not confirm entry, opening hours, step-free access or a safe path to the building. Google results are bounded and do not cover every building or street.",
+    "title": "Buildings, streets and places around the route",
+    "source": "Sources: Google Places and OpenStreetMap · public map leads",
+    "mapLabel": "Public map subjects · unnumbered",
+    "caveat": "Map names, addresses and building footprints are discovery leads, not researched stories or mandatory stops. A footprint does not identify the building you mean. Listings do not confirm entry, opening hours, step-free access or a safe path. Coverage is finite and may omit buildings or streets.",
+    "subjectIdentity": "Public ID: {id} · map point: {lat}, {lng}",
+    "kind": {
+      "premise": "Public place listing",
+      "building": "Building",
+      "street": "Street"
+    },
+    "nearbyStatus": {
+      "partial": "Nearby map coverage is partial, not a complete identification of your surroundings.",
+      "unavailable": "Nearby public map discovery is unavailable; exact building identity may remain unknown."
+    },
     "status": {
       "complete": "Bounded route scan completed — not an exhaustive inventory.",
       "partial": "Partial route coverage; provider limits or missing results may apply.",
-      "unavailable": "Route-wide Google discovery is unavailable."
+      "unavailable": "Route-wide public map discovery is unavailable."
     },
-    "loading": "Loading named places along the route…",
+    "loading": "Loading public buildings, streets and places…",
     "failed": "Discovery could not be confirmed. Retry the same request or reload before requesting a new scan.",
-    "list": "Optional named places in route order",
-    "ask": "Ask about this name",
-    "topicQuery": "What can you verify about the place named «{name}» along this route?",
-    "empty": "No additional public names have been returned for this route.",
+    "list": "Public buildings, streets and nearby places",
+    "ask": "Ask about this subject",
+    "topicQuery": "What public history, former uses or recorded stories can you verify about «{name}» or its street context?",
+    "empty": "No additional public map subjects have been returned for this area.",
+    "unknownIdentity": "Building footprint only; its exact identity and history are not established.",
     "discussing": "Discussing: {name} · visit progress is unchanged",
     "research": {
       "SOURCE_BACKED": "Reviewed source-backed context is available.",
@@ -543,6 +554,8 @@
     "guideStyleDefault": "Guide's style: {mode}",
     "effectiveInteractionStyle": "Current style: {mode}",
     "reconcileRequired": "Refresh this walk before making another change.",
+    "ask": "Ask",
+    "askAnything": "Ask anything…",
     "title": "Your current stop",
     "intro": "Explore with your AI guide. Choose a stop and ask a question, or take a moment for yourself.",
     "forThisWalk": "About you, for this walk",
@@ -562,7 +575,7 @@
     "relaxed": "Relaxed",
     "normal": "Normal",
     "brisk": "Brisk",
-    "stop": "Explore a stop",
+    "stop": "Ask about",
     "selectStop": "Choose a place",
     "useGps": "Use my location to suggest the current stop",
     "GPS_CONFIRMED": "Location is consistent with this stop. Access and visibility are not confirmed.",
@@ -648,6 +661,9 @@
     "turnStop": "At {stop}",
     "earlierStop": "an earlier stop",
     "earlierSourcesUnavailable": "Supporting links for this earlier reply are unavailable. Current-stop sources may refer to different material.",
+    "externalReviews": "External visitor reviews",
+    "openPlaceReviews": "open this place, then select Reviews",
+    "externalReviewsNotice": "Visitor opinions are on the external site, not checked historical evidence. Review text and reviewer profiles are not stored in this tour. If the saved place ID is no longer recognized, the link opens the original coordinates rather than searching by name.",
     "routePreview": "Review your walk",
     "routeTotal": "Estimated total: {minutes} minutes",
     "routeAccessUnknown": "Access and opening conditions are not confirmed. Check local signs and conditions.",

@@ -1,479 +1,79 @@
-<template>
-  <section
-    class="mx-4 grid gap-3 rounded-xl border p-4"
-    :aria-label="$t('experience.title')"
-  >
-    <h2 class="text-lg font-semibold">{{ $t("experience.title") }}</h2>
-    <p class="text-sm">{{ $t("experience.intro") }}</p>
-    <p v-if="error" role="alert">{{ error }}</p>
-    <p v-if="store.needsReconciliation" role="status">
-      {{ $t("experience.reconcileRequired") }}
-    </p>
-    <div class="flex flex-wrap gap-2">
-      <button
-        v-if="store.hasPending"
-        class="rounded border px-3 py-2"
-        :disabled="
-          requestBusy || store.busy || store.needsReconciliation || saving
-        "
-        @click="perform(() => store.retry())"
-      >
-        {{ $t("experience.retry") }}
-      </button>
-      <button
-        class="rounded border px-3 py-2"
-        :disabled="requestBusy || store.busy || saving"
-        @click="refresh"
-      >
-        {{ $t("experience.refresh") }}
-      </button>
-    </div>
-    <RoutePlacesPanel
-      v-if="routePlaces"
-      :places="routePlaces"
-      :discovery="routeDiscovery"
-      :busy="discoveryBusy"
-      :failed="discoveryFailed"
-      :pending="discoveryPending"
-      :can-ask="!!store.view && !blocked"
-      @ask="askPlace"
-      @retry="perform(async () => retryDiscovery?.())"
-      @reconcile="perform(async () => reconcileDiscovery?.())"
-    />
-    <template v-if="store.view">
-      <p class="text-sm" role="status">
-        {{
-          $t("experience.effectiveInteractionStyle", {
-            mode: $t(`experience.interactionModes.${effectiveInteractionMode}`),
-          })
-        }}
-      </p>
-      <p v-if="store.view.topic_place_name" class="font-medium">
-        {{
-          $t("routePlaces.discussing", { name: store.view.topic_place_name })
-        }}
-      </p>
-      <aside
-        v-if="store.view.story_readiness"
-        class="grid gap-1 rounded border p-3"
-        :aria-label="$t('experience.storyReadiness')"
-      >
-        <h3 class="font-medium">{{ $t("experience.storyReadiness") }}</h3>
-        <p role="status">
-          {{ $t(`experience.readiness.${store.view.story_readiness.status}`) }}
-        </p>
-        <p class="text-sm">
-          {{
-            $t("experience.readinessCounts", {
-              eligible: store.view.story_readiness.eligible_fact_count,
-              unspoken: store.view.story_readiness.unspoken_fact_count,
-              unchecked: store.view.story_readiness.unchecked_account_count,
-            })
-          }}
-        </p>
-        <p class="text-sm">
-          {{
-            $t(
-              store.view.story_readiness.prepared_story_available
-                ? "experience.preparedStoryAvailable"
-                : "experience.preparedStoryMissing",
-            )
-          }}
-        </p>
-      </aside>
-      <p v-if="store.view.language" class="text-sm">
-        {{ $t("experience.language", { language: store.view.language }) }}
-      </p>
-      <label class="grid gap-1"
-        >{{ $t("experience.stop") }}
-        <select
-          v-model="selected"
-          class="rounded border p-2"
-          :disabled="blocked"
-          @change="selectStop"
-        >
-          <option value="" disabled>{{ $t("experience.selectStop") }}</option>
-          <option
-            v-for="stop in store.view.stops"
-            :key="stop.id"
-            :value="stop.id"
-          >
-            {{ stop.name }}
-          </option>
-        </select>
-      </label>
-      <label
-        ><input
-          v-model="useGps"
-          type="checkbox"
-          :disabled="positionMode !== 'gps'"
-        />
-        {{ $t("experience.useGps") }}</label
-      >
-      <p v-if="positionMode !== 'gps'" class="text-sm">
-        {{ $t("experience.textGpsManual") }}
-      </p>
-      <div class="flex flex-wrap gap-2">
-        <button
-          class="rounded border px-3 py-2"
-          :disabled="blocked || !selected"
-          @click="
-            send({
-              action: 'ASK',
-              text: t('experience.nextStopQuery'),
-              stop_id: selected,
-            })
-          "
-        >
-          {{ $t("experience.nextStopDirections") }}
-        </button>
-        <button
-          class="rounded border px-3 py-2"
-          :disabled="blocked || !selected"
-          @click="
-            send({
-              action: 'ASK',
-              text: t('experience.timeQuery'),
-              stop_id: selected,
-            })
-          "
-        >
-          {{ $t("experience.checkTime") }}
-        </button>
-      </div>
-      <p class="text-sm" role="status">
-        {{ $t(`experience.${store.view.location_status}`) }}
-      </p>
-      <p v-if="store.view.remaining_minutes !== null" class="text-sm">
-        {{
-          $t("experience.timeLeft", { minutes: store.view.remaining_minutes })
-        }}
-      </p>
-      <aside
-        v-if="store.view.navigation?.status"
-        class="grid gap-2 rounded border p-3"
-        :aria-label="$t('experience.walkingDirections')"
-      >
-        <h3 class="font-medium">{{ $t("experience.walkingDirections") }}</h3>
-        <p>
-          {{
-            $t(`experience.navigationStatus.${store.view.navigation.status}`)
-          }}
-        </p>
-        <p v-if="store.view.navigation.target_name">
-          {{ store.view.navigation.target_name }}
-        </p>
-        <p
-          v-if="store.view.navigation.walking_minutes !== undefined"
-          class="text-sm"
-        >
-          {{
-            $t("experience.walkingTime", {
-              minutes: store.view.navigation.walking_minutes,
-            })
-          }}
-        </p>
-        <div v-if="maneuver">
-          <h4 class="font-medium">{{ $t("experience.nextInstruction") }}</h4>
-          <p>{{ maneuver }}</p>
-        </div>
-        <details v-if="directions.length" class="mt-2">
-          <summary>{{ $t("experience.allInstructions") }}</summary>
-          <ol class="list-inside list-decimal">
-            <li v-for="(instruction, index) in directions" :key="index">
-              {{ instruction }}
-            </li>
-          </ol>
-        </details>
-        <p
-          v-for="warning in store.view.navigation.warnings"
-          :key="warning"
-          class="text-sm"
-        >
-          {{ warning }}
-        </p>
-      </aside>
-      <p v-if="store.view.limitation" class="text-sm">
-        {{ $t("experience.noEvidence") }}
-      </p>
-      <div
-        v-if="store.view.activity"
-        class="rounded bg-gray-100 p-3 dark:bg-gray-800"
-        role="status"
-      >
-        {{ $t(`experience.activity${store.view.activity}`) }}
-        <p class="text-sm">{{ $t("experience.activityHint") }}</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="action in actions"
-          :key="action"
-          class="rounded border px-3 py-2"
-          :disabled="blocked"
-          @click="send({ action })"
-        >
-          {{ $t(`experience.action${action}`) }}
-        </button>
-      </div>
-      <div
-        v-for="cue in store.view.cues"
-        :key="cue.id"
-        class="rounded border p-3"
-      >
-        <p>{{ cue.text }}</p>
-        <p
-          v-for="limitation in cue.limitations"
-          :key="limitation"
-          class="text-sm"
-        >
-          {{ limitation }}
-        </p>
-        <button
-          class="mt-2 rounded border px-3 py-2"
-          :disabled="blocked"
-          @click="
-            send({
-              action:
-                cue.kind === 'LOCAL_TALK'
-                  ? 'LOCAL_TALK'
-                  : cue.kind === 'PHOTO'
-                    ? 'PHOTO'
-                    : 'OBSERVE',
-              cue_id: cue.id,
-            })
-          "
-        >
-          {{ $t("experience.tryActivity") }}
-        </button>
-      </div>
-      <ol
-        class="grid max-h-96 gap-3 overflow-auto"
-        aria-live="polite"
-        :aria-label="$t('experience.conversation')"
-      >
-        <li
-          v-for="turn in visibleTurns"
-          :key="turn.id"
-          class="rounded bg-gray-50 p-3 whitespace-pre-wrap dark:bg-gray-900"
-        >
-          <strong>{{
-            turn.role === "visitor"
-              ? $t("experience.you")
-              : $t("experience.guide")
-          }}</strong>
-          <p class="text-xs">
-            {{ $t("experience.turnStop", { stop: stopName(turn.stop_id) }) }}
-          </p>
-          <p>{{ turn.text }}</p>
-          <ul v-if="turn.source_ids.length" class="mt-2 text-xs">
-            <li v-for="source in store.sourcesForTurn(turn)" :key="source.id">
-              <a
-                v-if="safeUrl(source.url)"
-                :href="source.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="underline"
-                >{{ source.title }}</a
-              >
-              <span v-else>{{ source.title }}</span>
-            </li>
-          </ul>
-          <p
-            v-if="store.sourcesForTurn(turn).length < turn.source_ids.length"
-            class="text-xs"
-          >
-            {{ $t("experience.earlierSourcesUnavailable") }}
-          </p>
-        </li>
-      </ol>
-      <form class="grid gap-2" @submit.prevent="ask">
-        <label for="stop-question">{{ $t("experience.question") }}</label>
-        <textarea
-          id="stop-question"
-          v-model="question"
-          maxlength="4000"
-          rows="2"
-          class="rounded border p-2"
-        />
-        <button
-          type="submit"
-          class="rounded border px-3 py-2"
-          :disabled="blocked || !selected || !question.trim()"
-        >
-          {{ $t("experience.send") }}
-        </button>
-      </form>
-      <details v-if="store.view.sources.length">
-        <summary>{{ $t("experience.sources") }}</summary>
-        <ul>
-          <li v-for="source in store.view.sources" :key="source.id">
-            <a
-              v-if="safeUrl(source.url)"
-              :href="source.url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="underline"
-              >{{ source.title }}</a
-            ><span v-else>{{ source.title }}</span> —
-            {{ $t("experience.checked") }}
-            {{ new Date(source.checked_at).toLocaleDateString(locale) }}
-          </li>
-        </ul>
-      </details>
-      <PersonalContextForm v-model="context" :guide-mode="guideMode" />
-      <div class="flex flex-wrap gap-2">
-        <button
-          class="rounded border px-3 py-2"
-          :disabled="blocked"
-          @click="send({ action: 'UPDATE_CONTEXT', context })"
-        >
-          {{ $t("experience.applyContext") }}
-        </button>
-        <button
-          class="rounded border px-3 py-2"
-          :disabled="blocked"
-          @click="send({ action: 'FORGET_CONTEXT' })"
-        >
-          {{ $t("experience.forget") }}
-        </button>
-        <button
-          class="rounded border px-3 py-2"
-          :disabled="blocked"
-          @click="saveFuture(context)"
-        >
-          {{ $t("experience.saveFuture") }}
-        </button>
-        <button
-          class="rounded border px-3 py-2"
-          :disabled="blocked"
-          @click="saveFuture(null)"
-        >
-          {{ $t("experience.clearFuture") }}
-        </button>
-      </div>
-      <p v-if="saved" role="status">{{ $t("experience.saved") }}</p>
-    </template>
-  </section>
-</template>
 <script setup lang="ts">
 import {
   computed,
   nextTick,
   onBeforeUnmount,
   onMounted,
-  ref,
+  shallowRef,
   watch,
 } from "vue";
 import { useExperienceStore } from "~/stores/experienceStore";
-import { useGeolocationStore } from "~/stores/geolocationStore";
-import { useExperienceLocation } from "~/composables/tour/useExperienceLocation";
-import { usePositionMode } from "~/composables/map/usePositionMode";
 import { useTourRequestStore } from "~/stores/tourRequestStore";
-import { useUserStore } from "~/stores/userStore";
-import { experienceErrorKey } from "~/utils/experienceErrors";
-import { safeSourceUrl as safeUrl } from "~/utils/safeText";
 import { useAuth } from "~/composables/auth/useAuth";
-import type { Interaction, Intent } from "~/types/tourExperience";
-import {
-  emptyPersonalContext,
-  type PersonalContext,
-} from "~/types/personalContext";
-import {
-  navigationInstructions,
-  currentManeuver,
-} from "~/utils/navigationInstructions";
-import PersonalContextForm from "./PersonalContextForm.vue";
-import RoutePlacesPanel from "./RoutePlacesPanel.vue";
-import type { DiscoveredPlace, RouteDiscovery } from "~/types/routeDiscovery";
-import {
-  normalizeGuideInteractionMode,
-  type GuideInteractionMode,
-} from "#shared/types/guideInteraction";
+import { experienceErrorKey } from "~/utils/experienceErrors";
+import { safeSourceUrl } from "~/utils/safeText";
+import PGButton from "~/components/ui/PGButton.vue";
+
 const props = defineProps<{
-  beforeVisitorAction?: () => Promise<void>;
   tourId: string;
   generationId?: string | null;
   requestBusy?: boolean;
-  guideMode?: GuideInteractionMode;
-  routePlaces?: DiscoveredPlace[];
-  routeDiscovery?: RouteDiscovery | null;
-  discoveryBusy?: boolean;
-  discoveryFailed?: boolean;
-  discoveryPending?: boolean;
-  retryDiscovery?: () => Promise<unknown>;
-  reconcileDiscovery?: () => Promise<unknown>;
+  beforeVisitorAction?: () => Promise<void>;
 }>();
-const { positionMode } = usePositionMode();
+
+const store = useExperienceStore();
 const requests = useTourRequestStore();
-const users = useUserStore();
-const visible = ref(false);
-const store = useExperienceStore(),
-  geo = useGeolocationStore(),
-  auth = useAuth();
-const { t, locale } = useI18n();
-const selected = ref(""),
-  question = ref(""),
-  error = ref(""),
-  useGps = ref(false),
-  context = ref(emptyPersonalContext()),
-  saved = ref(false),
-  saving = ref(false);
+const auth = useAuth();
+const { t } = useI18n();
+const question = shallowRef("");
+const error = shallowRef("");
+const loading = shallowRef(false);
+const acting = shallowRef(false);
+let alive = true;
+let session = 0;
+let pendingQuestion: { session: number; text: string } | null = null;
+
 const requestBusy = computed(
   () => !!props.requestBusy || requests.isBusy(props.tourId),
 );
-const blocked = computed(
+const unavailable = computed(
   () =>
+    !auth.user.value?.uid ||
     requestBusy.value ||
+    loading.value ||
     !store.ready ||
     store.busy ||
+    store.needsReconciliation,
+);
+const blocked = computed(
+  () => unavailable.value || acting.value || store.hasPending,
+);
+const recoveryBusy = computed(
+  () => requestBusy.value || loading.value || acting.value || store.busy,
+);
+const canSend = computed(() => !blocked.value && !!question.value.trim());
+const showRecovery = computed(
+  () =>
+    !!error.value ||
     store.hasPending ||
     store.needsReconciliation ||
-    saving.value,
+    (!store.view && !loading.value),
 );
-const effectiveInteractionMode = computed(() =>
-  normalizeGuideInteractionMode(store.view?.interaction_mode),
-);
-const directions = computed(() =>
-  navigationInstructions(store.view?.navigation),
-);
-const maneuver = computed(() => currentManeuver(store.view?.navigation));
 const visibleTurns = computed(() =>
-  (store.view?.turns ?? []).filter((turn) => turn.text.trim()),
+  (store.view?.turns ?? [])
+    .filter((turn) => turn.text.trim())
+    .map((turn) => ({
+      turn,
+      sources: store.sourcesForTurn(turn),
+    })),
 );
-const stopName = (id: string) =>
-  store.view?.stops.find((stop) => stop.id === id)?.name ??
-  t("experience.earlierStop");
-const buttons: Intent[] = [
-  "MORE",
-  "SHORTER",
-  "KNOW_THIS",
-  "PHOTO",
-  "BREAK",
-  "LOCAL_TALK",
-  "DONE",
-  "SKIP",
-];
-const actions = computed(() =>
-  buttons.filter((a) => store.view?.available_actions.includes(a)),
+const reviewLinks = computed(() =>
+  (store.view?.sources ?? []).filter(
+    (source) =>
+      source.kind === "external_review_link" && safeSourceUrl(source.url),
+  ),
 );
-let session = 0;
-let contextVersion = 0;
-let syncedContextVersion = 0;
-let contextWriteVersion: number | null = null;
-let initialContextRead: { session: number; version: number } | null = null;
-watch(
-  context,
-  () => {
-    contextVersion++;
-  },
-  { deep: true, flush: "sync" },
-);
-function syncContext(value: PersonalContext) {
-  context.value = JSON.parse(JSON.stringify(value));
-  syncedContextVersion = contextVersion;
-}
-let alive = true,
-  timer: ReturnType<typeof setInterval> | undefined;
+
 async function perform(task: () => Promise<unknown>) {
   const current = session;
   error.value = "";
@@ -486,189 +86,248 @@ async function perform(task: () => Promise<unknown>) {
     return false;
   }
 }
-async function send(input: Interaction) {
-  if (blocked.value) return false;
-  const writesContext =
-    input.action === "UPDATE_CONTEXT" || input.action === "FORGET_CONTEXT";
-  const submittedVersion = contextVersion;
-  const submitted = input.context
-    ? { ...input, context: JSON.parse(JSON.stringify(input.context)) }
-    : input;
-  return perform(async () => {
-    const current = session;
-    if (input.action !== "LOCATION_UPDATE") await props.beforeVisitorAction?.();
-    if (!alive || current !== session || blocked.value)
-      throw new Error("The current stop changed");
-    if (writesContext) contextWriteVersion = submittedVersion;
-    try {
+
+function clearConfirmedQuestion(current: number) {
+  if (alive && current === session && pendingQuestion?.session === current) {
+    if (question.value === pendingQuestion.text) question.value = "";
+    pendingQuestion = null;
+  }
+}
+
+async function ask() {
+  if (!canSend.value) return;
+  const current = session;
+  const text = question.value;
+  acting.value = true;
+  try {
+    const confirmed = await perform(async () => {
+      await props.beforeVisitorAction?.();
+      if (!alive || current !== session) return;
+      if (unavailable.value || store.hasPending)
+        throw new Error("The current tour changed");
+      pendingQuestion = { session: current, text };
       await store.act({
-        ...submitted,
+        action: "ASK_GENERAL",
+        text,
         type_llm: auth.userPreferences.value.llmType,
       });
       await nextTick();
-    } finally {
-      if (current === session && writesContext) contextWriteVersion = null;
-    }
-  });
-}
-async function selectStop() {
-  if (!(await send({ action: "CONTINUE", stop_id: selected.value })))
-    selected.value = store.view?.stop_id ?? "";
-}
-async function refresh() {
-  if (requestBusy.value || saving.value) return;
-  if (await perform(() => store.refresh())) {
-    location.reconcile();
-    await location.sync();
+    });
+    if (confirmed && !store.hasPending) clearConfirmedQuestion(current);
+    if (current === session && !store.hasPending) pendingQuestion = null;
+  } finally {
+    if (current === session) acting.value = false;
   }
 }
-async function ask() {
-  const text = question.value;
-  if (
-    await send({
-      action: store.view?.activity === "QUESTION" ? "ANSWER" : "ASK",
-      text,
-      stop_id: selected.value,
-    })
-  ) {
-    if (question.value === text) question.value = "";
-  }
-}
-async function askPlace(place: DiscoveredPlace) {
-  // A topic identity is separate from the mandatory stop and visit progress.
-  await send({
-    action: "ASK",
-    subject_place_id: place.id,
-    text: t("routePlaces.topicQuery", { name: place.name }),
-  });
-}
-async function saveFuture(value: PersonalContext | null) {
-  if (blocked.value) return;
+
+async function retry() {
+  if (recoveryBusy.value || unavailable.value || !store.hasPending) return;
   const current = session;
-  saving.value = true;
-  saved.value = false;
-  await perform(async () => {
-    const didSave = await users.savePersonalContext(
-      value,
-      () => alive && current === session,
-    );
-    if (didSave && alive && current === session) {
-      saved.value = true;
-    }
-  });
-  if (current === session) saving.value = false;
+  acting.value = true;
+  try {
+    const confirmed = await perform(async () => {
+      await props.beforeVisitorAction?.();
+      if (!alive || current !== session) return;
+      if (unavailable.value || !store.hasPending)
+        throw new Error("The current tour changed");
+      await store.retry();
+      await nextTick();
+    });
+    if (confirmed && !store.hasPending) clearConfirmedQuestion(current);
+    if (current === session && !store.hasPending) pendingQuestion = null;
+  } finally {
+    if (current === session) acting.value = false;
+  }
 }
-watch(
-  () => store.view,
-  (view) => {
-    selected.value = view?.stop_id ?? "";
-  },
-  { immediate: true },
-);
-watch(
-  () => store.view,
-  () => {
-    if (!store.view) return;
-    if (
-      initialContextRead?.session === session &&
-      contextVersion !== initialContextRead.version
-    )
-      return;
-    if (contextVersion !== (contextWriteVersion ?? syncedContextVersion))
-      return;
-    syncContext(store.view.personal_context);
-  },
-  { immediate: true },
-);
-const location = useExperienceLocation({
-  enabled: computed(
-    () => useGps.value && positionMode.value === "gps" && visible.value,
-  ),
-  blocked: computed(() => blocked.value || !visible.value),
-  ready: computed(() => !!store.view),
-  hasLocation: computed(
-    () =>
-      store.view?.location_status === "GPS_CONFIRMED" ||
-      store.view?.navigation?.status === "available",
-  ),
-  fix: computed(() =>
-    geo.coordinates && !geo.error && geo.accuracy !== null && geo.recordedAt
-      ? {
-          point: {
-            lng: String(geo.coordinates[0]),
-            lat: String(geo.coordinates[1]),
-          },
-          accuracy: geo.accuracy,
-          recorded_at: geo.recordedAt,
-        }
-      : {},
-  ),
-  send,
-});
+
+async function refresh() {
+  if (recoveryBusy.value || !auth.user.value?.uid) return;
+  const current = ++session;
+  pendingQuestion = null;
+  loading.value = true;
+  try {
+    await perform(() => store.refresh());
+  } finally {
+    if (current === session) loading.value = false;
+  }
+}
+
 watch(
   () => [props.tourId, auth.user.value?.uid, props.generationId] as const,
   async ([tour, uid, generation]) => {
-    session++;
+    const current = ++session;
     question.value = "";
     error.value = "";
-    syncContext(emptyPersonalContext());
-    contextWriteVersion = null;
-    selected.value = "";
-    saved.value = false;
-    saving.value = false;
-    useGps.value = false;
-    location.reset();
-    if (uid) {
-      const current = session;
-      await perform(async () => {
-        const loading = store.load(tour, uid, generation);
-        // load resets a changed tour/account/generation before awaiting a read.
-        if (store.view) {
-          syncContext(store.view.personal_context);
-          selected.value = store.view.stop_id ?? "";
-        }
-        initialContextRead = {
-          session: current,
-          version: contextVersion,
-        };
-        try {
-          await loading;
-          await nextTick();
-        } finally {
-          if (initialContextRead?.session === current)
-            initialContextRead = null;
-        }
-      });
-    } else store.reset();
+    pendingQuestion = null;
+    acting.value = false;
+    loading.value = !!uid;
+    if (!uid) {
+      store.reset();
+      return;
+    }
+    try {
+      await perform(() => store.load(tour, uid, generation));
+    } finally {
+      if (current === session) loading.value = false;
+    }
   },
   { immediate: true, flush: "sync" },
 );
+
 function onVisibility() {
-  visible.value = !document.hidden;
-  if (
-    visible.value &&
-    !requestBusy.value &&
-    !store.busy &&
-    !saving.value &&
-    store.view
-  ) {
-    void perform(() => store.reconcile()).then(async (reconciled) => {
-      if (reconciled) {
-        location.reconcile();
-        await location.sync();
-      }
+  if (!document.hidden && !recoveryBusy.value && store.view) {
+    // A visibility read must retain an uncertain question's payload and key.
+    const current = session;
+    loading.value = true;
+    void perform(() => store.reconcile()).finally(() => {
+      if (current === session) loading.value = false;
     });
   }
 }
+
 onMounted(() => {
-  visible.value = !document.hidden;
   document.addEventListener("visibilitychange", onVisibility);
-  timer = setInterval(() => void location.sync(), 10000);
 });
 onBeforeUnmount(() => {
   alive = false;
+  session++;
   document.removeEventListener("visibilitychange", onVisibility);
-  if (timer) clearInterval(timer);
   store.reset();
 });
 </script>
+
+<template>
+  <div
+    class="mx-4 grid max-w-3xl min-w-0 gap-4 break-words"
+    :aria-busy="loading || acting || store.busy"
+  >
+    <p v-if="loading || store.busy" class="text-sm" role="status">
+      {{ $t("common.loading") }}
+    </p>
+    <p v-if="error" class="text-sm" role="alert">{{ error }}</p>
+    <p v-if="store.needsReconciliation" class="text-sm" role="status">
+      {{ $t("experience.reconcileRequired") }}
+    </p>
+    <div v-if="showRecovery" class="flex flex-wrap gap-2">
+      <PGButton
+        v-if="store.hasPending"
+        variant="outline"
+        color="neutral"
+        :disabled="recoveryBusy || unavailable"
+        @click="retry"
+      >
+        {{ $t("experience.retry") }}
+      </PGButton>
+      <PGButton
+        variant="outline"
+        color="neutral"
+        :disabled="recoveryBusy || !auth.user.value?.uid"
+        @click="refresh"
+      >
+        {{ $t("experience.refresh") }}
+      </PGButton>
+    </div>
+    <form class="grid min-w-0 gap-3" @submit.prevent="ask">
+      <label for="general-question" class="sr-only">
+        {{ $t("experience.question") }}
+      </label>
+      <textarea
+        id="general-question"
+        v-model="question"
+        maxlength="4000"
+        rows="3"
+        :placeholder="$t('experience.askAnything')"
+        class="question-input w-full min-w-0 resize-y rounded-2xl px-5 py-4 text-base leading-relaxed"
+      />
+      <PGButton
+        type="submit"
+        class="justify-self-start"
+        :disabled="!canSend"
+        :loading="acting"
+      >
+        {{ $t("experience.ask") }}
+      </PGButton>
+    </form>
+    <aside
+      v-if="reviewLinks.length"
+      class="rounded border border-gray-200 p-3 text-sm dark:border-gray-700"
+      :aria-label="$t('experience.externalReviews')"
+    >
+      <ul>
+        <li v-for="source in reviewLinks" :key="source.id">
+          <a
+            :href="source.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="underline"
+          >
+            <span
+              translate="no"
+              class="font-normal whitespace-nowrap"
+            >Google Maps</span>
+            — {{ $t("experience.openPlaceReviews") }}
+          </a>
+        </li>
+      </ul>
+      <p class="mt-2 text-xs">{{ $t("experience.externalReviewsNotice") }}</p>
+    </aside>
+    <ol
+      v-if="visibleTurns.length"
+      class="grid max-h-96 min-w-0 gap-3 overflow-auto"
+      aria-live="polite"
+      :aria-label="$t('experience.conversation')"
+    >
+      <li
+        v-for="{ turn, sources } in visibleTurns"
+        :key="turn.id"
+        class="min-w-0 rounded bg-gray-50 p-3 break-words whitespace-pre-wrap dark:bg-gray-900"
+      >
+        <strong>{{
+          turn.role === "visitor"
+            ? $t("experience.you")
+            : $t("experience.guide")
+        }}</strong>
+        <p>{{ turn.text }}</p>
+        <ul v-if="sources.length" class="mt-2 text-xs">
+          <li v-for="source in sources" :key="source.id">
+            <a
+              v-if="safeSourceUrl(source.url)"
+              :href="source.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline"
+              >{{ source.title }}</a
+            >
+            <span v-else>{{ source.title }}</span>
+          </li>
+        </ul>
+        <p v-if="sources.length < turn.source_ids.length" class="text-xs">
+          {{ $t("experience.earlierSourcesUnavailable") }}
+        </p>
+      </li>
+    </ol>
+  </div>
+</template>
+
+<style scoped>
+.question-input {
+  min-block-size: 7.5rem;
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-muted);
+  color: var(--ui-text);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.question-input::placeholder {
+  color: var(--ui-text-muted);
+}
+
+.question-input:focus {
+  border-color: var(--ui-primary);
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ui-primary) 12%, transparent);
+}
+</style>

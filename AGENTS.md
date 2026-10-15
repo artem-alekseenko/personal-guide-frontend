@@ -6,6 +6,17 @@ This repository is the web frontend for Personal Guide: authenticated, location-
 
 The backend is a separate sibling repository at `../personal-guide.ai/` (from this checkout, `/home/abba/startup/personal-guide.ai`). Inspect it when changing API contracts. The parent directory is a workspace containing both repositories.
 
+### Mandatory backend read-only boundary
+
+**Every agent working on a frontend task, including delegated agents and tool-driven scripts, MUST treat the companion backend as read-only.**
+
+- Reading backend code, documentation and API contracts is allowed.
+- Do not create, edit, delete or format backend files, or change backend Git state: no staging, commits, resets, checkouts, pulls or pushes.
+- Do not run backend tests, builds, migrations, workers, deployments or other commands that can modify backend files, services or persisted data.
+- Do not bypass this boundary by changing directories, using `git -C`, SSH, containers, scripts or subagents. Include this restriction explicitly in delegated tasks.
+- Backend setup/operation examples elsewhere in this guide are reference material, not permission to execute them. General requests such as “fix the integration” or “commit and push everything” apply only to the frontend checkout.
+- If a frontend change requires a backend change, describe the required contract/change and leave its implementation to a separately authorized task started in the backend checkout.
+
 The backend owns Firebase token validation, user and tour ownership, MongoDB persistence, route planning, tour preparation/generation, narration, speech synthesis, and background research. This repository owns the browser UI and a Nuxt server proxy. Keep provider credentials and generation logic on the backend.
 
 Read these backend sources for integration work:
@@ -22,10 +33,10 @@ Treat executable code as authoritative when documentation and types disagree. Th
 
 ## Stack and commands
 
-The package declares Nuxt 4.6.1, Vue 3.5.43, TypeScript 6.0.3, Pinia 3, Nuxt UI 4.11.3, Tailwind CSS 4.3.3, VueUse 14.4, Firebase/VueFire, Nuxt i18n, and Mapbox GL with Mapbox Directions. It uses ES modules. Nuxt 4.4.4 breaks SPA development with `Vite Node IPC socket path not configured`; use the pinned patched dependency rather than manually setting internal socket environment variables.
+The package declares Nuxt 4.6.1, Vue 3.5.43, TypeScript 6.0.3, Pinia 4.0.3, Nuxt UI 4.11.3, Tailwind CSS 4.3.3, VueUse 15.0, Firebase/VueFire, Nuxt i18n, and Mapbox GL with Mapbox Directions. It uses ES modules. Nuxt 4.4.4 breaks SPA development with `Vite Node IPC socket path not configured`; use the pinned patched dependency rather than manually setting internal socket environment variables.
 
 - Required Node range: `^24.21.0 || >=26.0.0` in `package.json`; use the pinned Node 24.21.0 LTS release for development. Node 26 is permitted, not recommended over the pinned LTS runtime.
-- Package manager: `pnpm@10.34.6`; preserve `pnpm-lock.yaml`.
+- Package manager: `pnpm@12.11.2`; preserve `pnpm-lock.yaml`. `pnpm-workspace.yaml` owns hoisting, pre/post scripts, exact-version saves, security overrides and explicit dependency-build approvals. pnpm 12 reads only auth/registry configuration from `.npmrc`; the obsolete project file was removed. Docker copies the workspace configuration before its frozen install.
 - Security override: `simple-git>@simple-git/argv-parser` uses 2.0.1. Its consumed `vulnerabilityCheck` API remains compatible with `simple-git` 3 and rejects unsafe `VISUAL` editor settings; the Git 3 default export is retained for Nuxt DevTools. Do not force Git 4 until its consumer stops requiring that removed export.
 - `pnpm install --frozen-lockfile`: install dependencies; `postinstall` runs `nuxt prepare`.
 - `pnpm dev`: development server, normally port 3000.
@@ -60,7 +71,16 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm dev
 ```
 
-Before starting the app, configure `.env` as described below and start the backend and its workers using the sibling repository's setup guide. Do not overwrite an existing `.env`. The frontend needs no local MongoDB connection; it reaches persistence through the backend. `.npmrc` enables hoisting and pre/post scripts. Preserve these settings when investigating dependency or Nuxt auto-import failures.
+Before starting the app, configure `.env` as described below and start the backend and its workers using the sibling repository's setup guide. Do not overwrite an existing `.env`. The frontend needs no local MongoDB connection; it reaches persistence through the backend. `pnpm-workspace.yaml` enables hoisting and pre/post scripts. Preserve these settings when investigating dependency or Nuxt auto-import failures.
+
+The user selected latest compatible frontend releases, not unsupported integration
+rewrites. Firebase 12/Admin 13 remain inside VueFire's declared peer ranges.
+TypeScript 7 fails current `vue-tsc` with `ERR_PACKAGE_PATH_NOT_EXPORTED`
+(`typescript/lib/tsc`), so retain TypeScript 6 until compatible Vue tooling exists.
+Node types remain on the latest Node 24 line to match the pinned runtime. Exact
+release-age exclusions recorded by pnpm apply only to the requested logos/Vitest
+patches, not broad package families. Dependency upgrades do not authorize backend
+changes, live Firebase sign-in, paid providers or audio checks.
 
 ## Application structure
 
@@ -114,17 +134,26 @@ endpoint.
 
 Copy `.env.example` to a local ignored `.env` and fill in the public Firebase and Mapbox configuration. Endpoint-specific variables are optional because the handlers default to the sibling backend's paths. These are example paths for the default backend routing, not production configuration:
 
-| Frontend endpoint                    | Backend endpoint                          | Environment variable                                     |
-| ------------------------------------ | ----------------------------------------- | -------------------------------------------------------- |
-| `GET /api/guides`                    | `GET /guides/`                            | `PG_API_GUIDES_URL=/guides/`                             |
-| `GET /api/route-suggestions`         | `GET /guides/route_suggestions/{guideId}` | `PG_API_ROUTE_SUGGESTION_URL=/guides/route_suggestions/` |
-| `POST /api/create-tour`              | `POST /tours/`                            | `PG_API_CREATE_ROUTE_URL=/tours/`                        |
-| `GET /api/list-tours`                | `GET /tours/`                             | `PG_API_LIST_TOURS_URL=/tours/`                          |
-| `GET /api/get-tour/{tourId}`         | `GET /tours/{tourId}`                     | Reuses `PG_API_LIST_TOURS_URL`                           |
-| `POST /api/get-tour-record/{tourId}` | `POST /tours/{tourId}/next`               | Reuses `PG_API_CREATE_ROUTE_URL`                         |
-| `GET /api/user-profile`              | `GET /users/me/`                          | `PG_API_GET_ME=/users/me/`                               |
-| `POST /api/finish-tour/{tourId}`     | `POST /tours/{tourId}/finish`             | Reuses `PG_API_CREATE_ROUTE_URL`                         |
-| `PUT /api/user-profile`              | `PUT /users/me/`                          | `PG_API_UPDATE_ME=/users/me/`                            |
+| Frontend endpoint                                                     | Backend endpoint                                                                                | Environment variable                                                                       |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/guides`                                                     | `GET /guides/`                                                                                  | `PG_API_GUIDES_URL=/guides/`                                                               |
+| `GET /api/route-suggestions`                                          | `GET /guides/route_suggestions/{guideId}`                                                       | `PG_API_ROUTE_SUGGESTION_URL=/guides/route_suggestions/`                                   |
+| `POST /api/create-tour`                                               | `POST /tours/`                                                                                  | `PG_API_CREATE_ROUTE_URL=/tours/`                                                          |
+| `GET /api/list-tours`                                                 | `GET /tours/`                                                                                   | `PG_API_LIST_TOURS_URL=/tours/`                                                            |
+| `GET /api/get-tour/{tourId}`                                          | `GET /tours/{tourId}`                                                                           | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `POST /api/get-tour-record/{tourId}`                                  | `POST /tours/{tourId}/next`                                                                     | Reuses `PG_API_CREATE_ROUTE_URL`                                                           |
+| `GET /api/user-profile`                                               | `GET /users/me/`                                                                                | `PG_API_GET_ME=/users/me/`                                                                 |
+| `POST /api/finish-tour/{tourId}`                                      | `POST /tours/{tourId}/finish`                                                                   | Reuses `PG_API_CREATE_ROUTE_URL`                                                           |
+| `PUT /api/user-profile`                                               | `PUT /users/me/`                                                                                | `PG_API_UPDATE_ME=/users/me/`                                                              |
+| `POST /api/research-preview/{tourId}`                                 | `POST /tours/{tourId}/research-preview`                                                         | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `GET /api/tour-generations/{tourId}`                                  | `GET /tours/{tourId}/generations`                                                               | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `GET /api/tour-generations/{tourId}/{generationId}`                   | `GET /tours/{tourId}/generations/{generationId}`                                                | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `POST /api/tour-generations/{tourId}/{generationId}/progress-message` | `POST /tours/{tourId}/generations/{generationId}/progress-message`                              | Reuses `PG_API_LIST_TOURS_URL`; idempotent status wording, not a factual progress mutation |
+| `POST /api/tour-generations/{tourId}/{generationId}/{action}`         | `POST /tours/{tourId}/generations/{generationId}/{action}` (`cancel`, `finish-early`, `accept`) | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `POST /api/tour-regenerate/{tourId}`                                  | `POST /tours/{tourId}/regenerate`                                                               | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `GET /api/tour-research/{tourId}`                                     | `GET /tours/{tourId}/research`                                                                  | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `GET /api/tour-enrichment/{tourId}`                                   | `GET /tours/{tourId}/enrichment`                                                                | Reuses `PG_API_LIST_TOURS_URL`                                                             |
+| `GET /api/research-artifacts/{tourId}/{artifactId}`                   | `GET /tours/{tourId}/artifacts/{artifactId}` (JSON/text only)                                   | Reuses `PG_API_LIST_TOURS_URL`                                                             |
 
 Set `PG_API_BASE_URL=http://localhost:3001` for a frontend process running on the host. `nuxt.config.ts` reads it into private `runtimeConfig.pgApiBaseUrl`; `NUXT_PG_API_BASE_URL` is the matching Nuxt runtime override for a built server. Handlers read the endpoint-specific variables from `process.env`. Absolute endpoint URLs also work, subject to the configured origin check. The endpoint helper normalizes trailing slashes when appending IDs. In containers, `localhost` refers to that container; frontend Compose uses `host.docker.internal:3001` with a host-gateway mapping. Override `DOCKER_PG_API_BASE_URL` if the backend is elsewhere.
 
@@ -144,7 +173,7 @@ Supply config-time values when building; changing only the runtime environment d
 - Route suggestions validate bounds and translate `lat`/`lng` into `curr_lat`/`curr_lng`; the proxy initially derives map coordinates from the first route. Selecting another variant replaces those coordinates with its geometry. Creation sends the selected variant's named stops, separate route geometry, `guide_id`, personal context, and enabled selected tags as `{ name, value }` settings.
 - Guide and tour list proxies unwrap `{ guides }` and `{ tours }` into arrays. `useGetTourRecord` combines `record` with response-level `places`, `audio_data`, and `route_points`. The tour store applies returned route points to the active route.
 - `routeStore` polls lists every five seconds while any preparation snapshot is `PENDING`/`RUNNING`, even on a `STARTED` tour. Without a snapshot it falls back to status `GENERATING` without a preparation error. It retries list failures on the same schedule. The list page stops polling on exit, restores polling on reentry even during an unfinished read, and distinguishes loading, empty, and failed states.
-- `tourStore` caches the current tour and manages narration text, visitor questions, and places. Its `/next` request uses the selected `type_llm` (default `DEFAULT`) and voice type. `shared/utils/tourNarration.ts` requests `STATIONARY` with a 90-second target when fresh GPS is within the conservative stop threshold, `QUESTION` with 90 seconds for visitor text, or `WALKING` otherwise. Published-generation tours use a 20-second walking budget; legacy tours retain a 90-second upper request target so backend location guidance can choose a brief walking transition or a longer stop story, including in simulation. Backend evidence and mode budgets still determine actual length. GPS requests include available accuracy and fix timestamp; manual coordinates omit both, and unknown pace is omitted. Uncertain narration failures retain the original request payload and operation ID even if GPS changes. Definitive input/auth rejections discard that pending operation.
+- `tourStore` caches the current tour and manages narration text, visitor questions, and places. Its `/next` request uses the selected `type_llm` (default `DEFAULT`) and voice type. `shared/utils/tourNarration.ts` requests `STATIONARY` when fresh GPS is within the conservative stop threshold and there is no reported movement, `QUESTION` for visitor text, or `WALKING` otherwise. All three modes receive a 90-second upper request target, independent of published generation or unverified preview metadata. Backend evidence, localization and guidance still choose actual length: a brief walking maneuver or a longer supported story within the 200-metre commentary radius. Commentary eligibility is not physical arrival, and a larger request budget does not retarget stops, approve preview claims or establish GPS evidence. GPS requests include available accuracy and fix timestamp; manual coordinates omit both, and unknown pace is omitted. Manual simulation retains the same upper budget while backend guidance owns its location handling. Uncertain narration failures retain the original request payload and operation ID even if GPS changes. Definitive input/auth rejections discard that pending operation.
 - `useTourState` saves state/audio position under `tour-state-{tourId}` with a 24-hour expiry. Audio resume rewinds five seconds. Restoration requires the matching in-memory audio record and restores paused state, never an active player after a page reload.
 - `useTourAudioPlayer` plays base64 audio through an HTML audio element and estimates text highlighting from playback progress. Clean up object URLs, audio, Mapbox objects/listeners, timers, and geolocation watchers when modifying lifecycle code.
 - GPS is the default position mode; manual mode uses a draggable simulation marker. `usePositionMode` shares the choice through Nuxt state and persists it under `tour-position-mode`. Missing GPS must not fall back to a landmark; route-point fallback is for manual simulation only. Maps initialize even if location permission is denied.
@@ -162,17 +191,18 @@ Supply config-time values when building; changing only the runtime environment d
 
 Browser storage reference:
 
-| Key                               | Storage | Purpose and lifetime                                                                                          |
-| --------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
-| `personal-guide-user-lang`        | Local   | Language fallback; backend profile can replace it after login                                                 |
-| `personal-guide-voice`            | Local   | Device voice preference                                                                                       |
-| `personal-guide-llm`              | Local   | Device model preference                                                                                       |
-| `tour-position-mode`              | Local   | Shared GPS/manual choice                                                                                      |
-| `tour-state-{tourId}`             | Local   | UI state and audio position; expires after 24 hours and needs matching in-memory audio                        |
-| `pg-playback-{user_id}-{tour_id}` | Local   | Segment checkpoint and pending narration/control payloads and operation keys; removed after successful finish |
-| `navigationHistory`               | Local   | UID-scoped JSON `{ uid, paths }`; up to ten safe local back-navigation entries                                |
-| `settingsReturnRoute`             | Session | UID-scoped JSON `{ uid, path }`; safe route to return to from settings                                        |
-| `i18n_redirected`                 | Cookie  | Locale selection                                                                                              |
+| Key                                   | Storage | Purpose and lifetime                                                                                          |
+| ------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
+| `personal-guide-user-lang`            | Local   | Language fallback; backend profile can replace it after login                                                 |
+| `personal-guide-voice`                | Local   | Device voice preference                                                                                       |
+| `personal-guide-llm`                  | Local   | Device model preference                                                                                       |
+| `tour-position-mode`                  | Local   | Shared GPS/manual choice                                                                                      |
+| `tour-state-{tourId}`                 | Local   | UI state and audio position; expires after 24 hours and needs matching in-memory audio                        |
+| `pg-playback-{user_id}-{tour_id}`     | Local   | Segment checkpoint and pending narration/control payloads and operation keys; removed after successful finish |
+| `navigationHistory`                   | Local   | UID-scoped JSON `{ uid, paths }`; up to ten safe local back-navigation entries                                |
+| `settingsReturnRoute`                 | Session | UID-scoped JSON `{ uid, path }`; safe route to return to from settings                                        |
+| `pg-preparation-caption-{JSON scope}` | Session | Pending caption generation/body/key; scoped to Firebase UID, backend owner and tour; no tokens/media          |
+| `i18n_redirected`                     | Cookie  | Locale selection                                                                                              |
 
 Playback recovery can include location and pending visitor text. It contains no bearer token or audio; do not copy it into logs or diagnostics without redaction. The preferences plugin clears `tour-state-*` and obsolete `pg-guides-*` cache keys on UID changes. Account-scoped playback recovery survives reloads separately from UI/audio state; do not conflate their lifetimes.
 
@@ -185,7 +215,7 @@ Playback recovery can include location and pending visitor text. It contains no 
 - `useTourActions.isBusy` blocks overlapping user actions. `onAudioEnded` sends `COMPLETED`; starting another turn or finishing interrupts an unfinished segment. `dispose()` stops local audio and ignores late UI work. Do not assume browser unload can deliver an acknowledgement; preserve durable recovery.
 - Backend guidance actions include `ARRIVE`, `CONTINUE`, `WALK`, `ANSWER`, `LOCATE`, `COMPLETE`, and `WAIT`. `requires_resume` determines the paused state for silent records. Backend `COMPLETE` guidance is distinct from the explicit `/finish` mutation. `useTourSpeech` contains a browser speech helper, but the current tour action flow uses backend audio through `useTourAudioPlayer`.
 - Pause/resume send persistent backend controls using duration-zero requests. These requests do not replace the current playable record. Segment start/completion/interruption acknowledgements are serialized. Account/tour-scoped `pg-playback-{user_id}-{tour_id}` recovery records retain segment delivery state and pending request payloads/keys across reloads, and are removed after successful completion. They contain no bearer tokens or audio. Completion calls `/finish` and navigates only on success.
-- The backend supports generation history/status, regeneration, cancellation, acceptance, private artifacts, enrichment inspection, and account deletion. Adding screens for these is deferred by user instruction; keep existing tour flows compatible without implying those screens exist.
+- The tour research panel supports generation history/status, finish-early, cancellation, regeneration, normal acceptance, private JSON/text research downloads and enrichment inspection. Account-deletion screens remain deferred. Background enrichment has no cancellation endpoint; cancelling a selected preparation generation must not imply otherwise.
 - The UI already forwards interests, exclusions, pace, and step-free preferences. Additional backend route options (destination coordinates, a separate wheelchair routing flag, and stop time) remain outside the current UI. Frontend types are handwritten; compare against Python models when extending them.
 - Browser authentication, real Mapbox rendering/GPS, and provider-backed speech need valid configuration and interactive verification. Unit tests and a build do not establish end-to-end provider behavior.
 
@@ -211,20 +241,20 @@ For an API change, trace the browser composable, Nitro handler, forwarding helpe
 
 For UI changes, exercise the affected nonaudio login/redirect, guide selection, route creation/progress, tour loading, GPS/manual coordinates, navigation cleanup, text interactions, and settings flows. Include relevant empty/error and silent-response metadata cases without media/player execution. Playback, play/pause/resume, audio visitor questions, and audio verification require explicit human approval. Manual simulation helps check nonaudio behavior without physical travel; it is not evidence of real GPS behavior.
 
-Keep changes within the requested scope and check each repository's working tree before editing. Do not modify the backend merely to hide a frontend contract mismatch. Do not edit generated `.nuxt/`, `.output/`, or dependency files by hand. Keep this guide current when architecture, commands, environment variables, or contracts change.
+Keep changes within the requested scope and check the frontend working tree before editing. The companion backend is read-only under the boundary above; do not modify it to resolve contract mismatches or include it in frontend commit/push operations. Do not edit generated `.nuxt/`, `.output/`, or dependency files by hand. Keep this guide current when architecture, commands, environment variables, or contracts change.
 
 Node is installed through NVM. Noninteractive shells may need `source "$HOME/.nvm/nvm.sh"` before using Node/Corepack. See README for local setup. The regression suite uses controlled dependencies; live provider behavior still requires browser testing.
 
 ## Current-stop text milestone
 
-`NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED=true` exposes `CurrentStopExperience`; the backend must also enable `TEXT_EXPERIENCE_ENABLED`. The frontend default is on by explicit user instruction; backend enablement remains separate. `experienceStore` is separate from playback and resets on account/tour changes. It forwards revision and generation identity with an idempotency key; uncertain actions must be retried or explicitly reconciled by reloading. The proxy uses the existing authenticated same-origin API boundary. Personal context is per tour; saving or clearing future preferences is an explicit profile action. No text activity pauses existing audio.
+`NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED=true` exposes the standalone `CurrentStopExperience` question composer; the backend must also enable `TEXT_EXPERIENCE_ENABLED` and support `ASK_GENERAL`. The frontend default is on by explicit user instruction; backend enablement remains separate. `experienceStore` is separate from playback and resets on account/tour changes. It forwards revision and generation identity with an idempotency key; uncertain questions must be retried or explicitly reconciled by reloading. The proxy uses the existing authenticated same-origin API boundary. Tour preferences are configured during creation; the question composer has no heading, place selector, personal-context editor or activity controls. Text questions do not pause existing audio.
 
 Creation uses the selected suggested variant, preserving named stops separately from route geometry. Changing start/duration invalidates the suggestion. New tours draw their stored geometry directly rather than requesting a second route; legacy tours retain the existing map path. Context form fields are optional. The text feature's Python/client tests do not establish live GPS, provider factual accuracy, field accessibility or public-launch readiness.
 
 User constraint for this milestone: **do not generate, listen to, test or benchmark audio. Existing audio remains in use. Future audio verification MUST receive explicit human approval.** Use focused `tests/experience.test.ts`, `tests/experience-proxy.test.ts`, `tests/tour-contract.test.ts`, `tests/stored-route.test.ts`, `tests/client-auth.test.ts`, and `tests/auth.test.ts`, plus typecheck/build. Audio-inclusive regression/smoke suites are excluded until that approval.
 
 `pnpm test:text` runs the approved nonaudio checks, including text rendering,
-saved preferences, per-tour request serialization, GPS clearing and component
+saved preferences, per-tour request serialization and component
 rendering. `tests/ui-*.test.ts` adds nonaudio checks for native controls,
 notifications, route drafts, map following, catalog states and tour loading.
 GPS updates move the user marker; map following requires the visitor's explicit
@@ -245,23 +275,49 @@ infeasible/unverified-route results and show the backend explanation. Step-free
 preferences are forwarded, but the backend withholds route variants until
 whole-path accessibility can be verified.
 
-The text panel displays backend navigation status, provider instructions and
-warnings. It never derives turns from stop names. `navigation-display.test.ts`
-and `route-preferences-proxy.test.ts` are additional approved nonaudio checks.
+The question composer sends `ASK_GENERAL`, text and the selected model, without
+stop, mapped-subject or GPS fields. General answers use ordinary model knowledge,
+not checked tour evidence; new turns have `kind: "conversation"` and no factual
+delivery/source IDs. Historical source links retain their existing safe rendering.
+Conversation-kind replies are excluded from speech/progress/map-subject derivation.
+Owner/tour/generation scope, the shared mutation queue and original-key recovery
+remain. The updated backend is required; there is no place-selection fallback.
+`route-preferences-proxy.test.ts` remains an approved nonaudio route-preference check.
+
+## Guide discovery
+
+`GuideCatalog` and `GuideFilters` keep discovery on `/guides`: case-insensitive
+search across names, profiles, expertise and tags combines with guide-style and
+topic filters. Topics come from real catalog tags, with blank/duplicate labels
+removed. Filters are local view state, not extra API requests or browser storage.
+Loading, unavailable, empty-catalog and zero-match states remain distinct.
+
+`PGGuide` shows the starting interaction style, a compact profile, safe portrait
+fallback and an explicit current-guide label. Native details expand the full
+profile and owner-specific saved tours; they do not select a guide or reset the
+route draft. Only the named planning button resets the draft, selects the current
+guide prop and navigates to `/create-route`. Planning can still override the style.
+Cards and filters use theme tokens, keyboard focus and reduced-motion support.
+
+`tests/ui-guides.test.ts` and `tests/ui-guide-card.test.ts` cover composed
+discovery, draft isolation, selection, image recovery and plain-text escaping.
+The Node renderer retains compiler-generated static HTML as an opaque host node;
+browser verification remains necessary for layout and native disclosure behavior.
+Guide browser smoke uses actual components, Pinia and router with catalog fixtures;
+it does not establish Firebase authentication, live guide availability or audio.
 
 ## Guide interaction preferences
 
 `shared/types/guideInteraction.ts` and `shared/types/personalContext.ts` own the
 interaction contract and legacy defaults, imported with `#shared`. Guide cards
 and effective experience modes default to `interactive`; personal context
-defaults to `guide`. The selector remains available when personal memories are
-disabled. Creation keeps this operational preference while omitting disabled
-personal information. Active-tour changes use the full current context through
-`UPDATE_CONTEXT`; saving future profile preferences remains explicit.
+defaults to `guide`. The creation selector remains available when personal memories
+are disabled. Creation keeps this operational preference while omitting disabled
+personal information. Active-tour text questions retain backend context without
+showing preference editors, style diagnostics or activity buttons.
 
-Display the backend's effective `interaction_mode` separately from the context
-selector. `FORGET_CONTEXT` can reset context to `guide` while retaining a
-`leading` operational override. Commands through the main tour controls can
+Backend `FORGET_CONTEXT` can reset context to `guide` while retaining a `leading`
+operational override. Commands through the main tour controls can
 advance the text revision even when the remainder of `/next` fails. Their
 automatic reconciliation stays inside the shared request queue, retains pending
 text payloads/keys, and leaves text mutations blocked if a fresh read fails.
@@ -278,8 +334,9 @@ The frontend sends the selected value unchanged; backend presence tracking is
 needed to remove the creation-time ambiguity.
 
 `tests/guide-interaction*.test.ts` and `tests/experience*-mode*.test.ts` cover
-the nonaudio contract and UI. A development-only Next step button beside
-Pause/Resume calls the existing next-step action and is removed from production
+the nonaudio preference contract; `tests/experience-question-ui.test.ts` covers
+question drafts, recovery and account/generation isolation. A development-only
+Next step button beside Pause/Resume calls the existing next-step action and is removed from production
 rendering by `import.meta.dev`. Its audio behavior has not been verified.
 
 ## Tour progress display
@@ -322,6 +379,35 @@ camera movement, extra request or browser persistence. Reload resolves known
 route subjects from backend history; response-only `places` are not in saved
 history. `tests/ui-guide-map-objects.test.ts` and
 `tests/ui-guide-map-markers.test.ts` are approved nonaudio checks in `test:text`.
+
+## Map appearance and controls
+
+`app/utils/mapAppearance.ts` owns concrete light/dark palettes shared by Standard
+configuration, route paint and map-scoped CSS variables. `BaseMap` follows Nuxt
+color mode through configuration updates, never a theme-driven `setStyle`.
+Road/place labels remain visible; generic POI/transit labels stay hidden.
+Creation and walking maps default to zero pitch. Explicit 3D exploration enables
+buildings/landmarks at 40 degrees without changing center, zoom or bearing; trees
+and detailed facades remain off. Returning to flat disables 3D objects.
+
+Follow controls require usable GPS. Whole route fits displayed geometry with
+control/attribution padding and stops GPS following. Both actions and 3D transitions
+respect reduced motion. Theme changes preserve camera and marker identity.
+Creation and tour markers share numbered, 44-pixel landmark buttons with bounded
+labels on discussion, hover, focus or selection. Popups retain escaped names,
+keyboard activation, themed focus/close controls and map-click isolation.
+
+`storedRoute.ts` renders zoom-dependent outlined routes in Standard's top slot.
+Legacy decoded Directions geometry uses the same overlay; the plugin's supported
+styles option hides its duplicate routes/endpoints. `useMapboxDirections` owns
+appearance/style/idle handlers and restores cached geometry without routing or
+fitting, including when style readiness follows `style.load`. Cleanup removes
+listeners and controls and fences obsolete provider clients.
+`tests/ui-map.test.ts`, `tests/ui-map-route-appearance.test.ts`,
+`tests/stored-route.test.ts` and marker regressions are approved nonaudio checks.
+Real Standard rendering was smoke-checked with software WebGL, mobile/desktop
+viewports, both themes and isolated GPS/legacy-route metadata. This does not
+qualify live GPS/Directions, physical-device performance, authentication or audio.
 
 ## Automatic same-stop continuation
 
@@ -378,9 +464,10 @@ existing metadata and cancels an old prepared buffer rather than auto-restoring 
 
 `tests/ui-story-buffer*.test.ts` verifies pure controller transitions, proxy
 metadata, map focus and idempotent record adoption without media/player execution.
-`tests/ui-tour-narration.test.ts` checks request budgets/modes and conservative GPS
-eligibility as pure metadata; the chained controller test checks successive turns
-and cancellation on pause.
+`tests/ui-tour-narration.test.ts` checks request budgets/modes, conservative GPS
+eligibility, commentary-range walking and simulation without media/player
+execution; the chained controller test checks successive turns and cancellation
+on pause.
 The browser adapter, recordings, playback timing and live backend behavior are
 unqualified; the existing explicit-human-approval audio restriction still applies.
 
@@ -398,15 +485,29 @@ reads rather than presenting a silently truncated list. Nullable guides render a
 unavailable-guide label. Suggestion revisions are independent of owner-scoped list
 and create requests, and preference rollbacks only restore unchanged submitted fields.
 
-## Development walking screen
+## Walking screen layout
+
+The walking screen puts the map, main playback controls and guide speech before
+secondary tools. Questions use a rounded, theme-aware textarea and Ask button,
+without an Ask in text heading, place labels, selector or surrounding section card.
+Replies and conditional recovery controls remain available. The former
+text-exploration panel, Location settings and Public surroundings disclosure
+(including its one-shot GPS/public-research controls) are removed. Map location
+and discovery behavior are unchanged. Tour research and production progress
+remain closed native disclosures. Components stay mounted to preserve pending
+operations and drafts. Active preparation stays above the map;
+terminal snapshots move into tour research. Experimental-draft warnings remain
+visible. The map legend still reflects the existing GPS/simulation mode.
 
 In development, `TourReadingPanel` displays the full latest guide message below
 playback controls and puts progress in a closed native disclosure beneath it.
-Production retains its existing text/progress layout. The Next step handler stops
-local movement and invokes the existing explicit-resume action. New narration
-requests sample the current active position again after interruption acknowledgement;
-uncertain retries still retain their original payloads. No audio behavior has been
-tested for this change.
+Movement controls and simulation hints appear only in manual mode. The Next step
+handler stops local movement and invokes the existing explicit-resume action.
+New narration requests sample the current active position again after interruption
+acknowledgement; uncertain retries still retain their original payloads.
+The layout was browser-checked with isolated nonaudio metadata at narrow/mobile
+and desktop sizes, including Russian and dark mode. The map was a layout placeholder;
+live authentication, Mapbox and audio were not exercised.
 
 `useRouteWalk` performs local manual simulation in 300-metre increments over
 three seconds, using the actual displayed geometry from `useMapboxDirections`.
@@ -427,4 +528,109 @@ remain separate; the audio restriction above still applies.
 
 ## Live preparation progress
 
-`TourWithGuide.preparation_progress` supplies optional owner-scoped snapshots on the existing list/get responses. `TourPreparationProgress` shows phase, active researchers, completed turns/actions, gathered sources and source text bytes, plus accepted fact/word counts and saved archive bytes, globally and per stop. These are observed counts, not completion percentages. Saved inventory can remain zero while research is running; retries are included in gathered-work counters. The tour list polls while preparation is PENDING/RUNNING, including an already STARTED tour, and stops for terminal preparation states. `useTourPreparationProgress` independently polls the active tour detail view without replacing playback state. It fences late results across tour/account changes, retries read failures and stops after terminal snapshots or disposal. `tests/ui-preparation-progress.test.ts` and `tests/ui-preparation-polling.test.ts` are nonaudio regression suites.
+`TourWithGuide.preparation_progress` supplies optional owner-scoped list/get
+snapshots. `useTourPreparationProgress` also reads the latest requested generation
+with `lang` and `message_variant`, independently of playback. Visible cards and
+the detail view refresh every five seconds while preparation is PENDING/RUNNING;
+hidden/offscreen cards suspend their reads. Tour/account/generation/language
+fences reject late work. Read failures retain measured values and show a warning.
+Terminal snapshots stop polling and the active-research spinner.
+
+`TourPreparationProgress` displays API `percent` as a stage-weighted estimate,
+not elapsed-time completion or story availability. Missing percent stays
+unknown. `elapsed_seconds` is time since the generation was queued, rendered
+as HH:MM:SS; terminal snapshots freeze it. `remaining_time_kind` distinguishes
+an estimate from a current-stage deadline, unknown time and ended processing.
+The current backend produces a deadline or unknown, not a reliable finish ETA.
+Completed and skipped research stay separate, including immutable preview gaps.
+Retained findings, words and archive bytes are not independent factual approval.
+Source/action counters include retries and may grow before saved findings exist.
+
+Compact cards keep stage, percentage, timing and current activity visible.
+Secondary status, per-stop counters and USD-micro spend/reservations use the
+native research disclosure. The stop-and-try action is above the progress panel.
+Spinners respect reduced motion. `rich_progress_enabled: false` keeps basic
+stage/percentage display and suppresses enhanced UI and paid caption requests;
+the backend's `RICH_PROGRESS_ENABLED` defaults to true.
+
+`POST .../progress-message` accepts only `lang`, bounded `message_variant` and
+optional `previous_activity_text` (280 characters) with an Idempotency-Key.
+The backend's exact Nano status role can incur provider costs; it is not a read
+or narration request. Model/fallback/recorded provenance is visible. Caption
+responses only replace matching wording, never measured values from newer GET
+snapshots. Recorded/fallback wording refreshes with localized GETs; matching
+model wording survives source/list updates. Uncertain requests keep the original
+key/body across remounts and session reloads, including language/generation changes,
+until explicitly reconciled. `preparationMessageStore` uses UID/backend-owner/tour
+scopes and `pg-preparation-caption-{JSON scope}` session keys containing the
+original generation, operation key and bounded status body, no tokens or media.
+Do not copy those bodies into diagnostics.
+
+`provider_unavailable` is uncertain, including after the recorded work changes.
+Restoration precedes terminal dispatch gates, so READY/FAILED/CANCELLED reloads
+can reconcile the original receipt explicitly without automatic caption POSTs.
+Malformed or inaccessible receipt storage cannot authorize a fresh paid key.
+
+For expanded status-message and timing/provenance contracts, compare the backend
+API reference with executable `api_tours.py`, `generation_progress.py` and
+`progress_message.py`; code remains authoritative. Approved nonaudio checks
+include `tests/ui-preparation-progress.test.ts`, `tests/ui-preparation-polling.test.ts`,
+`tests/ui-generation-progress.test.ts` and `tests/ui-generation-progress-proxy.test.ts`.
+Browser verification used actual components/controllers with synthetic snapshots
+from the real backend serializer; built Nitro HTTP verification used a metadata-only
+fixture. It does not qualify live worker timing, Firebase validation, paid provider
+captions/research, GPS or audio.
+
+## Research lifecycle controls and experimental tours
+
+`TourResearchControls` is available on original tour cards and inside the detail
+view's closed Tour research disclosure. The immediate draft action is prominent
+on cards; history, compact progress, private files and enrichment use native
+disclosures. `useTourResearchLifecycle` loads complete bounded history and
+owner-scoped status. Cancellation, finish-early, regeneration
+and acceptance require explicit confirmation and share `tourRequestStore` with
+text/playback mutations. UID/tour fences reject late work. Failed confirmation
+preserves the original body/key and blocks conflicting mutations until retry or
+authoritative reconciliation. Normal acceptance invalidates matching cached tour
+transcript/checkpoints without restoring stale persisted recovery.
+
+Fresh matching-owner state retires impossible cancel/finish-early transitions,
+without declaring success; viable uncertain operations keep their original keys.
+Research refreshes and mutations synchronize matching active-tour metadata while
+preserving its accepted package, record and transcript. Confirmed acceptance
+supersedes old-generation text operations, fences old reads and requires a
+successful matching-generation reload before interactions become available.
+
+Finish-early requires RUNNING/RESEARCH and at least one completed stop. It continues
+ordinary composition/review with research gaps, not immediate publication.
+Regeneration can incur provider costs. Normal acceptance remains restricted to
+the latest nonexperimental READY generation and backend session/publication rules.
+
+`researchPreviewStore` and `useTourResearchPreviewAction` create a separate
+owner-scoped experimental tour from an immutable source generation. The backend
+cancels/drains active source work before sealing saved source-bound findings.
+Contradicted, unsupported and known audit-rejected findings are excluded; missing
+stops remain route-only gaps. The original package, visits and history are kept.
+Draft warnings persist on list/detail views. Opening requests no narration or
+media. Default reopening preserves the saved draft; an explicit new-version action
+can replace a confirmed local result with a new operation, never an uncertain one.
+Previews cannot recursively create previews or use normal generation controls.
+
+Research download requests ignore backend download URLs and construct encoded
+same-origin paths. JSON/text bytes use a separate private no-store proxy; the
+existing audio artifact proxy remains audio-only. Lifecycle controls and downloads
+add no browser persistence; caption recovery is separate above.
+`tests/ui-research-preview*.test.ts`, `tests/ui-research-lifecycle*.test.ts`
+and `tests/ui-research-controls.test.ts` are approved nonaudio checks in `test:text`.
+
+`routePlacesStore` retains unresolved operations in memory per UID/tour across
+navigation. A temporarily absent tour clears only display selection; account
+changes clear owner state. Deferred language/generation discovery resumes when
+the original operation settles. Completed backend receipt replay repairs
+compatible tour publication under its lease/CAS, never another provider lookup.
+Ordinary-place Ask requires the published discovery and place list.
+
+Guide tags are backend `{ id, name }` objects; catalog/card filters use `name`.
+Empty route geometry uses legacy Directions; malformed nonempty geometry does
+not. Initial route fitting survives source loading, while style/theme restoration
+of an existing route preserves the camera.

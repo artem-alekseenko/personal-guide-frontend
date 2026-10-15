@@ -1,0 +1,43 @@
+shamefullyHoist: true
+enablePrePostScripts: true
+saveExact: true
+
+overrides:
+  "@tiptap/y-tiptap": 3.0.9
+  "@firebase/firestore>@grpc/grpc-js": 1.14.6
+  "@tailwindcss/typography>postcss-selector-parser": 7.1.6
+  "fontless>esbuild": 0.28.2
+  "gaxios>uuid": 11.1.1
+  "google-gax>uuid": 11.1.1
+  "teeny-request>uuid": 11.1.1
+  "simple-git>@simple-git/argv-parser": 2.0.1
+  "@nuxt/ui>@tiptap/pm": 3.31.4
+  "@nuxt/ui>@tiptap/core": 3.31.4
+  "@nuxt/ui>@tiptap/vue-3": 3.31.4
+  "@nuxt/ui>@tiptap/markdown": 3.31.4
+  "@nuxt/ui>@tiptap/suggestion": 3.31.4
+  "@nuxt/ui>@tiptap/starter-kit": 3.31.4
+  "@nuxt/ui>@tiptap/extension-code": 3.31.4
+  "@nuxt/ui>@tiptap/extension-image": 3.31.4
+  "@nuxt/ui>@tiptap/extension-mention": 3.31.4
+  "@nuxt/ui>@tiptap/extension-node-range": 3.31.4
+  "@nuxt/ui>@tiptap/extension-bubble-menu": 3.31.4
+  "@nuxt/ui>@tiptap/extension-drag-handle": 3.31.4
+  "@nuxt/ui>@tiptap/extension-placeholder": 3.31.4
+  "@nuxt/ui>@tiptap/extension-collaboration": 3.31.4
+  "@nuxt/ui>@tiptap/extension-floating-menu": 3.31.4
+  "@nuxt/ui>@tiptap/extension-horizontal-rule": 3.31.4
+  "@nuxt/ui>@tiptap/extension-drag-handle-vue-3": 3.31.4
+
+allowBuilds:
+  "@firebase/util": true
+  "@parcel/watcher": true
+  "@tailwindcss/oxide": true
+  esbuild: true
+  protobufjs: true
+  vue-demi: true
+minimumReleaseAgeExclude:
+  - "@iconify-json/logos@1.2.16"
+  - "@vitest/mocker@5.0.4"
+  - "@vitest/spy@5.0.4"
+  - vitest@5.0.4

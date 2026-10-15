@@ -1,7 +1,7 @@
 import type { Map as MapboxMap, Marker } from "mapbox-gl";
 import type { GuideMapObject } from "#shared/utils/guideMapObjects";
 import type { ProgressPoint } from "#shared/utils/tourProgress";
-import type { DiscoveredPlace } from "~/types/routeDiscovery";
+import type { PublicMapSubject } from "~/types/routeDiscovery";
 import createPlacesMarkerElem, {
   setPlaceMarkerHighlight,
 } from "./pages/createPlacesMarkerElem";
@@ -25,7 +25,7 @@ export function createGuideMapMarkers() {
     stops: readonly ProgressPoint[],
     objects: readonly GuideMapObject[],
     label: string,
-    leads: readonly DiscoveredPlace[] = [],
+    leads: readonly PublicMapSubject[] = [],
     leadLabel = "",
   ) => {
     if (map !== currentMap) {
@@ -47,18 +47,32 @@ export function createGuideMapMarkers() {
           key: `lead:${place.id}`,
           name: place.name,
           number: 0,
-          coordinates: [Number(place.lng), Number(place.lat)] as [number, number],
-          highlighted: objects.some((object) =>
-            object.stopPosition === null && object.name === place.name &&
-            object.coordinates[0] === Number(place.lng) && object.coordinates[1] === Number(place.lat)),
+          coordinates: [Number(place.lng), Number(place.lat)] as [
+            number,
+            number,
+          ],
+          highlighted: objects.some(
+            (object) =>
+              object.stopPosition === null &&
+              object.name === place.name &&
+              object.coordinates[0] === Number(place.lng) &&
+              object.coordinates[1] === Number(place.lat),
+          ),
           valid: !!place.lat.trim() && !!place.lng.trim(),
         })),
       )
       .concat(
         objects
-          .filter((object) => object.stopPosition === null && !leads.some((place) =>
-            place.name === object.name && Number(place.lng) === object.coordinates[0] &&
-            Number(place.lat) === object.coordinates[1]))
+          .filter(
+            (object) =>
+              object.stopPosition === null &&
+              !leads.some(
+                (place) =>
+                  place.name === object.name &&
+                  Number(place.lng) === object.coordinates[0] &&
+                  Number(place.lat) === object.coordinates[1],
+              ),
+          )
           .map((object) => ({
             key: `place:${JSON.stringify([object.coordinates, object.name])}`,
             name: object.name,

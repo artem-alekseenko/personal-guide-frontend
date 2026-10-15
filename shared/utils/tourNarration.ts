@@ -8,7 +8,6 @@ export interface NarrationLocation {
   recordedAt?: string;
   pace?: number;
   visitorText: string;
-  hasPublishedGeneration: boolean;
 }
 
 export function tourWaitHint(
@@ -20,7 +19,7 @@ export function tourWaitHint(
   return guidance.reason === "listening_or_observing" ? "observingWait" : null;
 }
 
-/** The backend budgets walking at 20s, stationary stories and questions at 90s. */
+/** Request enough room for a supported story; the backend owns actual length. */
 export function tourNarrationOptions(input: NarrationLocation, now: number) {
   if (input.visitorText.trim())
     return { duration: 90, requested_mode: "QUESTION" as const };
@@ -39,10 +38,7 @@ export function tourNarrationOptions(input: NarrationLocation, now: number) {
     );
   return nearStop
     ? { duration: 90, requested_mode: "STATIONARY" as const }
-    : // Legacy location guidance chooses WALK/ARRIVE/CONTINUE itself. A 20s
-      // request would also cap its stop stories, even in manual simulation.
-      {
-        duration: input.hasPublishedGeneration ? 20 : 90,
-        requested_mode: "WALKING" as const,
-      };
+    : // WALKING is not an arrival claim or a short-story cap. Backend location
+      // guidance chooses a brief maneuver or eligible local commentary.
+      { duration: 90, requested_mode: "WALKING" as const };
 }

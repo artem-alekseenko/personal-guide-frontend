@@ -2,7 +2,7 @@ ARG NODE_VERSION=24.21.0
 FROM node:${NODE_VERSION}-slim AS build
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 ARG VUEFIRE_API_KEY

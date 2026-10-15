@@ -2,9 +2,14 @@ import type { LlmType } from "./llm";
 import type { PersonalContext } from "./personalContext";
 import type { ICoordinate } from "./index";
 import type { GuideInteractionMode } from "#shared/types/guideInteraction";
-import type { DiscoveredPlace, RouteDiscovery } from "./routeDiscovery";
+import type {
+  PublicMapSubject,
+  RouteDiscovery,
+  NearbyPublicDiscovery,
+} from "./routeDiscovery";
 export type Intent =
   | "ASK"
+  | "ASK_GENERAL"
   | "MORE"
   | "SHORTER"
   | "KNOW_THIS"
@@ -68,8 +73,9 @@ export interface StoryReadiness {
 export interface Experience {
   language?: string;
   story_readiness?: StoryReadiness;
-  route_places?: DiscoveredPlace[];
+  route_places?: PublicMapSubject[];
   route_discovery?: RouteDiscovery | null;
+  nearby_discovery?: NearbyPublicDiscovery | null;
   interaction_mode?: GuideInteractionMode;
   navigation?: Navigation | null;
   schema_version: number;
@@ -89,7 +95,7 @@ export interface Experience {
     stop_id: string;
     subject_place_id?: string | null;
     role: "visitor" | "guide";
-    kind?: "story" | "navigation";
+    kind?: "story" | "navigation" | "conversation";
     fact_ids?: string[];
     text: string;
     source_ids: string[];
@@ -105,5 +111,7 @@ export interface ExperienceSource {
   id: string;
   title: string;
   url: string;
-  checked_at: string;
+  checked_at?: string | null;
+  kind?: "citation" | "external_review_link";
+  attribution?: string | null;
 }

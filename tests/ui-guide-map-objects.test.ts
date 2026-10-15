@@ -148,6 +148,62 @@ it("requires story evidence for contextual text fallback when backend fact IDs a
     }).guideObjects,
   ).toEqual([museum]);
 });
+
+it.each(["live", "saved"] as const)(
+  "keeps speech and map subjects unchanged by a newer general reply in %s experience",
+  (stateSource) => {
+    const story = {
+      role: "guide",
+      kind: "story" as const,
+      stop_id: "museum",
+      fact_ids: ["museum-history"],
+      text: "This building opened in the nineteenth century.",
+      created_at: "2026-09-30T14:00:00Z",
+    };
+    const conversation = {
+      role: "guide",
+      kind: "conversation" as const,
+      stop_id: "",
+      fact_ids: [],
+      text: "River Park is an example name in this unrelated grammar answer.",
+      created_at: "2026-09-30T15:00:00Z",
+    };
+    const view = {
+      stop_id: "square",
+      stop_name: "Old Square",
+      turns: [story, conversation],
+    };
+    const result = buildTourProgress(
+      stateSource === "live"
+        ? { tour, record, view }
+        : { tour: { ...tour, experience: view }, record },
+    );
+    expect(result.latestText).toBe(story.text);
+    expect(result.updatedAt).toBe(story.created_at);
+    expect(result.guideObjects).toEqual([museum]);
+  },
+);
+
+it("retains speech history when all newer experience turns are general conversation", () => {
+  const result = buildTourProgress({
+    tour,
+    record,
+    view: {
+      turns: [
+        {
+          role: "guide",
+          kind: "conversation",
+          stop_id: "",
+          text: "River Park is just a name in this general answer.",
+          created_at: "2026-09-30T15:00:00Z",
+        },
+      ],
+    },
+  });
+  expect(result.latestText).toBe(record.message);
+  expect(result.updatedAt).toBe(record.created_at);
+  expect(result.guideObjects).toEqual([museum]);
+});
 it("does not use the visitor position or infer coordinates for unknown objects", () => {
   expect(
     buildTourProgress({

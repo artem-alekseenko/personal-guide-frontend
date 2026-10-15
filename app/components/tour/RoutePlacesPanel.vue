@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import type { DiscoveredPlace, RouteDiscovery } from "~/types/routeDiscovery";
+import type {
+  PublicMapSubject,
+  RouteDiscovery,
+  NearbyPublicDiscovery,
+} from "~/types/routeDiscovery";
 defineProps<{
-  places: readonly DiscoveredPlace[];
+  places: readonly PublicMapSubject[];
   discovery?: RouteDiscovery | null;
+  nearbyDiscovery?: NearbyPublicDiscovery | null;
   busy?: boolean;
   failed?: boolean;
   pending?: boolean;
   canAsk?: boolean;
 }>();
 const emit = defineEmits<{
-  ask: [place: DiscoveredPlace];
+  ask: [place: PublicMapSubject];
   retry: [];
   reconcile: [];
 }>();
@@ -25,6 +30,9 @@ const emit = defineEmits<{
     <p class="text-sm">{{ $t("routePlaces.caveat") }}</p>
     <p v-if="discovery" class="text-sm" role="status">
       {{ $t(`routePlaces.status.${discovery.status}`) }}
+    </p>
+    <p v-if="nearbyDiscovery" class="text-sm" role="status">
+      {{ $t(`routePlaces.nearbyStatus.${nearbyDiscovery.status}`) }}
     </p>
     <p v-if="busy" class="text-sm" role="status">
       {{ $t("routePlaces.loading") }}
@@ -56,6 +64,13 @@ const emit = defineEmits<{
     >
       {{ warning }}
     </p>
+    <p
+      v-for="warning in nearbyDiscovery?.warnings ?? []"
+      :key="`nearby:${warning}`"
+      class="text-sm"
+    >
+      {{ warning }}
+    </p>
     <ul
       v-if="places.length"
       class="grid max-h-64 gap-2 overflow-auto"
@@ -64,12 +79,28 @@ const emit = defineEmits<{
       <li v-for="place in places" :key="place.id" class="rounded border p-2">
         <p class="font-medium">{{ place.name }}</p>
         <p v-if="place.address" class="text-sm">{{ place.address }}</p>
+        <p v-if="place.subject_kind" class="text-sm">
+          {{ $t(`routePlaces.kind.${place.subject_kind}`) }}
+        </p>
+        <p class="text-xs">
+          {{
+            $t("routePlaces.subjectIdentity", {
+              id: place.id,
+              lat: place.lat,
+              lng: place.lng,
+            })
+          }}
+        </p>
+        <p v-if="place.identity_status === 'unnamed'" class="text-sm">
+          {{ $t("routePlaces.unknownIdentity") }}
+        </p>
         <p v-if="place.research_status" class="text-sm">
           {{ $t(`routePlaces.research.${place.research_status}`) }}
         </p>
         <button
           class="mt-1 rounded border px-3 py-2 text-sm"
           :disabled="!canAsk"
+          :data-subject-id="place.id"
           @click="emit('ask', place)"
         >
           {{ $t("routePlaces.ask") }}

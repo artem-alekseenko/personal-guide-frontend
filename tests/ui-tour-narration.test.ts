@@ -8,10 +8,9 @@ const input = {
   accuracy: 5,
   recordedAt: "2026-10-01T11:59:55Z",
   visitorText: "",
-  hasPublishedGeneration: true,
 };
 
-it("requests a full stationary story at a stop instead of the walking budget", () => {
+it("requests a stationary story only with a trusted at-stop fix", () => {
   expect(tourNarrationOptions(input, now)).toEqual({
     duration: 90,
     requested_mode: "STATIONARY",
@@ -24,13 +23,17 @@ it.each([
   { recordedAt: "2026-10-01T11:58:00Z" },
   { recordedAt: "2026-10-01T12:01:00Z" },
   { point: { lat: "47.001", lng: "19" } },
+  { point: { lat: "48", lng: "20" } },
   { pace: 1 },
-])("keeps orientation short without a reliable at-stop fix: %j", (change) => {
-  expect(tourNarrationOptions({ ...input, ...change }, now)).toEqual({
-    duration: 20,
-    requested_mode: "WALKING",
-  });
-});
+])(
+  "preserves walking guidance without restricting the story budget: %j",
+  (change) => {
+    expect(tourNarrationOptions({ ...input, ...change }, now)).toEqual({
+      duration: 90,
+      requested_mode: "WALKING",
+    });
+  },
+);
 
 it("requests the question budget without treating a question as physical arrival", () => {
   expect(
@@ -45,15 +48,19 @@ it("requests the question budget without treating a question as physical arrival
   ).toEqual({ duration: 90, requested_mode: "QUESTION" });
 });
 
-it("lets legacy location guidance choose a longer stop story for a simulated position", () => {
+it("allows local commentary outside arrival range without claiming the visitor is stationary", () => {
   expect(
     tourNarrationOptions(
-      {
-        ...input,
-        hasPublishedGeneration: false,
-        accuracy: undefined,
-        recordedAt: undefined,
-      },
+      { ...input, point: { lat: "47.00034", lng: "19" } },
+      now,
+    ),
+  ).toEqual({ duration: 90, requested_mode: "WALKING" });
+});
+
+it("lets backend guidance choose a story for simulation without creating GPS evidence", () => {
+  expect(
+    tourNarrationOptions(
+      { ...input, accuracy: undefined, recordedAt: undefined },
       now,
     ),
   ).toEqual({ duration: 90, requested_mode: "WALKING" });

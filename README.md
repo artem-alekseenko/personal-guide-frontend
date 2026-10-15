@@ -70,6 +70,9 @@ explicitly selects the guide, resets the previous route draft and opens route
 planning. You can change the interaction style while planning. Discovery stays
 on one page, with no extra requests or browser storage for filters.
 
+Guide interests follow the backend's `{ id, name }` tag contract. Cards and
+filters display and search the name; IDs are not substituted for labels.
+
 ## Maps
 
 Creation and walking maps start flat. **Follow me** follows available GPS until
@@ -84,6 +87,11 @@ Stored and legacy routes share zoom-dependent styling; style reloads restore
 displayed geometry without another route request or automatic fit. Landmark
 buttons support keyboard activation and never relocate the simulation marker.
 
+An empty stored geometry array uses the legacy routing fallback. Malformed
+nonempty geometry never triggers a replacement route. A newly supplied route
+retains its initial camera fit while sources load; restoring an existing route
+after a style/theme change does not move the visitor's camera.
+
 Verification: 433 approved nonaudio tests across 58 files, typecheck and production
 build passed. Real Mapbox Standard rendering was exercised at mobile and desktop
 viewport sizes in both themes, with 3D/flat controls, reduced motion, keyboard
@@ -95,7 +103,7 @@ responses, physical-device performance, authentication and audio remain unqualif
 
 Nuxt 4, Vue 3, TypeScript, Pinia, Nuxt UI, Tailwind CSS, VueUse, Firebase/VueFire, Nuxt i18n, and Mapbox GL. The app renders in the browser (`ssr: false`); Nitro serves its authenticated `/api/*` proxy.
 
-Use NVM to install and select the pinned Node.js LTS release, `24.21.0`, with its latest compatible npm. `.nvmrc` and Docker use that release. The package engine range is `^24.21.0 || >=26.0.0`; Node 26 is allowed but is not the recommended development runtime. Use the pinned `pnpm@10.34.6` through Corepack and preserve `pnpm-lock.yaml` when installing dependencies.
+Use NVM to install and select the pinned Node.js LTS release, `24.21.0`, with its latest compatible npm. `.nvmrc` and Docker use that release. The package engine range is `^24.21.0 || >=26.0.0`; Node 26 is allowed but is not the recommended development runtime. Use the pinned `pnpm@12.11.2` through Corepack and preserve `pnpm-lock.yaml` when installing dependencies.
 
 ## Local setup
 
@@ -191,6 +199,18 @@ reuses it; **Try the newly selected research** explicitly creates another snapsh
 when a different generation is selected. An uncertain operation must be retried
 or reconciled before another mutation. Cancelling preparation does not stop
 background enrichment: the backend currently exposes no enrichment-cancel route.
+
+Fresh owner-scoped state releases a pending cancellation or finish-early request
+when that transition is no longer possible; it does not claim the command succeeded.
+Regeneration and cancellation update active research metadata without replacing
+the accepted playback package. Acceptance clears old-generation text and requires
+a successful matching-generation reload before text actions resume.
+
+Ordinary-place discovery keeps unresolved request bodies and keys per account/tour
+while navigating between tours. A changed language or generation waits for the old
+operation to settle before discovery resumes. Backend replay repairs compatible
+publication from the retained result without another paid lookup; incompatible
+route, generation or language identities remain conflicts.
 
 Verification exercised the real Vue controls at mobile and desktop widths with
 English/Russian copy, a controlled identity, a production-built Nitro proxy and
@@ -290,13 +310,13 @@ supported prepared stories are exhausted. Each newly started story gets the same
 40-second preparation window, so continuation repeats until you press **Pause**
 or another eligibility condition changes.
 
-At a stop with a fresh, accurate GPS fix, the client requests the backend's
-90-second stationary story budget instead of its default 20-second walking mode.
-Visitor questions also use the 90-second budget. Moving or uncertain locations
-retain brief orientation on tours with a published generation. Legacy tours
-request a 90-second upper target and let backend location guidance choose a
-20-second walking transition or a longer stop story. Simulated coordinates never
-acquire GPS metadata; move the marker close to a stop for its story. Simulation
+The client requests a 90-second upper speaking target for walking commentary,
+stationary stories and visitor questions, regardless of generation metadata.
+A fresh, accurate at-stop GPS fix selects stationary mode; movement or uncertain
+location keeps walking mode. The backend chooses actual length and source
+eligibility, including brief navigation or a longer supported local story.
+Legacy guidance can still choose a 20-second walking transition.
+Simulated coordinates never acquire GPS metadata; move the marker close to a stop for its story. Simulation
 does not trigger automatic continuation. Empty replies caused by no new content
 or no location change show a hint to move closer or ask a specific question.
 These are upper targets: supported evidence, prepared
@@ -369,14 +389,14 @@ Check sign-in, maps, GPS, and provider-backed text in a configured browser. Pass
 
 Use compatible stable releases rather than treating every new major as a required
 upgrade. Firebase 12 and Firebase Admin 13 remain inside VueFire's declared peer
-ranges; Pinia 3, VueUse 14 and TypeScript 6 remain the current application
+ranges; Pinia 4, VueUse 15 and TypeScript 6 are the current application
 contracts. Vite and its Vue plugin are explicit test-tool dependencies rather
 than accidental hoisted imports. Mapbox GL supplies its own types; the deprecated
 `@types/mapbox-gl` stub is not needed. GeoJSON annotations use explicit imports
 from the separately declared `@types/geojson` package instead of an implicit
 global namespace.
 
-`package.json` contains scoped security overrides for Firebase's gRPC transport,
+`pnpm-workspace.yaml` contains scoped security overrides for Firebase's gRPC transport,
 Google GAX and its HTTP helpers' UUIDs, fontless's esbuild, typography's selector
 parser and Git's argument parser. The parser 2.0.1 override preserves the API and
 default Git export used by Nuxt's existing `simple-git` 3 consumer; a controlled
@@ -393,13 +413,43 @@ would break the consumer. DevTools is disabled in `nuxt.config.ts`, but that doe
 not remove its packages or advisories. Do not suppress these findings; revisit
 them when compatible upstream fixes are available.
 
+The frontend-only compatible upgrade uses Pinia 4.0.3 with `@pinia/nuxt` 1.0.2,
+VueUse 15.0.0, Vitest 5.0.4, logos 1.2.16 and pnpm 12.11.2; remaining direct
+packages were checked against the registry. Firebase 13/Admin 14 exceed VueFire's
+published peer ranges. TypeScript 7 fails the current Vue checker with
+`ERR_PACKAGE_PATH_NOT_EXPORTED` for `typescript/lib/tsc`. Node types stay on the
+latest Node 24 line. These are deliberate compatibility holds, not hidden updates.
+
+[pnpm 12 configuration](https://pnpm.io/settings) lives in
+`pnpm-workspace.yaml`: existing hoisting, pre/post hooks, security overrides and
+approved dependency builds were migrated there, and Docker copies it before
+installation. The obsolete project `.npmrc` and `package.json.pnpm` were removed.
+Release-age exceptions name only the four explicitly requested logos/Vitest
+patch versions. No unrestricted build permission or advisory suppression was added.
+
+Upgrade verification passed 606 approved nonaudio tests in 65 files, typecheck,
+production build and frozen-lockfile installation. The production sign-in,
+registration transition and unauthenticated tour redirect were browser-exercised
+at mobile/desktop sizes; a controlled browser fixture exercised guide filtering,
+selection, accepted-generation text reload and original-key caption recovery with
+zero media execution. The browser blocked the external Iconify request, so the
+Google icon was not visually qualified. Live sign-in, providers, GPS/Mapbox and
+audio remain unqualified. The audit still reports four high and one critical
+upstream advisory described above.
+
+Docker's build stage also completed a clean frozen install and Nuxt build with
+the migrated workspace configuration. No image was deployed or live service
+restarted. Production proxy smoke rejected an unauthenticated list request with
+401 before forwarding upstream.
+
 The omp skill audit added `pinia`, `pnpm`, `vitest`, `vueuse-functions`,
 `firebase-auth-basics` and `mapbox-web-integration-patterns` to the user-level
 `~/.agents/skills` directory, alongside the existing Nuxt, Vue, UI, review,
 security and browser-testing skills. Restart omp to refresh a session's cached
-skill inventory. The Pinia and pnpm skills use revisions matching Pinia 3 and
-pnpm 10; do not blindly update them to guides for newer majors. Skills are local
-agent tooling, not application dependencies or deployment requirements.
+skill inventory. Existing Pinia/pnpm skill revisions describe Pinia 3/pnpm 10;
+the application now uses Pinia 4/pnpm 12, so consult current package contracts
+for migration differences. Skills are local agent tooling, not application
+dependencies or deployment requirements.
 
 The initial 2026-10-11 maintenance check passed 295 approved nonaudio tests, the focused
 stored-route regression, type checking, production build, focused formatting and

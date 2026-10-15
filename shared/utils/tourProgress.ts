@@ -28,7 +28,7 @@ export interface ProgressState {
   stops?: readonly { id: string; name: string }[];
   turns?: readonly {
     role: string;
-    kind?: "story" | "navigation";
+    kind?: "story" | "navigation" | "conversation";
     fact_ids?: readonly string[];
     text: string;
     created_at: string;
@@ -176,7 +176,12 @@ export function buildTourProgress({
       places: entry.places,
     })),
     ...(state?.turns ?? [])
-      .filter((turn) => turn.role === "guide" && turn.text.trim())
+      .filter(
+        (turn) =>
+          turn.role === "guide" &&
+          turn.kind !== "conversation" &&
+          turn.text.trim(),
+      )
       .map((turn) => ({
         text: turn.text.trim(),
         created_at: turn.created_at,

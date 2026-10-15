@@ -20,29 +20,15 @@
   </div>
   <div
     v-else-if="tourStore.tour"
-    class="container mx-auto flex grow flex-col gap-y-4 py-4"
+    class="container mx-auto flex min-w-0 grow flex-col gap-y-3 py-4"
   >
-    <div class="mx-4">
+    <div v-if="tourStore.tour.research_preview" class="mx-4">
       <TourResearchPreviewWarning
-        v-if="tourStore.tour.research_preview"
         :preview="tourStore.tour.research_preview"
         :stops="tourStore.tour.route.points"
       />
-      <TourResearchControls
-        v-else
-        :tour-id="tourId"
-        :latest-generation-id="
-          tourStore.tour.latest_generation_id ||
-          preparationProgress?.generation_id ||
-          tourStore.tour.active_generation_id
-        "
-        :preparation-progress="preparationProgress"
-        :status="tourStore.tour.status"
-        :preparation-error="tourStore.tour.preparation_error"
-        @updated="routeStore.fetchListTours()"
-      />
     </div>
-    <div v-if="!tourStore.tour.research_preview" class="mx-4">
+    <div v-if="showPreparationStatus" class="mx-4">
       <TourPreparationProgress
         v-if="preparationProgress"
         :progress="preparationProgress"
@@ -93,14 +79,14 @@
           @map-initialized="handleMapInitialized"
         >
           <ul class="pg-map-legend" :aria-label="$t('components.map.legend')">
-            <li class="pg-map-legend__item">
+            <li v-if="positionMode === 'gps'" class="pg-map-legend__item">
               <span
                 aria-hidden="true"
                 class="pg-map-legend__swatch pg-map-legend__swatch--gps"
               ></span>
               {{ $t("components.map.yourLocation") }}
             </li>
-            <li class="pg-map-legend__item">
+            <li v-if="isManualMode" class="pg-map-legend__item">
               <span
                 aria-hidden="true"
                 class="pg-map-legend__swatch pg-map-legend__swatch--simulation"
@@ -142,50 +128,10 @@
         </BaseMap>
       </client-only>
     </div>
-    <div v-if="!publicConfig.textExperienceEnabled" class="mx-4">
-      <RoutePlacesPanel
-        :places="routePlaces.places.value"
-        :discovery="routePlaces.discovery.value"
-        :busy="routePlaces.busy.value"
-        :failed="routePlaces.failed.value"
-        :pending="routePlaces.pending.value"
-        @retry="retryRoutePlaces"
-        @reconcile="reconcileRoutePlaces"
-      />
-    </div>
-
-    <!-- Position Mode Toggle -->
-    <div class="mx-4">
-      <div
-        class="position-toggle-container flex items-center justify-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-      >
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ $t("components.tourPage.realGeolocation") }}
-        </span>
-
-        <PGSwitch
-          v-model="isManualMode"
-          :label="$t('components.tourPage.geolocationSimulation')"
-          size="lg"
-        />
-
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ $t("components.tourPage.geolocationSimulation") }}
-        </span>
-      </div>
-
-      <!-- Mode description -->
-      <div class="mt-2 text-center text-xs text-gray-600 dark:text-gray-400">
-        <span v-if="positionMode === 'gps'">
-          {{ $t("components.tourPage.usingRealLocation") }}
-        </span>
-        <span v-else> {{ $t("components.tourPage.clickToSimulate") }} </span>
-      </div>
-    </div>
 
     <!-- Play/pause/resume button -->
     <div
-      class="sticky top-0 z-20 flex flex-wrap justify-center gap-3 bg-white px-4 py-3 dark:bg-gray-900"
+      class="bg-default sticky top-0 z-20 flex flex-wrap justify-center gap-3 px-4 py-3"
     >
       <PGButton
         :disabled="mainButtonBlocked"
@@ -207,7 +153,7 @@
         {{ $t("buttons.devNextStep") }}
       </PGButton>
       <PGButton
-        v-if="isDevelopment"
+        v-if="isDevelopment && isManualMode"
         variant="outline"
         :disabled="!walking.moving.value && !walking.canMove.value"
         :aria-pressed="walking.moving.value"
@@ -218,19 +164,17 @@
         }}
       </PGButton>
       <p
-        v-if="isDevelopment"
+        v-if="isDevelopment && isManualMode"
         class="basis-full text-center text-xs text-neutral-600 dark:text-neutral-300"
         role="status"
       >
         {{
           $t(
-            !isManualMode
-              ? "components.map.enableSimulation"
-              : walking.atEnd.value
-                ? "components.map.routeEnd"
-                : !routeCoordinates.length
-                  ? "components.map.waitForRoute"
-                  : "components.map.simulationHint",
+            walking.atEnd.value
+              ? "components.map.routeEnd"
+              : !routeCoordinates.length
+                ? "components.map.waitForRoute"
+                : "components.map.simulationHint",
           )
         }}
       </p>
@@ -249,24 +193,6 @@
       :text="devGuideText"
       :progress="tourProgress"
     />
-    <TourProgressSummary v-else-if="tourProgress" :progress="tourProgress" />
-
-    <CurrentStopExperience
-      v-if="publicConfig.textExperienceEnabled"
-      :tour-id="tourId"
-      :generation-id="tourStore.tour.playback_generation_id ?? null"
-      :guide-mode="tourStore.tour?.guide?.interaction_mode"
-      :request-busy="actions.isBusy.value"
-      :before-visitor-action="() => continuation.suspend('question')"
-      :route-places="routePlaces.places.value"
-      :route-discovery="routePlaces.discovery.value"
-      :discovery-busy="routePlaces.busy.value"
-      :discovery-failed="routePlaces.failed.value"
-      :discovery-pending="routePlaces.pending.value"
-      :retry-discovery="retryRoutePlaces"
-      :reconcile-discovery="reconcileRoutePlaces"
-    />
-
     <!-- Text block -->
     <TourTextDisplay
       v-if="!isDevelopment"
@@ -277,31 +203,89 @@
       :text="tourStore.textForDisplay || ''"
     />
 
+    <CurrentStopExperience
+      v-if="publicConfig.textExperienceEnabled"
+      :tour-id="tourId"
+      :generation-id="tourStore.tour.playback_generation_id ?? null"
+      :request-busy="actions.isBusy.value"
+      :before-visitor-action="() => continuation.suspend('question')"
+    />
+
     <!-- Question input -->
     <details
       v-if="state !== STATE.INITIAL"
-      class="mx-4"
+      class="tour-tools mx-4"
       :open="!publicConfig.textExperienceEnabled"
     >
-      <summary v-if="publicConfig.textExperienceEnabled" class="mb-2">
+      <summary v-if="publicConfig.textExperienceEnabled">
         {{ $t("experience.audioQuestion") }}
       </summary>
-      <input
-        v-model="userText"
-        :placeholder="$t('components.tourPage.enterQuestion')"
-        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-        maxlength="4000"
-        type="text"
+      <div class="grid gap-2 p-3">
+        <label for="tour-audio-question" class="sr-only">
+          {{ $t("components.tourPage.enterQuestion") }}
+        </label>
+        <input
+          id="tour-audio-question"
+          v-model="userText"
+          :placeholder="$t('components.tourPage.enterQuestion')"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+          maxlength="4000"
+          type="text"
+        />
+        <PGButton
+          :disabled="
+            requests.isBusy(tourId) || actions.isBusy.value || !userText.trim()
+          "
+          class="mx-auto mt-3 block"
+          @click="addQuestion"
+        >
+          {{ $t("components.tourPage.sendQuestion") }}
+        </PGButton>
+      </div>
+    </details>
+    <details v-if="!isDevelopment && tourProgress" class="tour-tools mx-4">
+      <summary>{{ $t("tourProgress.title") }}</summary>
+      <TourProgressSummary :progress="tourProgress" class="my-3" />
+    </details>
+
+    <details v-if="!tourStore.tour.research_preview" class="tour-tools mx-4">
+      <summary>{{ $t("researchControls.title") }}</summary>
+      <div class="grid gap-3 px-3 py-3">
+        <TourResearchControls
+          :tour-id="tourId"
+          :latest-generation-id="
+            tourStore.tour.latest_generation_id ||
+            preparationProgress?.generation_id ||
+            tourStore.tour.active_generation_id
+          "
+          :preparation-progress="preparationProgress"
+          :status="tourStore.tour.status"
+          :preparation-error="tourStore.tour.preparation_error"
+          @updated="routeStore.fetchListTours()"
+        />
+        <TourPreparationProgress
+          v-if="preparationProgress && !showPreparationStatus"
+          :progress="preparationProgress"
+          :refreshing="preparationRefreshing"
+          :refresh-failed="preparationRefreshFailed"
+          :caption-uncertain="preparationCaptionUncertain"
+          @refresh="refreshPreparation"
+        />
+      </div>
+    </details>
+
+    <details v-if="!publicConfig.textExperienceEnabled" class="tour-tools mx-4">
+      <summary>{{ $t("routePlaces.title") }}</summary>
+      <RoutePlacesPanel
+        class="mx-3 my-3"
+        :places="routePlaces.places.value"
+        :discovery="routePlaces.discovery.value"
+        :busy="routePlaces.busy.value"
+        :failed="routePlaces.failed.value"
+        :pending="routePlaces.pending.value"
+        @retry="retryRoutePlaces"
+        @reconcile="reconcileRoutePlaces"
       />
-      <PGButton
-        :disabled="
-          requests.isBusy(tourId) || actions.isBusy.value || !userText.trim()
-        "
-        class="mx-auto mt-3 block"
-        @click="addQuestion"
-      >
-        {{ $t("components.tourPage.sendQuestion") }}
-      </PGButton>
     </details>
 
     <!-- Complete the tour button -->
@@ -398,6 +382,14 @@ const {
 } = useTourPreparationProgress(
   computed(() => (tourStore.tour?.id === tourId ? tourStore.tour : null)),
   computed(() => users.user?.uid ?? null),
+);
+const showPreparationStatus = computed(
+  () =>
+    !tourStore.tour?.research_preview &&
+    (tourStore.tour?.status === "GENERATING" ||
+      !!tourStore.tour?.preparation_error ||
+      preparationProgress.value?.status === "PENDING" ||
+      preparationProgress.value?.status === "RUNNING"),
 );
 const tourProgress = useTourProgress({
   tour: computed(() => tourStore.tour),
@@ -871,11 +863,28 @@ onBeforeUnmount(() => {
   transform: scale(0.95);
 }
 
-.position-toggle-container {
-  transition: all 0.3s ease;
+.tour-tools {
+  min-width: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.75rem;
+  overflow-wrap: anywhere;
 }
 
-.position-mode-label {
-  transition: all 0.2s ease;
+.tour-tools > summary {
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.tour-tools > summary:hover {
+  color: var(--ui-primary);
+}
+
+.tour-tools > summary:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
 }
 </style>
