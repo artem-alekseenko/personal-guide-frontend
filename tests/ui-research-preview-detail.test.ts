@@ -73,6 +73,8 @@ vi.mock("../app/composables/tour/useTourActions", () => ({
 vi.mock("../app/composables/tour/useStoryContinuation", () => ({
   useStoryContinuation: () => ({
     suspend: vi.fn(),
+    status: ref("idle"),
+    reconcile: vi.fn(),
     complete: fixture.narration,
     afterCompletion: fixture.narration,
   }),

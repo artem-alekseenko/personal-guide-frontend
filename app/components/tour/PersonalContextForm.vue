@@ -13,7 +13,7 @@
         {{ $t("experience.stepFree") }}</label
       >
       <BaseSelector
-        :model-value="normalizeInteractionPreference(value.interaction_mode)"
+        :model-value="interactionMode"
         :options="interactionOptions"
         :label="$t('experience.interactionStyle')"
         @update:model-value="updateInteractionPreference"
@@ -52,31 +52,6 @@
               {{ $t(`experience.topics.${topic}`) }}
             </option>
           </select>
-        </label>
-        <label class="grid gap-1"
-          >{{ $t("experience.purpose")
-          }}<input
-            v-model="value.purpose"
-            maxlength="500"
-            class="rounded border p-2"
-        /></label>
-        <label class="grid gap-1"
-          >{{ $t("experience.known")
-          }}<textarea
-            v-model="value.known_topics"
-            maxlength="1000"
-            rows="2"
-            class="rounded border p-2"
-          />
-        </label>
-        <label class="grid gap-1"
-          >{{ $t("experience.note")
-          }}<textarea
-            v-model="value.note"
-            maxlength="1000"
-            rows="2"
-            class="rounded border p-2"
-          />
         </label>
         <label class="grid gap-1"
           >{{ $t("experience.familiarity")
@@ -121,7 +96,6 @@
 <script setup lang="ts">
 import type { PersonalContext } from "~/types/personalContext";
 import {
-  INTERACTION_PREFERENCES,
   normalizeGuideInteractionMode,
   normalizeInteractionPreference,
   type GuideInteractionMode,
@@ -134,17 +108,16 @@ const props = withDefaults(
 );
 const value = defineModel<PersonalContext>({ required: true });
 const { t } = useI18n();
+const interactionMode = computed(() => {
+  const mode = normalizeInteractionPreference(value.value.interaction_mode);
+  return mode === "guide"
+    ? normalizeGuideInteractionMode(props.guideMode)
+    : mode;
+});
 const interactionOptions = computed(() =>
-  INTERACTION_PREFERENCES.map((mode) => ({
+  (["leading", "interactive"] as const).map((mode) => ({
     value: mode,
-    label:
-      mode === "guide" && props.guideMode
-        ? t("experience.guideStyleDefault", {
-            mode: t(
-              `experience.interactionModes.${normalizeGuideInteractionMode(props.guideMode)}`,
-            ),
-          })
-        : t(`experience.interactionModes.${mode}`),
+    label: t(`experience.interactionModes.${mode}`),
   })),
 );
 function updateInteractionPreference(mode: string) {

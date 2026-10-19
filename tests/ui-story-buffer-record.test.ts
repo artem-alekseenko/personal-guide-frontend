@@ -97,3 +97,53 @@ it("does not append activated metadata twice when a handoff is reconciled", () =
     delivery: "GENERATED",
   });
 });
+
+it("preserves canonical story progress and existing audio from an activation", () => {
+  const story = {
+    story_id: "whole-story",
+    chunk_index: 2,
+    chunk_count: 4,
+    sentence_count: 5,
+    total_sentences: 20,
+    is_final: false,
+  };
+  const record = activatedStoryRecord(
+    {
+      ...view,
+      audio_data: "existing-audio",
+      record: {
+        id: "record",
+        type: "SYSTEM_TEXT",
+        created_at: "",
+        message: view.text!,
+        point: { lat: "47", lng: "19" },
+        playback_segment_id: view.segment_id,
+        playback_generation_id: view.generation_id,
+        story,
+      },
+    },
+    { lat: "47", lng: "19" },
+    points,
+  );
+  expect(record.story).toEqual(story);
+  expect(record.audio_data).toBe("existing-audio");
+  expect(() =>
+    activatedStoryRecord(
+      {
+        ...view,
+        record: {
+          id: "record",
+          type: "SYSTEM_TEXT",
+          created_at: "",
+          message: view.text!,
+          point: { lat: "47", lng: "19" },
+          playback_segment_id: "other-segment",
+          playback_generation_id: view.generation_id,
+          story,
+        },
+      },
+      { lat: "47", lng: "19" },
+      points,
+    ),
+  ).toThrow("Invalid story activation");
+});

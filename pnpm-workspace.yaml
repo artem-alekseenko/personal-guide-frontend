@@ -3,30 +3,30 @@ enablePrePostScripts: true
 saveExact: true
 
 overrides:
-  "@tiptap/y-tiptap": 3.0.9
+  "@tiptap/y-tiptap": 3.0.10
   "@firebase/firestore>@grpc/grpc-js": 1.14.6
   "@tailwindcss/typography>postcss-selector-parser": 7.1.6
   "fontless>esbuild": 0.28.2
   "gaxios>uuid": 11.1.1
   "google-gax>uuid": 11.1.1
   "teeny-request>uuid": 11.1.1
-  "@nuxt/ui>@tiptap/pm": 3.31.4
-  "@nuxt/ui>@tiptap/core": 3.31.4
-  "@nuxt/ui>@tiptap/vue-3": 3.31.4
-  "@nuxt/ui>@tiptap/markdown": 3.31.4
-  "@nuxt/ui>@tiptap/suggestion": 3.31.4
-  "@nuxt/ui>@tiptap/starter-kit": 3.31.4
-  "@nuxt/ui>@tiptap/extension-code": 3.31.4
-  "@nuxt/ui>@tiptap/extension-image": 3.31.4
-  "@nuxt/ui>@tiptap/extension-mention": 3.31.4
-  "@nuxt/ui>@tiptap/extension-node-range": 3.31.4
-  "@nuxt/ui>@tiptap/extension-bubble-menu": 3.31.4
-  "@nuxt/ui>@tiptap/extension-drag-handle": 3.31.4
-  "@nuxt/ui>@tiptap/extension-placeholder": 3.31.4
-  "@nuxt/ui>@tiptap/extension-collaboration": 3.31.4
-  "@nuxt/ui>@tiptap/extension-floating-menu": 3.31.4
-  "@nuxt/ui>@tiptap/extension-horizontal-rule": 3.31.4
-  "@nuxt/ui>@tiptap/extension-drag-handle-vue-3": 3.31.4
+  "@nuxt/ui>@tiptap/pm": 3.32.0
+  "@nuxt/ui>@tiptap/core": 3.32.0
+  "@nuxt/ui>@tiptap/vue-3": 3.32.0
+  "@nuxt/ui>@tiptap/markdown": 3.32.0
+  "@nuxt/ui>@tiptap/suggestion": 3.32.0
+  "@nuxt/ui>@tiptap/starter-kit": 3.32.0
+  "@nuxt/ui>@tiptap/extension-code": 3.32.0
+  "@nuxt/ui>@tiptap/extension-image": 3.32.0
+  "@nuxt/ui>@tiptap/extension-mention": 3.32.0
+  "@nuxt/ui>@tiptap/extension-node-range": 3.32.0
+  "@nuxt/ui>@tiptap/extension-bubble-menu": 3.32.0
+  "@nuxt/ui>@tiptap/extension-drag-handle": 3.32.0
+  "@nuxt/ui>@tiptap/extension-placeholder": 3.32.0
+  "@nuxt/ui>@tiptap/extension-collaboration": 3.32.0
+  "@nuxt/ui>@tiptap/extension-floating-menu": 3.32.0
+  "@nuxt/ui>@tiptap/extension-horizontal-rule": 3.32.0
+  "@nuxt/ui>@tiptap/extension-drag-handle-vue-3": 3.32.0
 
 allowBuilds:
   "@firebase/util": true
@@ -40,3 +40,7 @@ minimumReleaseAgeExclude:
   - "@vitest/mocker@5.0.4"
   - "@vitest/spy@5.0.4"
   - vitest@5.0.4
+# Version-pinned code fixes; registry advisory warnings remain unsuppressed.
+patchedDependencies:
+  braces@3.0.3: patches/braces@3.0.3.patch
+  node-forge@1.4.0: patches/node-forge@1.4.0.patch

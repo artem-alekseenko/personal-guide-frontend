@@ -1,4 +1,4 @@
-import { shallowRef } from "vue";
+import { shallowRef, watch } from "vue";
 import mapboxgl from "mapbox-gl";
 import { useLogger } from "~/composables/utils/useLogger";
 import { usePositionMode } from "./usePositionMode";
@@ -11,6 +11,7 @@ type MarkerWithEvents = mapboxgl.Marker & {
 export interface SimulationMarkerOptions {
   onDragEnd?: () => void;
   label?: string;
+  getInitialPosition?: () => [number, number] | null;
 }
 
 /**
@@ -102,6 +103,19 @@ export function useSimulationMarker(options: SimulationMarkerOptions = {}) {
     return null;
   };
 
+  const syncPositionMode = () => {
+    if (!mapInstance) return;
+    if (positionMode.value === "gps") {
+      removeSimulationMarker();
+    } else if (!simulationMarker.value) {
+      const center = mapInstance.getCenter();
+      addSimulationMarker(
+        options.getInitialPosition?.() ?? [center.lng, center.lat],
+      );
+    }
+  };
+  watch(positionMode, syncPositionMode);
+
   /**
    * Setup map click handler to add marker in manual mode
    * @param map - Mapbox map instance
@@ -123,6 +137,7 @@ export function useSimulationMarker(options: SimulationMarkerOptions = {}) {
    */
   const initialize = (map: mapboxgl.Map): void => {
     mapInstance = map;
+    syncPositionMode();
   };
 
   /**

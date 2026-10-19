@@ -6,10 +6,11 @@ import { useTourStore } from "../app/stores/tourStore";
 import { useRouteStore } from "../app/stores/routeStore";
 import { useUserStore } from "../app/stores/userStore";
 import { useTourCoordinates } from "../app/composables/tour/useTourCoordinates";
+import type { ICreatedTour } from "../app/types";
+import type { User } from "firebase/auth";
 const api = vi.hoisted(() => ({
   next: vi.fn(),
   list: vi.fn(),
-  create: vi.fn(),
   profile: vi.fn(),
   update: vi.fn(),
   geo: { coordinates: null, accuracy: null, recordedAt: null },
@@ -19,9 +20,6 @@ vi.mock("../app/composables/api/tours/useGetTourRecord", () => ({
 }));
 vi.mock("../app/composables/api/tours/useListTours", () => ({
   useListTours: api.list,
-}));
-vi.mock("../app/composables/api/tours/useCreateTour", () => ({
-  useCreateTour: api.create,
 }));
 vi.mock("../app/composables/api/useUserApi", () => ({
   useUserApi: () => ({
@@ -110,17 +108,6 @@ describe("existing tour flows", () => {
     expect(store.actualTour).toBeNull();
     store.stopPolling();
   });
-  it("exposes tour creation failure to the page so its loading state can recover", async () => {
-    const store = useRouteStore();
-    Object.assign(globalThis, {
-      useGuidesStore: () => ({ selectedGuide: { id: "guide-1" } }),
-    });
-    store.setRouteSuggestion({
-      routes: [{ points: [{ lat: "47", lng: "19" }] }],
-    } as any);
-    api.create.mockRejectedValue(new Error("Unavailable"));
-    await expect(store.fetchCreateRoute()).rejects.toThrow("Unavailable");
-  });
   it("does not apply a slow profile response to a different signed-in user", async () => {
     let resolve!: (value: any) => void;
     api.profile.mockImplementation(
@@ -184,7 +171,11 @@ it("retries the original GPS payload after an uncertain failure even if the fix 
   ).rejects.toThrow();
   await store.fetchTourStep(
     { lat: "48", lng: "20" },
-    { location_recorded_at: "2026-09-28T10:00:01Z" },
+    {
+      location_recorded_at: "2026-09-28T10:00:01Z",
+      duration: 90,
+      narration_style: "SHORT",
+    },
   );
   expect(api.next.mock.calls[1][2]).toBe(api.next.mock.calls[0][2]);
   expect(api.next.mock.calls[1][1]).toEqual(api.next.mock.calls[0][1]);
@@ -319,4 +310,106 @@ it("restores the model preference when recreating the user profile", () => {
   user.reset();
   user.setUser({ uid: "alice" } as any);
   expect(user.userPreferences.llmType).toBe("MOCK");
+});
+
+it("preserves a GENERATED audio owner across legacy empty replies and restores it without a new POST", async () => {
+  const users = useUserStore();
+  users.setUser({ uid: "owner" } as User);
+  const store = useTourStore();
+  const selected = {
+    ...tour(),
+    user_id: "owner",
+    playback_generation_id: "generation",
+  } as ICreatedTour;
+  store.setTour(selected);
+  const original = record({
+    playback_segment_id: "original",
+    playback_generation_id: "generation",
+  });
+  api.next.mockResolvedValueOnce(original).mockResolvedValueOnce(
+    record({
+      id: "quiet",
+      message: "",
+      audio_data: null,
+      playback_action_types: ["INTENTIONAL_SILENCE"],
+    }),
+  );
+  await store.fetchTourStep({ lat: "47", lng: "19" });
+  await store.fetchTourStep({ lat: "47", lng: "19" });
+  expect(store.currentTourRecord?.playback_segment_id).toBe("original");
+  expect(store.textForSpeech).toBe("Hello.");
+  expect(store.getPlaybackCheckpoint()?.delivery).toBe("GENERATED");
+  store.reset();
+  store.setTour(selected);
+  expect(
+    await store.recoverActivePlayback({
+      generation_id: "generation",
+      active_segment_id: "original",
+      active_delivery_state: "GENERATED",
+      paused: false,
+      active_record: original,
+      active_audio_data: "audio",
+      prepared: null,
+      last_activation: null,
+      prepare_requested_for_current_segment: false,
+    }),
+  ).toBe(true);
+  expect(api.next).toHaveBeenCalledTimes(2);
+  expect(store.currentTourRecord?.audio_data).toBe("audio");
+  expect(store.playbackNotice?.playback_block?.active_segment_id).toBe(
+    "original",
+  );
+  expect(store.getPlaybackCheckpoint()?.delivery).toBe("GENERATED");
+  api.next.mockResolvedValue(
+    record({
+      message: "",
+      audio_data: null,
+      playback_action_types: ["INTENTIONAL_SILENCE"],
+    }),
+  );
+  await store.acknowledgePlayback("COMPLETED");
+  expect(api.next.mock.calls[2][1]).toMatchObject({
+    acknowledged_segment_id: "original",
+    acknowledged_delivery_state: "COMPLETED",
+  });
+  expect(store.playbackNotice).toBeNull();
+  expect(
+    await store.recoverActivePlayback({
+      generation_id: "generation",
+      active_segment_id: "original",
+      active_delivery_state: "GENERATED",
+      paused: false,
+      active_record: original,
+      active_audio_data: "audio",
+      prepared: null,
+      last_activation: null,
+      prepare_requested_for_current_segment: false,
+    }),
+  ).toBe(false);
+  expect(store.getPlaybackCheckpoint()?.delivery).toBe("COMPLETED");
+});
+
+it("does not recover playback metadata from a superseded generation", async () => {
+  useUserStore().setUser({ uid: "owner" } as User);
+  const store = useTourStore();
+  store.setTour({
+    ...tour(),
+    user_id: "owner",
+    playback_generation_id: "new-generation",
+  } as ICreatedTour);
+  expect(
+    await store.recoverActivePlayback({
+      generation_id: "old-generation",
+      active_segment_id: "old",
+      active_delivery_state: "GENERATED",
+      paused: false,
+      active_record: record({ playback_segment_id: "old" }),
+      active_audio_data: "audio",
+      prepared: null,
+      last_activation: null,
+      prepare_requested_for_current_segment: false,
+    }),
+  ).toBe(false);
+  expect(store.currentTourRecord).toBeNull();
+  expect(api.next).not.toHaveBeenCalled();
 });

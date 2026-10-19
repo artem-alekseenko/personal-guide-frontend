@@ -1,4 +1,4 @@
-import type { StoryPoint } from "../types/storyBuffer";
+import type { StoryChunk, StoryPoint } from "../types/storyBuffer";
 import { isStoryFixAtStop } from "./storyBuffer";
 
 export interface NarrationLocation {
@@ -8,6 +8,8 @@ export interface NarrationLocation {
   recordedAt?: string;
   pace?: number;
   visitorText: string;
+  /** Deprecated compatibility hint; never overrides the backend sentence limit. */
+  duration?: number;
 }
 
 export function tourWaitHint(
@@ -19,10 +21,27 @@ export function tourWaitHint(
   return guidance.reason === "listening_or_observing" ? "observingWait" : null;
 }
 
-/** Request enough room for a supported story; the backend owns actual length. */
+/** New location replies require an explicit request for continuation. */
+export function canAutomaticallyContinueNarration(
+  story?: Pick<
+    StoryChunk,
+    | "chunk_count"
+    | "is_final"
+    | "requires_explicit_continue"
+    | "narration_policy_version"
+  > | null,
+): boolean {
+  if (
+    story?.requires_explicit_continue ||
+    story?.narration_policy_version === "location-four-v1"
+  )
+    return false;
+  return !(story?.chunk_count === 1 && story.is_final);
+}
+
+/** The backend enforces at most four sentences per new reply; there is no visitor length choice. */
 export function tourNarrationOptions(input: NarrationLocation, now: number) {
-  if (input.visitorText.trim())
-    return { duration: 90, requested_mode: "QUESTION" as const };
+  if (input.visitorText.trim()) return { requested_mode: "QUESTION" as const };
   const nearStop =
     !(input.pace !== undefined && input.pace > 0.5) &&
     input.stops.some((stopPoint) =>
@@ -37,8 +56,7 @@ export function tourNarrationOptions(input: NarrationLocation, now: number) {
       ),
     );
   return nearStop
-    ? { duration: 90, requested_mode: "STATIONARY" as const }
-    : // WALKING is not an arrival claim or a short-story cap. Backend location
-      // guidance chooses a brief maneuver or eligible local commentary.
-      { duration: 90, requested_mode: "WALKING" as const };
+    ? { requested_mode: "STATIONARY" as const }
+    : // Walking guidance uses the same sentence limit without claiming arrival.
+      { requested_mode: "WALKING" as const };
 }

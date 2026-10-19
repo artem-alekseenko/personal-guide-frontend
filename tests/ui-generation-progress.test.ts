@@ -1,11 +1,16 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { nextTick } from "vue";
+import { nextTick, ref } from "vue";
 import TourPreparationProgress from "../app/components/tour/TourPreparationProgress.vue";
 import type { PreparationProgress } from "../shared/types/preparationProgress";
 import en from "../i18n/locales/en.json";
 import ru from "../i18n/locales/ru.json";
 import { findAll, mount, type TestNode } from "./helpers/render";
 import { preparationSnapshot } from "./helpers/preparationProgress";
+
+const reducedMotion = ref("no-preference");
+vi.mock("@vueuse/core", () => ({
+  usePreferredReducedMotion: () => reducedMotion,
+}));
 
 const text = (root: TestNode): string =>
   [root.text, ...root.children.map(text)].join(" ");
@@ -34,6 +39,7 @@ function render(
 afterEach(() => {
   apps.splice(0).forEach((app) => app.unmount());
   vi.useRealTimers();
+  reducedMotion.value = "no-preference";
 });
 
 it.each([false, true])(
@@ -86,7 +92,14 @@ it.each([false, true])(
       claims_count: 34,
     });
     await nextTick();
-    expect(text(app.root)).toContain("48%");
+    expect(text(app.root)).toContain("37%");
+    for (let percent = 38; percent <= 48; percent++) {
+      await vi.advanceTimersByTimeAsync(80);
+      expect(
+        findAll(app.root, (node) => node.type === "progress")[0]!.props.value,
+      ).toBe(percent);
+      expect(text(app.root)).toContain(percent + "%");
+    }
     expect(text(app.root)).toContain("Checking the submitted research");
     expect(text(app.root)).toContain("34");
   },
@@ -359,4 +372,130 @@ it("renders enhanced fields only for an explicitly rich-enabled snapshot", () =>
   expect(text(app.root)).toContain(
     en.preparationProgress.activitySources.recorded,
   );
+});
+
+const displayedPercent = (root: TestNode) =>
+  findAll(root, (node) => node.type === "progress")[0]?.props.value;
+
+it("animates every percentage from zero to 100 only as the server permits", async () => {
+  vi.useFakeTimers();
+  const app = render(preparationSnapshot({ percent: 0 }));
+  expect(displayedPercent(app.root)).toBe(0);
+  for (const target of [15, 35, 70, 85, 95, 99]) {
+    const previous = displayedPercent(app.root);
+    app.props.progress = preparationSnapshot({ percent: target });
+    await nextTick();
+    expect(displayedPercent(app.root)).toBe(previous);
+    for (let value = previous + 1; value <= target; value++) {
+      await vi.advanceTimersByTimeAsync(80);
+      expect(displayedPercent(app.root)).toBe(value);
+    }
+  }
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(displayedPercent(app.root)).toBe(99);
+  app.props.progress = preparationSnapshot({ percent: 100, status: "READY" });
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(80);
+  expect(displayedPercent(app.root)).toBe(100);
+});
+
+it.each(["FAILED", "CANCELLED"] as const)(
+  "stops an in-flight animation immediately when preparation is %s",
+  async (status) => {
+    vi.useFakeTimers();
+    const app = render(preparationSnapshot({ percent: 40 }));
+    app.props.progress = preparationSnapshot({ percent: 95 });
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(160);
+    expect(displayedPercent(app.root)).toBe(42);
+    app.props.progress = preparationSnapshot({ percent: 95, status });
+    await nextTick();
+    expect(displayedPercent(app.root)).toBe(95);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(displayedPercent(app.root)).toBe(95);
+    expect(vi.getTimerCount()).toBe(0);
+  },
+);
+
+it("replaces the target during animation without skipping a percentage", async () => {
+  vi.useFakeTimers();
+  const app = render(preparationSnapshot({ percent: 15 }));
+  app.props.progress = preparationSnapshot({ percent: 40 });
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(160);
+  expect(displayedPercent(app.root)).toBe(17);
+  app.props.progress = preparationSnapshot({ percent: 70 });
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(80);
+  expect(displayedPercent(app.root)).toBe(18);
+  await vi.advanceTimersByTimeAsync(52 * 80);
+  expect(displayedPercent(app.root)).toBe(70);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("resets immediately for another generation and clears timers on disposal", async () => {
+  vi.useFakeTimers();
+  const app = render(preparationSnapshot({ percent: 85 }));
+  app.props.progress = preparationSnapshot({ percent: 95 });
+  await nextTick();
+  app.props.progress = preparationSnapshot({
+    generation_id: "new-generation",
+    percent: 0,
+  });
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(displayedPercent(app.root)).toBe(0);
+  app.props.progress = preparationSnapshot({
+    generation_id: "new-generation",
+    percent: 15,
+  });
+  await nextTick();
+  expect(vi.getTimerCount()).toBe(1);
+  app.unmount();
+  apps.pop();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each([undefined, NaN, Infinity, -1, 101])(
+  "stops the animation and renders unknown for invalid percent %s",
+  async (percent) => {
+    vi.useFakeTimers();
+    const app = render(preparationSnapshot({ percent: 15 }));
+    app.props.progress = preparationSnapshot({ percent: 40 });
+    await nextTick();
+    app.props.progress = preparationSnapshot({ percent });
+    await nextTick();
+    expect(displayedPercent(app.root)).toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+  },
+);
+
+it("does not show 100 while the server still reports running", () => {
+  const app = render(preparationSnapshot({ percent: 100 }));
+  expect(displayedPercent(app.root)).toBe(99);
+});
+
+it("honors reduced motion immediately, including a preference change mid-animation", async () => {
+  vi.useFakeTimers();
+  const app = render(preparationSnapshot({ percent: 15 }));
+  app.props.progress = preparationSnapshot({ percent: 40 });
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(80);
+  expect(displayedPercent(app.root)).toBe(16);
+  reducedMotion.value = "reduce";
+  await nextTick();
+  expect(displayedPercent(app.root)).toBe(40);
+  expect(vi.getTimerCount()).toBe(0);
+  app.props.progress = preparationSnapshot({ percent: 70 });
+  await nextTick();
+  expect(displayedPercent(app.root)).toBe(70);
+});
+
+it("applies corrected server progress without animating backwards", async () => {
+  vi.useFakeTimers();
+  const app = render(preparationSnapshot({ percent: 70 }));
+  app.props.progress = preparationSnapshot({ percent: 35 });
+  await nextTick();
+  expect(displayedPercent(app.root)).toBe(35);
+  expect(vi.getTimerCount()).toBe(0);
 });

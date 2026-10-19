@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { usePreparationPercent } from "~/composables/tour/usePreparationPercent";
 import type { PreparationProgress } from "#shared/types/preparationProgress";
 
 const props = defineProps<{
@@ -95,10 +96,7 @@ const formatTime = (value: string | null | undefined) => {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
 };
 const updatedAt = computed(() => formatTime(props.progress.updated_at));
-const percent = computed(() => {
-  const value = props.progress.percent;
-  return isNonnegative(value) && value <= 100 ? value : null;
-});
+const percent = usePreparationPercent(() => props.progress);
 const remainingKind = computed(() => {
   const kind = props.progress.remaining_time_kind;
   if (kind === "complete") return kind;
@@ -574,9 +572,15 @@ const formatSpend = (micros: number) =>
 .preparation-progress::-webkit-progress-value {
   border-radius: 9999px;
   background: currentColor;
+  transition: width 80ms linear;
 }
 .preparation-progress::-moz-progress-bar {
   border-radius: 9999px;
   background: currentColor;
+}
+@media (prefers-reduced-motion: reduce) {
+  .preparation-progress::-webkit-progress-value {
+    transition: none;
+  }
 }
 </style>

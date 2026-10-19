@@ -4,6 +4,11 @@ import type { LlmType } from "./llm";
 import type { GuideInteractionMode } from "#shared/types/guideInteraction";
 import type { ProgressRecord, ProgressState } from "#shared/utils/tourProgress";
 import type {
+  StoryChunk,
+  PlaybackBlock,
+  StoryBufferView,
+} from "#shared/types/storyBuffer";
+import type {
   DiscoveredPlace,
   RouteDiscovery,
   NearbyPublicDiscovery,
@@ -184,11 +189,14 @@ export interface ITourGuidance {
 }
 
 export interface ITourRecord {
+  story?: StoryChunk | null;
+  playback_block?: PlaybackBlock | null;
+  narration_status?: string | null;
   playback_generation_id?: string | null;
   playback_wait_kind?: string | null;
   audio_artifact_ids?: string[];
   audio_blob?: Blob | null;
-  discussion_focus?: import("#shared/types/storyBuffer").StoryBufferView["discussion_focus"];
+  discussion_focus?: StoryBufferView["discussion_focus"];
   route_points?: IRoutePoint[];
   playback_segment_id?: string | null;
   playback_action_types?: string[];
@@ -224,7 +232,10 @@ import type { VoiceType } from "./voice";
 export interface ITourRecordRequest {
   requested_mode?:
     "WALKING" | "ARRIVAL" | "STATIONARY" | "QUESTION" | "TRANSITION" | "QUIET";
-  duration: number;
+  /** Legacy compatibility hint; zero is an intentional silent control. */
+  duration?: number;
+  /** Retained only to reconcile stored requests under their original key. */
+  narration_style?: "FULL" | "SHORT";
   point: ICoordinate;
   user_text: string;
   pace?: number;
@@ -232,6 +243,8 @@ export interface ITourRecordRequest {
   location_recorded_at?: string;
   paused?: boolean;
   resume?: boolean;
+  /** Explicit visitor request for the next retained story part. */
+  continue_story?: boolean;
   acknowledged_segment_id?: string;
   acknowledged_delivery_state?: "STARTED" | "COMPLETED" | "INTERRUPTED";
   type_llm: LlmType;

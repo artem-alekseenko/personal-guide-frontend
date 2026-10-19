@@ -3,7 +3,7 @@ import type {
   CancelReason,
   CancelStory,
   PrepareStory,
-  StoryBufferState,
+  StoryBufferMetadata,
   StoryBufferView,
   StoryPoint,
   StoryPosition,
@@ -24,6 +24,8 @@ export interface StoryObservation {
   accuracy: number | null;
   recordedAt: string | null;
   remainingSeconds: number;
+  positionMode?: "gps" | "manual";
+  backendLocationAuthority?: boolean;
 }
 export type StoryBufferOperation =
   | { kind: "prepare"; key: string; body: PrepareStory }
@@ -37,10 +39,37 @@ export interface StoryBufferTransport {
     key: string,
   ) => Promise<StoryBufferView>;
   cancel: (body: CancelStory) => Promise<StoryBufferView>;
-  state: () => Promise<StoryBufferState>;
+  state: () => Promise<StoryBufferMetadata>;
 }
 
-/** Shared physical evidence policy; requesting detail never creates GPS evidence. */
+/** A fresh reliable fix is not proof of arrival, visibility or story scope. */
+export function isReliableStoryFix(
+  value: {
+    point: StoryPoint | null;
+    accuracy: number | null;
+    recordedAt: string | null;
+  },
+  now: number,
+): boolean {
+  if (
+    !value.point ||
+    value.accuracy === null ||
+    !Number.isFinite(value.accuracy) ||
+    value.accuracy < 0 ||
+    value.accuracy > 50 ||
+    !value.recordedAt
+  )
+    return false;
+  const age = now - Date.parse(value.recordedAt);
+  return (
+    Number.isFinite(age) &&
+    age >= -30_000 &&
+    age <= 90_000 &&
+    isStoryPointNear(value.point, value.point)
+  );
+}
+
+/** Physical near-stop inference is separate from backend-scoped story continuation. */
 export function isStoryFixAtStop(
   value: {
     point: StoryPoint | null;
@@ -50,24 +79,21 @@ export function isStoryFixAtStop(
   },
   now: number,
 ): boolean {
-  if (
-    !value.point ||
-    !value.stopPoint ||
-    value.accuracy === null ||
-    !Number.isFinite(value.accuracy) ||
-    value.accuracy < 0 ||
-    value.accuracy > 50 ||
-    !value.recordedAt
-  )
-    return false;
-  const age = now - Date.parse(value.recordedAt);
-  if (!Number.isFinite(age) || age < -30_000 || age > 90_000) return false;
-  const values = [
-    value.point.lat,
-    value.point.lng,
-    value.stopPoint.lat,
-    value.stopPoint.lng,
-  ];
+  return (
+    !!value.point &&
+    !!value.stopPoint &&
+    isReliableStoryFix(value, now) &&
+    isStoryPointNear(value.point, value.stopPoint, value.accuracy!)
+  );
+}
+
+/** Geometry only: manual selection does not claim GPS accuracy, freshness or arrival. */
+export function isStoryPointNear(
+  point: StoryPoint,
+  stopPoint: StoryPoint,
+  accuracy = 0,
+): boolean {
+  const values = [point.lat, point.lng, stopPoint.lat, stopPoint.lng];
   if (values.some((v) => !v.trim() || !Number.isFinite(Number(v))))
     return false;
   const [lat, lng, stopLat, stopLng] = values.map(Number) as [
@@ -91,7 +117,7 @@ export function isStoryFixAtStop(
       Math.sin(((stopLng - lng) * radians) / 2) ** 2;
   const distance =
     6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
-  return distance + value.accuracy <= 40;
+  return distance + accuracy <= 40;
 }
 
 /** Same conservative fix/proximity policy as backend story-buffer activation. */
@@ -109,9 +135,13 @@ export function storyPosition(
     !value.segmentId ||
     !value.stopId ||
     !value.point ||
-    value.accuracy === null ||
-    !value.recordedAt ||
-    !isStoryFixAtStop(value, now)
+    !(value.positionMode === "manual"
+      ? value.backendLocationAuthority
+        ? isStoryPointNear(value.point, value.point)
+        : value.stopPoint && isStoryPointNear(value.point, value.stopPoint)
+      : value.backendLocationAuthority
+        ? isReliableStoryFix(value, now)
+        : isStoryFixAtStop(value, now))
   )
     return null;
   return {
@@ -119,6 +149,7 @@ export function storyPosition(
     current_segment_id: value.segmentId,
     stop_id: value.stopId,
     point: { ...value.point },
+    position_mode: value.positionMode ?? "gps",
     accuracy: value.accuracy,
     recorded_at: value.recordedAt,
   };
@@ -134,6 +165,7 @@ export function createStoryBufferController(options: {
     recovered: boolean,
     mayContinue: () => boolean,
   ) => Promise<void>;
+  recovered?: (state: StoryBufferMetadata) => Promise<void>;
   now?: () => number;
   changed?: () => void;
   persist?: (operation: StoryBufferOperation | null) => void;
@@ -149,6 +181,7 @@ export function createStoryBufferController(options: {
   let pending = options.recovery ?? null;
   let work: Promise<void> | null = null;
   let epoch = 0;
+  let supported = true;
   let status = pending ? "uncertain" : "idle";
   let anchor: StoryPosition | null =
     pending && pending.kind !== "cancel" ? pending.body : null;
@@ -159,6 +192,15 @@ export function createStoryBufferController(options: {
   const save = (value: StoryBufferOperation | null) => {
     pending = value;
     options.persist?.(value);
+  };
+  const readMetadata = async () => {
+    const state = await options.transport.state();
+    supported = !("status" in state);
+    if ("status" in state) {
+      update(pending ? "uncertain" : "unavailable");
+      return null;
+    }
+    return state;
   };
   const matches = (view: StoryBufferView, identity: StoryPosition) =>
     view.generation_id === identity.generation_id &&
@@ -223,7 +265,8 @@ export function createStoryBufferController(options: {
         try {
           const operation = pending;
           if (operation?.kind !== "prepare") return;
-          const state = await options.transport.state();
+          const state = await readMetadata();
+          if (!state) return;
           if (
             state.generation_id === operation.body.generation_id &&
             state.prepared &&
@@ -250,6 +293,8 @@ export function createStoryBufferController(options: {
         !fix ||
         fix.generation_id !== pending.body.generation_id ||
         fix.stop_id !== pending.body.stop_id ||
+        (fix.position_mode ?? "gps") !==
+          (pending.body.position_mode ?? "gps") ||
         ![pending.body.current_segment_id, pending.bufferId].includes(
           fix.current_segment_id,
         )
@@ -262,6 +307,7 @@ export function createStoryBufferController(options: {
       (!identity ||
         identity.current_segment_id !== anchor.current_segment_id ||
         identity.generation_id !== anchor.generation_id ||
+        (identity.position_mode ?? "gps") !== (anchor.position_mode ?? "gps") ||
         identity.stop_id !== anchor.stop_id)
     ) {
       if (prepared || work)
@@ -277,6 +323,7 @@ export function createStoryBufferController(options: {
     }
     if (
       work ||
+      !supported ||
       pending ||
       !identity ||
       !observation.playing ||
@@ -291,7 +338,10 @@ export function createStoryBufferController(options: {
     const operation: StoryBufferOperation = {
       kind: "prepare",
       key: crypto.randomUUID(),
-      body: { ...identity, remaining_seconds: observation.remainingSeconds },
+      body: {
+        ...identity,
+        remaining_seconds: observation.remainingSeconds,
+      },
     };
     save(operation);
     update("preparing");
@@ -342,6 +392,7 @@ export function createStoryBufferController(options: {
       !identity ||
       !matches(buffer, identity) ||
       identity.current_segment_id !== anchor.current_segment_id ||
+      (identity.position_mode ?? "gps") !== (anchor.position_mode ?? "gps") ||
       Date.parse(buffer.expires_at ?? "") <= now()
     ) {
       if (buffer) await suspend("movement");
@@ -357,6 +408,7 @@ export function createStoryBufferController(options: {
     save(operation);
     update("activating");
     const requestEpoch = epoch;
+    let handled = true;
     await run(async () => {
       try {
         const view = await options.transport.activate(
@@ -382,6 +434,8 @@ export function createStoryBufferController(options: {
               requestEpoch === epoch &&
               !!latest &&
               latest.generation_id === identity.generation_id &&
+              (latest.position_mode ?? "gps") ===
+                (identity.position_mode ?? "gps") &&
               latest.stop_id === identity.stop_id
             );
           };
@@ -398,12 +452,19 @@ export function createStoryBufferController(options: {
           save(null);
           anchor = null;
           update("consumed");
+        } else if (
+          ["cancelled", "unavailable", "exhausted"].includes(view.status)
+        ) {
+          save(null);
+          anchor = null;
+          handled = false;
+          update(view.status);
         } else update("uncertain");
       } catch {
         if (current()) update("uncertain");
       }
     });
-    return true;
+    return handled;
   }
   async function reconcile() {
     if (work) {
@@ -421,12 +482,16 @@ export function createStoryBufferController(options: {
           await settleCancel(operation);
           return;
         }
-        const state = await options.transport.state();
+        const state = await readMetadata();
+        if (!state) return;
         if (!current()) {
           if (state.prepared && state.generation_id === requestedGeneration)
             await cancel(state.prepared, cancellationReason);
           return;
         }
+        if (!operation && requestEpoch === epoch)
+          await options.recovered?.(state);
+        if (!current()) return;
         if (
           !operation &&
           state.prepared &&
@@ -447,9 +512,13 @@ export function createStoryBufferController(options: {
           view.content_refs.length === 1
         ) {
           // Retry the same activation when its original fix remains valid, repairing history publication.
-          const age = now() - Date.parse(operation.body.recorded_at);
+          const age = operation.body.recorded_at
+            ? now() - Date.parse(operation.body.recorded_at)
+            : NaN;
           const recovered =
-            !state.paused && age >= -30_000 && age <= 90_000
+            !state.paused &&
+            (operation.body.position_mode === "manual" ||
+              (age >= -30_000 && age <= 90_000))
               ? await options.transport.activate(
                   operation.bufferId,
                   operation.body,
@@ -510,9 +579,15 @@ export function createStoryBufferController(options: {
           state.active_delivery_state === "STARTED" &&
           !state.paused
         ) {
-          const age = now() - Date.parse(operation.body.recorded_at);
+          const age = operation.body.recorded_at
+            ? now() - Date.parse(operation.body.recorded_at)
+            : NaN;
           const identity = storyPosition(options.read(), now());
-          if (!identity || age < -30_000 || age > 90_000) {
+          if (
+            !identity ||
+            (operation.body.position_mode !== "manual" &&
+              (age < -30_000 || age > 90_000 || !Number.isFinite(age)))
+          ) {
             save(null);
             update("suspended");
             return;

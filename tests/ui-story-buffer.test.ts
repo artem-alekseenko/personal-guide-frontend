@@ -43,8 +43,12 @@ function fixture() {
     point: { lat: "47", lng: "19" },
     stopPoint: { lat: "47", lng: "19" },
     accuracy: 5 as number | null,
-    recordedAt: "2026-09-30T12:00:00Z",
+    recordedAt: "2026-09-30T12:00:00Z" as string | null,
     remainingSeconds: 50,
+    positionMode: "gps" as "gps" | "manual",
+    narrationStyle: "FULL" as "FULL" | "SHORT",
+    duration: 180,
+    backendLocationAuthority: false,
   };
   let reply = prepared;
   let resolvePrepare: ((view: StoryBufferView) => void) | null = null;
@@ -52,6 +56,7 @@ function fixture() {
     failure = false,
     cancelFailure = false,
     current = true;
+  let unsupported = false;
   let failureStatus: number | undefined;
   let callbackWait: Promise<void> | null = null;
   let callbackRelease: (() => void) | null = null;
@@ -110,6 +115,11 @@ function fixture() {
       },
       state: async () => {
         if (stateWait) await stateWait;
+        if (unsupported)
+          return {
+            status: "unavailable",
+            reason: "unsupported_backend",
+          } as const;
         return stateReply;
       },
     },
@@ -142,6 +152,9 @@ function fixture() {
     },
     state: (value: Partial<typeof stateReply>) => {
       stateReply = { ...stateReply, ...value };
+    },
+    unsupported: () => {
+      unsupported = true;
     },
     failCancel: (value: boolean) => {
       cancelFailure = value;
@@ -178,6 +191,7 @@ it("prepares once within 40 seconds and leaves the current story visible until c
     current_segment_id: "current",
     stop_id: "museum",
     point: { lat: "47", lng: "19" },
+    position_mode: "gps",
     accuracy: 5,
     recorded_at: "2026-09-30T12:00:00Z",
     remaining_seconds: 40,
@@ -191,6 +205,7 @@ it("prepares once within 40 seconds and leaves the current story visible until c
     stop_id: "museum",
     completed_segment_id: "current",
     point: { lat: "47", lng: "19" },
+    position_mode: "gps",
     accuracy: 5,
     recorded_at: "2026-09-30T12:00:08Z",
   });
@@ -504,4 +519,84 @@ it("recovers conclusive generated metadata from GET while the backend is paused"
   await f.controller.reconcile();
   expect(f.shown).toEqual([{ view: activated, recovered: true }]);
   expect(f.controller.status).toBe("idle");
+});
+
+it("does not prepare against an explicitly unsupported metadata endpoint", async () => {
+  const f = fixture();
+  f.unsupported();
+  await f.controller.reconcile();
+  f.change({ remainingSeconds: 30 });
+  await f.controller.observe();
+  expect(f.controller.status).toBe("unavailable");
+  expect(f.requests).toEqual([]);
+  expect(f.controller.hasPending).toBe(false);
+});
+
+it("retains uncertain operation identity when metadata support disappears", async () => {
+  const f = fixture();
+  f.change({ remainingSeconds: 30 });
+  f.fail(true);
+  await f.controller.observe();
+  const operation = f.saved();
+  f.unsupported();
+  await f.controller.reconcile();
+  await f.controller.suspend("question");
+  expect(f.controller.status).toBe("uncertain");
+  expect(f.controller.hasPending).toBe(true);
+  expect(f.saved()).toBe(operation);
+  expect(f.requests.map((r) => r.action)).toEqual(["prepare"]);
+  expect(f.shown).toEqual([]);
+});
+
+it("continues an explicitly selected manual position without inventing GPS confidence", async () => {
+  const f = fixture();
+  f.change({
+    positionMode: "manual",
+    accuracy: null,
+    recordedAt: null,
+    remainingSeconds: 25,
+    narrationStyle: "SHORT",
+    duration: 90,
+  });
+  await f.controller.observe();
+  expect(f.requests[0]?.body).toMatchObject({
+    position_mode: "manual",
+    accuracy: null,
+    recorded_at: null,
+  });
+  expect(f.requests[0]?.body).not.toHaveProperty("narration_style");
+  expect(f.requests[0]?.body).not.toHaveProperty("duration");
+  f.change({ playing: false });
+  expect(await f.controller.complete()).toBe(true);
+  expect(f.shown).toEqual([{ view: activated, recovered: false }]);
+});
+
+it("invalidates manual preparation when the selected position moves away", async () => {
+  const f = fixture();
+  f.change({
+    positionMode: "manual",
+    accuracy: null,
+    recordedAt: null,
+    remainingSeconds: 25,
+  });
+  await f.controller.observe();
+  f.change({ point: { lat: "48", lng: "20" }, playing: false });
+  expect(await f.controller.complete()).toBe(false);
+  expect(f.shown).toEqual([]);
+  expect(f.requests.at(-1)?.body.reason).toBe("movement");
+});
+
+it("passes reliable between-stop motion to backend scope checks without claiming arrival", async () => {
+  const f = fixture();
+  f.change({
+    backendLocationAuthority: true,
+    remainingSeconds: 30,
+    point: { lat: "47.0006", lng: "19" },
+  });
+  await f.controller.observe();
+  expect(f.requests[0]?.body.point).toEqual({ lat: "47.0006", lng: "19" });
+  f.change({ point: { lat: "47.0012", lng: "19" }, playing: false });
+  expect(await f.controller.complete()).toBe(true);
+  expect(f.requests[1]?.body.point).toEqual({ lat: "47.0012", lng: "19" });
+  expect(f.shown).toEqual([{ view: activated, recovered: false }]);
 });

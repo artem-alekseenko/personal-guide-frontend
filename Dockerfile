@@ -3,6 +3,7 @@ FROM node:${NODE_VERSION}-slim AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches/ ./patches/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 ARG VUEFIRE_API_KEY

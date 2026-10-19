@@ -35,8 +35,8 @@ The current repository guidance is unusually detailed because this project has a
 
 ### GPS, simulation, maps, and routes
 
-- Keep GPS evidence distinct from manual simulation. Manual coordinates omit GPS accuracy and fix timestamps and must never become proof of physical presence or eligibility for automatic continuation.
-- Preserve conservative evidence rules: fresh, accurate GPS, stop-distance plus accuracy threshold, and explicit GPS mode. Missing GPS must not silently fall back to a landmark; route-point fallback is for manual simulation only.
+- Keep GPS evidence distinct from manual simulation. Manual coordinates omit GPS accuracy/fix timestamps and never prove physical presence. Explicit manual player continuation is permitted using selected-position geometry and a durable anchor, not invented GPS confidence.
+- Preserve conservative GPS evidence rules: fresh, accurate fixes and anchor-distance plus accuracy thresholds. Missing GPS must not silently fall back to a landmark; route-point fallback is for manual simulation only.
 - Maps should initialize even when permission is denied. GPS updates move the visitor marker; following the visitor requires an explicit choice and stops after a map gesture.
 - Use numeric `[longitude, latitude]` only at the Mapbox/GeoJSON boundary. API payloads remain `{ lat, lng }` strings. Never swap latitude and longitude while “simplifying” conversions.
 - New tours use stored route geometry directly. Legacy tours retain their existing decoding/path behavior. Do not request a second route merely to render a route that the backend already stored.
@@ -64,7 +64,7 @@ The current repository guidance is unusually detailed because this project has a
 
 ### Preparation progress and polling
 
-- Preparation progress is an owner-scoped snapshot, not a percentage. Display observed phases, counts, sources, and byte totals without inventing completion math.
+- Preparation progress is an owner-scoped snapshot. The recorded stage estimate can animate toward its target in 1% steps (80 ms), but time alone never adds progress. Cap at 99 until READY, honor reduced motion, stop timers on terminal/unknown snapshots or disposal, and reset for a new generation. Counts, source activity and timing remain unmodified server observations.
 - List polling includes `PENDING`/`RUNNING` preparation, including tours that are already `STARTED`; it stops on terminal states or when the page leaves.
 - Active-tour detail polling is independent from playback and must not replace the active tour record. Fence late results across account/tour changes, retry read failures on the existing schedule, and dispose timers.
 - Backend workers matter. Running only the API can leave preparation apparently stuck; local verification needs the backend Compose stack and its workers when testing this flow.
@@ -103,3 +103,7 @@ Before calling a frontend change complete, confirm:
 - no secret, bearer token, media payload, or privileged provider call leaked into public configuration, bundles, or diagnostics; visitor text and recovery data remain within their documented authenticated API/local-storage boundaries;
 - the approved nonaudio checks and relevant nonaudio browser scenario actually ran; the default smoke commands remain excluded until explicit human approval;
 - documentation states what remains unverified rather than implying live provider or audio qualification.
+
+## Four-sentence realtime replies — 19 October 2026
+
+The backend limits new realtime replies to four complete sentences including warnings, directions and questions. Research remains detailed. New story metadata carries requires_explicit_continue=true and narration_policy_version=location-four-v1; canAutomaticallyContinueNarration blocks automatic continuation even for multipart source stories. Historical offered text/audio and uncertain request payloads remain immutable. The frontend never truncates returned history. The primary completed Next button explicitly sends continue_story=true; ordinary resume and questions do not infer continuation, and uncertain retries preserve their original body/key. Approved nonaudio checks: 692 tests passed, type checking and production build passed. No live provider, browser playback or audio verification was performed for this change.

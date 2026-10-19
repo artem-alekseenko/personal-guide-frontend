@@ -33,15 +33,15 @@ Treat executable code as authoritative when documentation and types disagree. Th
 
 ## Stack and commands
 
-The package declares Nuxt 4.6.1, Vue 3.5.43, TypeScript 6.0.3, Pinia 4.0.3, Nuxt UI 4.11.3, Tailwind CSS 4.3.3, VueUse 15.0, Firebase/VueFire, Nuxt i18n, and Mapbox GL with Mapbox Directions. It uses ES modules. Nuxt 4.4.4 breaks SPA development with `Vite Node IPC socket path not configured`; use the pinned patched dependency rather than manually setting internal socket environment variables.
+The package declares Nuxt 4.6.1, Vue 3.5.44, Pinia 4.1.0 with `@pinia/nuxt` 1.0.3, Nuxt UI 4.11.3, Tailwind CSS 4.3.3, VueUse 15.0, Firebase 13/Admin 14, Nuxt i18n, and Mapbox GL 3.33 with Mapbox Directions. Native TypeScript 7.0.2 runs beside the maintained TypeScript 6 API package required by Vue tooling. It uses ES modules. Nuxt 4.4.4 breaks SPA development with `Vite Node IPC socket path not configured`; use the pinned patched dependency rather than manually setting internal socket environment variables.
 
 - Required Node range: `^24.21.0 || >=26.0.0` in `package.json`; use the pinned Node 24.21.0 LTS release for development. Node 26 is permitted, not recommended over the pinned LTS runtime.
-- Package manager: `pnpm@12.11.2`; preserve `pnpm-lock.yaml`. `pnpm-workspace.yaml` owns hoisting, pre/post scripts, exact-version saves, security overrides and explicit dependency-build approvals. pnpm 12 reads only auth/registry configuration from `.npmrc`; the obsolete project file was removed. Docker copies the workspace configuration before its frozen install.
-- Nuxt DevTools is locked at 3.4.3, which removes `simple-git` and its critical/high advisories without a forced major override. The obsolete Git argument-parser override was removed. The audit still reports two high upstream advisories in `node-forge` 1.4.0 and `braces` 3.0.3; neither has a published fixed version as of 2026-10-15. Do not suppress these findings; revisit them when compatible fixes are published.
+- Package manager: `pnpm@12.11.2`; preserve `pnpm-lock.yaml`. `pnpm-workspace.yaml` owns hoisting, pre/post scripts, exact-version saves, security overrides, version-pinned dependency patches and explicit dependency-build approvals. pnpm 12 reads only auth/registry configuration from `.npmrc`; the obsolete project file was removed. Docker copies the workspace configuration and `patches/` before its frozen install.
+- Nuxt DevTools is locked at 3.4.3, which removes `simple-git` and its critical/high advisories without a forced major override. The obsolete Git argument-parser override was removed. The two remaining high registry advisories have local code patches, documented below; do not suppress their audit warnings.
 - `pnpm install --frozen-lockfile`: install dependencies; `postinstall` runs `nuxt prepare`.
 - `pnpm dev`: development server, normally port 3000.
 - `pnpm build`: production build, with Nuxt TypeScript checking enabled.
-- `pnpm typecheck`: explicit Nuxt type checking.
+- `pnpm typecheck`: Nuxt/Vue SFC checking, followed by native TypeScript 7 checking of generated server/shared projects.
 - `pnpm test:text`: approved nonaudio Vitest regressions and Node-rendered component checks for the current milestone.
 - `pnpm test:smoke`: after a build, exercises Nitro against a local fixture backend (requires local TCP listeners); excluded under the current audio restriction because it exercises the narration contract.
 - `pnpm test:dev`: runs the same HTTP checks against a temporary development server; excluded under the current audio restriction. After explicit human approval, run separately from builds because both generate `.nuxt` files.
@@ -73,14 +73,44 @@ corepack pnpm dev
 
 Before starting the app, configure `.env` as described below and start the backend and its workers using the sibling repository's setup guide. Do not overwrite an existing `.env`. The frontend needs no local MongoDB connection; it reaches persistence through the backend. `pnpm-workspace.yaml` enables hoisting and pre/post scripts. Preserve these settings when investigating dependency or Nuxt auto-import failures.
 
-The user selected latest compatible frontend releases, not unsupported integration
-rewrites. Firebase 12/Admin 13 remain inside VueFire's declared peer ranges.
-TypeScript 7 fails current `vue-tsc` with `ERR_PACKAGE_PATH_NOT_EXPORTED`
-(`typescript/lib/tsc`), so retain TypeScript 6 until compatible Vue tooling exists.
-Node types remain on the latest Node 24 line to match the pinned runtime. Exact
-release-age exclusions recorded by pnpm apply only to the requested logos/Vitest
-patches, not broad package families. Dependency upgrades do not authorize backend
-changes, live Firebase sign-in, paid providers or audio checks.
+The user explicitly approved the latest-major frontend migration. Firebase 13
+uses the native SDK through `app/plugins/00-firebase.client.ts`; VueFire,
+nuxt-vuefire and their app-types peer are removed rather than overriding
+unsupported peer ranges. Existing `VUEFIRE_*` environment names remain the public
+Firebase configuration inputs. Firebase Admin is 14.5.0.
+
+TypeScript follows the [official side-by-side layout](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/):
+`@typescript/native` aliases TypeScript 7.0.2 (`tsc`), while `typescript` aliases
+`@typescript/typescript6` 6.0.2 (`tsc6`, currently using the 6.0.3 API).
+`vue-tsc` still requires that JS API; do not point it at native 7 or disable SFC
+checking. `pnpm typecheck` exercises both toolchains. Node types remain on the
+latest Node 24 line to match the pinned runtime. Nuxt UI's Tiptap peers are pinned
+together at 3.32.0, with y-tiptap 3.0.10. Exact release-age exclusions recorded by
+pnpm stay scoped to the requested logos/Vitest patches. Dependency upgrades do
+not authorize backend changes, live Firebase sign-in, paid providers or audio checks.
+
+### Dependency security patches
+
+`pnpm-workspace.yaml` registers exact-version patches in `patches/`.
+`node-forge@1.4.0.patch` backports the proposed
+[forge#1152 fix](https://github.com/digitalbazaar/forge/pull/1152) for
+CVE-2026-85393: RSA DigestInfo validation checks the nested algorithm element
+count as well as the outer sequence. `braces@3.0.3.patch` addresses
+CVE-2026-93687 by bounding parsed brace/parenthesis nesting to 100 and guarding
+compile/expand/stringify recursion for callers supplying ASTs directly.
+Excessive nesting raises a controlled SyntaxError; escaped/quoted literals and
+supported nesting retain their existing behavior.
+
+No patched registry releases exist as of 2026-10-15. `pnpm audit` still reports
+the original versions and two high advisories; this is not a zero-advisory audit.
+Do not rename packages, change version labels or ignore findings to hide them.
+Replace these local patches with verified upstream releases when available.
+`tests/ui-dependency-security.test.ts` has public-only RSA vectors and brace
+boundary regressions in the approved nonaudio suite. Real Node consumer smoke
+passed on the host and in an offline container after a frozen install.
+Docker must copy `patches/` before installing; `.private` staging/probe material
+is excluded from the build context. No backend, provider, sign-in or audio
+execution is required to verify these patches.
 
 ## Application structure
 
@@ -117,8 +147,8 @@ The UI uses a mobile layout; above 768px the app sits inside a phone-style frame
 
 ## Authentication and request flow
 
-1. Firebase/VueFire authenticates the browser. Auth actions include email/password registration and login, and Google popup login.
-2. `app/middleware/auth.global.ts` redirects unauthenticated private-page requests to `/` with a `next` query. Authenticated visitors normally enter `/tours`; pages can declare `meta.public`. Auth actions, the middleware and login page share `resolveAuthRedirect` from `app/utils/navigation.ts`, rejecting protocol-relative URLs, backslashes and line breaks.
+1. `app/plugins/00-firebase.client.ts` initializes the native Firebase SDK before API/profile plugins and provides a shared shallow-readonly `$firebaseUser` ref. Its auth observer is removed on app unmount/HMR. Auth actions include email/password registration and login, and Google popup login. Optional App Check retains the Enterprise provider, development debug flag and token auto-refresh.
+2. `app/middleware/auth.global.ts` waits for `auth.authStateReady()` before redirecting unauthenticated private-page requests to `/` with a `next` query. Authenticated visitors normally enter `/tours`; pages can declare `meta.public`. Auth actions, the middleware and login page share `resolveAuthRedirect` from `app/utils/navigation.ts`, rejecting protocol-relative URLs, backslashes and line breaks. `tests/ui-firebase-auth.test.ts` covers restored-account versus anonymous navigation during initialization.
 3. `app/plugins/01-api-fetch.client.ts` provides `$apiFetch`, adding the current Firebase ID token to `/api/*` requests. Use this authenticated client in API composables.
 4. `server/middleware/require-auth.ts` requires a nonempty Bearer header for private `/api/*` requests. It checks header presence, not token validity. `/api/health` and `/api/public` prefixes are exempt, but the checkout does not implement matching handlers.
 5. The client attaches tokens only to same-origin `/api/` requests, shares concurrent token retrieval for the same UID, and rejects a request if the identity changes while awaiting its token. Preserve this boundary when adding API clients.
@@ -173,8 +203,8 @@ Supply config-time values when building; changing only the runtime environment d
 - Route suggestions validate bounds and translate `lat`/`lng` into `curr_lat`/`curr_lng`; the proxy initially derives map coordinates from the first route. Selecting another variant replaces those coordinates with its geometry. Creation sends the selected variant's named stops, separate route geometry, `guide_id`, personal context, and enabled selected tags as `{ name, value }` settings.
 - Guide and tour list proxies unwrap `{ guides }` and `{ tours }` into arrays. `useGetTourRecord` combines `record` with response-level `places`, `audio_data`, and `route_points`. The tour store applies returned route points to the active route.
 - `routeStore` polls lists every five seconds while any preparation snapshot is `PENDING`/`RUNNING`, even on a `STARTED` tour. Without a snapshot it falls back to status `GENERATING` without a preparation error. It retries list failures on the same schedule. The list page stops polling on exit, restores polling on reentry even during an unfinished read, and distinguishes loading, empty, and failed states.
-- `tourStore` caches the current tour and manages narration text, visitor questions, and places. Its `/next` request uses the selected `type_llm` (default `DEFAULT`) and voice type. `shared/utils/tourNarration.ts` requests `STATIONARY` when fresh GPS is within the conservative stop threshold and there is no reported movement, `QUESTION` for visitor text, or `WALKING` otherwise. All three modes receive a 90-second upper request target, independent of published generation or unverified preview metadata. Backend evidence, localization and guidance still choose actual length: a brief walking maneuver or a longer supported story within the 200-metre commentary radius. Commentary eligibility is not physical arrival, and a larger request budget does not retarget stops, approve preview claims or establish GPS evidence. GPS requests include available accuracy and fix timestamp; manual coordinates omit both, and unknown pace is omitted. Manual simulation retains the same upper budget while backend guidance owns its location handling. Uncertain narration failures retain the original request payload and operation ID even if GPS changes. Definitive input/auth rejections discard that pending operation.
-- `useTourState` saves state/audio position under `tour-state-{tourId}` with a 24-hour expiry. Audio resume rewinds five seconds. Restoration requires the matching in-memory audio record and restores paused state, never an active player after a page reload.
+- `tourStore` owns narration text, active audio identity and visitor questions. New narration always requests a complete supported response and omits legacy duration/style hints. Questions never select SHORT. Duration-zero controls remain silent. New replies have at most four complete sentences, including qualifications. New story metadata carries requires_explicit_continue and narration_policy_version=location-four-v1; multipart remainders require another explicit request. Historical offered records are never truncated by the frontend. Historical multipart metadata, active audio and uncertain operations keep their original content, payloads and keys. Reliable near-stop GPS can select STATIONARY; otherwise WALKING does not claim arrival. Manual coordinates never acquire GPS metadata. Backend evidence and geographic scope determine eligibility; definitive input/auth rejections discard pending operations.
+- `useTourState` saves state/audio position under `tour-state-{tourId}` with a 24-hour expiry. Audio resume rewinds five seconds. Active-record recovery also uses read-only story-buffer metadata and existing audio. Restored/generated audio remains paused; reload does not acknowledge completion.
 - `useTourAudioPlayer` plays base64 audio through an HTML audio element and estimates text highlighting from playback progress. Clean up object URLs, audio, Mapbox objects/listeners, timers, and geolocation watchers when modifying lifecycle code.
 - GPS is the default position mode; manual mode uses a draggable simulation marker. `usePositionMode` shares the choice through Nuxt state and persists it under `tour-position-mode`. Missing GPS must not fall back to a landmark; route-point fallback is for manual simulation only. Maps initialize even if location permission is denied.
 - `userStore` keeps guest language under `personal-guide-user-lang`. The preferences plugin loads the backend profile after authentication. The update proxy forwards `name`, `language`, and `personal_context` when explicitly supplied; voice choice persists locally under `personal-guide-voice`. Statistics remain hidden until populated. Firebase identity changes reset owner-specific tour/guide state and invalidate in-flight responses.
@@ -312,7 +342,10 @@ it does not establish Firebase authentication, live guide availability or audio.
 interaction contract and legacy defaults, imported with `#shared`. Guide cards
 and effective experience modes default to `interactive`; personal context
 defaults to `guide`. The creation selector remains available when personal memories
-are disabled. Creation keeps this operational preference while omitting disabled
+are disabled. It offers Introvert (`leading`) and Extravert (`interactive`);
+inherited `guide` preferences display the selected guide's effective style until changed.
+The walk preferences form omits free-text purpose, known-topic and note fields;
+existing saved values remain intact. Creation keeps this operational preference while omitting disabled
 personal information. Active-tour text questions retain backend context without
 showing preference editors, style diagnostics or activity buttons.
 
@@ -414,36 +447,38 @@ qualify live GPS/Directions, physical-device performance, authentication or audi
 The user explicitly enabled both frontend feature flags. `storyBufferEnabled`
 and `textExperienceEnabled` default to true; local runtime overrides are
 `NUXT_PUBLIC_STORY_BUFFER_ENABLED` and `NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED`.
-Backend flags remain separate. Contract source: the supplied sibling worktree
-`.private/worktrees/system-improvement/current_implementation/proposed_tour_generation/story_buffer_contract.md`;
-compare its executable `models/story_buffer.py` and `services/story_buffer_service.py`
-when changing this integration. A legacy/disabled backend reports unavailable.
+Contract sources are the sibling backend's `app/models/story_buffer.py`,
+`app/services/story_buffer_service.py` and mounted story-buffer API. The proxy
+maps `/api/story-buffer/{tourId}` to `/tours/{tourId}/story-buffer` and its
+prepare/activate/cancel subroutes.
 
 `shared/types/storyBuffer.ts` and `shared/utils/storyBuffer.ts` own typed metadata
-and control transitions. `useStoryContinuation` samples actual remaining time
+and control transitions. Complete single-chunk responses do not arm continuation;
+active playback recovery remains available. For compatible historical multipart
+records, `useStoryContinuation` samples actual remaining time
 while a STARTED segment is active and prepares once at `0 < remaining <= 40`.
-GPS must have accuracy <= 50 m, fix age -30..90 seconds and distance plus accuracy
-<= 40 m from the same stop. Manual coordinates never become GPS evidence.
-Legacy tours without a pinned `playback_generation_id` cannot use this buffer.
-They use `shared/utils/tourContinuation.ts` instead, as do published tours when a
-metadata/prepare request confirms that the backend lacks the buffer endpoint
-(404/405). The fallback arms locally at 40 seconds remaining and requests one
-fresh `/next` one second after the completion acknowledgement. It never sends a
-speculative `/next` during an active segment. Current GPS is sampled at dispatch;
-pause, visitor actions, movement, stale fixes, settings changes and disposal cancel
-the delayed request. A WAIT/silent response ends the chain without polling. An
-uncertain buffer mutation prevents fallback until explicitly reconciled. Generated
-`stop_N` and legacy `route_point_N` identities resolve unnamed route stops.
-Simulation mode explains that automatic continuation needs real GPS. Marker
-dragging still requests a new turn when the prior record is finished. Silent
-legacy WAIT reasons `no_new_content`/`no_location_change` show a move/ask hint;
-`listening_or_observing` gets a distinct continue-when-ready hint. Other WAIT
-controls retain their existing state without a misleading move/ask suggestion.
-Preparation retains the old record, checkpoint, text and map focus. Activation
-supplies the explicit completed anchor; backend completes it and activates the
-new segment atomically. Only the activated response is adopted by `tourStore`.
-Discussion focus is independent of the visitor point. Media is an existing
-owner-scoped artifact through `/api/tour-artifacts/*`, never synthesis.
+GPS must have accuracy <= 50 m and fix age -30..90 seconds. The backend owns actual
+route/evidence-scope eligibility at preparation and activation; walking narration
+must not be gated on standing within 40 metres of a stop. Explicit manual mode
+sends the selected point and null GPS metadata without proving real arrival.
+Buffering requires a pinned `playback_generation_id`. Only an explicit proxy
+`unsupported_backend` capability response enables `shared/utils/tourContinuation.ts`; supported endpoints and
+domain/auth 404/403 failures never enable a parallel completion scheduler.
+The fallback requests one new turn after actual completion, never during active
+speech. A silent response ends that chain without polling.
+
+Preparation retains the current record/checkpoint/text. Activation supplies the
+completed anchor and adopts `view.record`, `view.audio_data` or its existing
+owner-scoped recording artifact. Story metadata uses a zero-based chunk index;
+the status panel displays one-based part progress and whole-story sentence count.
+Discussion subjects are not the visitor's coordinates.
+
+All empty responses, including old completed /next receipts without
+`playback_block`, can recover through scoped GET metadata `active_record` and
+`active_audio_data`. No new narration POST or completion receipt is sent merely
+to recover the GENERATED/STARTED owner. The status panel omits complete-story and
+active-audio notices and its separate resume button. Uncertain narration is
+resolved with its original key/body before an explicit new visitor request.
 
 Buffer mutations use the existing per-tour request queue. Metadata GET reads
 are scope-fenced and do not block manual controls when no mutation is pending.
@@ -451,9 +486,11 @@ Both use the authenticated same-origin proxy. Pause takes effect locally before 
 cancellation. Explicit text actions await cancellation without pausing audio.
 Visitor actions, GPS uncertainty/movement, preferences, hidden pages, navigation
 and account/tour/generation changes suspend continuation. Cancellation epochs
-also fence the asynchronous activation handoff. There is no feature-toggle/status
-section in the tour UI; continuation defaults on and the main Pause button cancels
-it. Each newly STARTED segment can prepare once when 40 seconds remain. Explicit
+also fence the asynchronous activation handoff. `TourNarrationStatus` presents
+chunk progress and honest no-content/buffer reasons. The walking screen omits
+the duration selector and static narration-mode/interruption explanations.
+Continuation defaults on and the main Pause button cancels it. Each newly STARTED
+segment can prepare once when 40 seconds remain. Explicit
 actions reconcile pending mutations before proceeding; failed reconciliation
 shows a retry/reload notification. Pending prepare/activate/cancel metadata is saved under
 `pg-story-buffer-{backend_user_id}-{tour_id}-{generation_id}`; it includes GPS
@@ -476,7 +513,8 @@ and permits resuming only the record actually loaded by the player. Local pause 
 immediate; persistent controls remain serialized. Pure control and continuation
 tests run without media/player execution.
 
-Tour creation offers keyboard-accessible GPS and coordinate inputs. Duration uses
+Tour creation selects its starting point by map click or a draggable visible marker,
+without coordinate inputs, a current-location button or a GPS marker. Duration uses
 a native range input with localized label and minutes. Creation drafts and settings
 controls are disabled/inert during submission; context edits use a draft revision
 so responses cannot overwrite newer typing. List proxies retrieve explicit backend
@@ -499,8 +537,20 @@ operations and drafts. Active preparation stays above the map;
 terminal snapshots move into tour research. Experimental-draft warnings remain
 visible. The map legend still reflects the existing GPS/simulation mode.
 
-In development, `TourReadingPanel` displays the full latest guide message below
-playback controls and puts progress in a closed native disclosure beneath it.
+`TourLocationMode` restores an always-visible, keyboard-accessible Real GPS /
+Simulation selector beneath the map, without restoring the removed location
+settings disclosure. It binds the existing persisted `usePositionMode` state.
+Both modes show a person icon: blue/circular for GPS, purple/square for simulation.
+`useSimulationMarker` owns mode-driven creation/removal and initializes restored
+manual mode even without GPS, using the supplied GPS/route seed or map center.
+Dragging and map-click placement keep real GPS untouched; switching sources does
+not move the camera. Browser smoke used actual Mapbox with synthetic GPS,
+GPS-denied reloads, keyboard switching, English/Russian, mobile/desktop and dark
+mode. Authentication, physical GPS and audio were not exercised.
+
+In development, `TourReadingPanel` displays a short latest-guide-text preview below
+playback controls. Its closed native disclosure reveals the full text on click;
+progress stays in a separate closed disclosure beneath it.
 Movement controls and simulation hints appear only in manual mode. The Next step
 handler stops local movement and invokes the existing explicit-resume action.
 New narration requests sample the current active position again after interruption
@@ -537,8 +587,13 @@ fences reject late work. Read failures retain measured values and show a warning
 Terminal snapshots stop polling and the active-research spinner.
 
 `TourPreparationProgress` displays API `percent` as a stage-weighted estimate,
-not elapsed-time completion or story availability. Missing percent stays
-unknown. `elapsed_seconds` is time since the generation was queued, rendered
+not elapsed-time completion or story availability. The usePreparationPercent
+composable animates increases toward each recorded target in one-percentage-point
+steps every 80 ms; it never advances beyond the target or reaches 100 before
+READY. Initial/restored snapshots and generation changes adopt their recorded
+value; failures, cancellation, corrected lower targets and unknown values stop
+animation immediately. VueUse's reduced-motion preference bypasses animation,
+and watcher cleanup disposes timers. Missing percent stays unknown. `elapsed_seconds` is time since the generation was queued, rendered
 as HH:MM:SS; terminal snapshots freeze it. `remaining_time_kind` distinguishes
 an estimate from a current-stage deadline, unknown time and ended processing.
 The current backend produces a deadline or unknown, not a reliable finish ETA.

@@ -1,5 +1,4 @@
-import { getAuth, type User } from "firebase/auth";
-import { getCurrentUser } from "vuefire";
+import { getAuth } from "firebase/auth";
 import { resolveAuthRedirect } from "~/utils/navigation";
 
 const LOGIN_ROUTE = "/";
@@ -13,12 +12,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Early return for public pages (except login page) - no need to check Firebase
   if (to.path !== LOGIN_ROUTE && isPublic) return;
 
-  // Fast path: try currentUser first, then await Firebase init if needed
+  // Wait for Firebase to restore persisted auth before deciding access.
   const auth = getAuth();
-  let user: User | null = auth.currentUser;
-  if (!user) {
-    user = (await getCurrentUser().catch(() => null)) || null;
-  }
+  await auth.authStateReady();
+  const user = auth.currentUser;
 
   // If we're on "/" (login page):
   if (to.path === LOGIN_ROUTE) {

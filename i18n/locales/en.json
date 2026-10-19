@@ -362,8 +362,8 @@
       "styleLabel": "How do you like to explore?",
       "allStyles": "All styles",
       "styles": {
-        "interactive": "Together",
-        "leading": "Guide-led"
+        "interactive": "Extravert",
+        "leading": "Introvert"
       },
       "allTopics": "All topics",
       "topicsLabel": "Explore by interest",
@@ -375,7 +375,7 @@
     },
     "createRoute": {
       "title": "Create route",
-      "selectArea": "Please indicate the area you wish to explore",
+      "selectArea": "Tap the map to place a starting marker before getting a route. Drag the marker to adjust it.",
       "routeBuilt": "The excursion route has been built:",
       "selectTopics": "Choose the topics you are interested in:",
       "durationLabel": "Please indicate the desired duration of the excursion",
@@ -410,6 +410,8 @@
       "followLocation": "Follow my location",
       "stopFollowing": "Stop following my location",
       "controls": "Map controls",
+      "positionMode": "Location mode",
+      "gpsUnavailable": "GPS is unavailable. Allow location access or switch to simulation.",
       "followShort": "Follow me",
       "stopFollowingShort": "Stop following",
       "wholeRoute": "Whole route",
@@ -449,8 +451,8 @@
       "scrollDisabled": "Scroll to highlighted sentence disabled"
     },
     "tourPage": {
-      "realGeolocation": "📍 Real Geolocation",
-      "geolocationSimulation": "🎯 Geolocation Simulation",
+      "realGeolocation": "Real GPS",
+      "geolocationSimulation": "Simulation",
       "usingRealLocation": "Using your real location",
       "noMoreHere": "No new story was returned at this position. Move closer to a stop or ask a specific question.",
       "observingWait": "The guide is waiting while you listen or look around. Press Continue when ready.",
@@ -539,6 +541,7 @@
     "noLocation": "No recorded location yet",
     "recordedAt": "Last recorded update",
     "latestText": "Latest guide text",
+    "earlierText": "Earlier guide text",
     "noText": "No guide text recorded yet",
     "fullText": "Read full guide text",
     "finished": "Walk finished",
@@ -548,8 +551,8 @@
     "interactionStyle": "Guide interaction",
     "interactionModes": {
       "guide": "Guide's style",
-      "interactive": "Explore together",
-      "leading": "Just guide me"
+      "interactive": "Extravert",
+      "leading": "Introvert"
     },
     "guideStyleDefault": "Guide's style: {mode}",
     "effectiveInteractionStyle": "Current style: {mode}",
@@ -675,5 +678,42 @@
     "unavailable": "This tour or its text experience is unavailable. Reload or return to your tours.",
     "invalidAction": "The request was not accepted. Check your choices and try again.",
     "modelUnavailable": "The selected text model is unavailable. Reload current state, then choose a configured model in Settings."
+  },
+  "narration": {
+    "title": "Guide narration",
+    "duration": "Maximum story duration",
+    "short": "Short · {seconds} seconds",
+    "full": "Full · {seconds} seconds",
+    "shortHint": "Short mode: a shorter explanation, not a 20-sentence full story.",
+    "fullHint": "Full narration gives one complete, source-supported response for this location.",
+    "progress": "Part {chunk} of {chunks} · {sentences} sentences in this part · {total} in the whole story.",
+    "finalChunk": "Final part.",
+    "insufficient": "There is not enough supported material for this request. No complete full story was delivered.",
+    "budget": "New research is blocked by the research budget. Saved supported material may still be available.",
+    "pending": "Supported material is still being prepared. Preparation is not a ready story.",
+    "unavailable": "No new story is available for this request. Try another nearby position.",
+    "requested_silence": "The guide is keeping quiet as requested. Request a new story when you want narration.",
+    "no_supported_material": "There is no unused supported material ready for this position. No new story was delivered.",
+    "short_supported_fallback": "A saved explanation from the earlier narration policy is ready.",
+    "evidence_gap": "The guide is giving orientation, not verified historical narration. Place research is not ready for this position.",
+    "navigation": "The guide is giving route orientation.",
+    "paused": "The tour is paused. Resume explicitly when you are ready.",
+    "explicit_resume_required": "The guide is waiting for your explicit resume.",
+    "pending_route_choice": "Choose how to continue the route before requesting another story.",
+    "duration_zero": "This was a playback-control request, not a new story.",
+    "tour_complete": "This tour is complete.",
+    "reconcile": "Recover pending story",
+    "requires_prepared_generation": "A full story requires a prepared, accepted research generation. Open preparation controls on the original tour; nothing is generated automatically.",
+    "openPreparation": "Open preparation controls",
+    "audioUnavailable": "Original audio is unavailable. Retry recovery.",
+    "buffer": {
+      "preparing": "Preparing the next part or story while you listen…",
+      "prepared": "The next part or story is prepared; it has not started.",
+      "activating": "Handing over to the prepared audio…",
+      "uncertain": "The last story request is unconfirmed. Recover it before requesting another.",
+      "exhausted": "No further supported story is prepared for this position.",
+      "unavailable": "Buffered continuation is unavailable. You can request another story explicitly.",
+      "reconciling": "Checking saved playback and pending story…"
+    }
   }
 }

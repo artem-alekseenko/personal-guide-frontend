@@ -4,12 +4,7 @@ import { useUserStore } from "../app/stores/userStore";
 const api = vi.hoisted(() => ({
   update: vi.fn(),
   profile: vi.fn(),
-  user: { value: { uid: "alice" } },
 }));
-vi.mock("vuefire", async () => {
-  const { ref } = await import("vue");
-  return { useCurrentUser: () => ref(api.user.value) };
-});
 vi.mock("../app/composables/api/useUserApi", () => ({
   useUserApi: () => ({
     updateUserProfile: api.update,

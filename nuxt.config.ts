@@ -16,13 +16,7 @@ export default defineNuxtConfig({
   },
   components: [{ path: "~/components/ui", pathPrefix: false }, "~/components"],
   ssr: false,
-  modules: [
-    "@vueuse/nuxt",
-    "@pinia/nuxt",
-    "@nuxt/ui",
-    "nuxt-vuefire",
-    "@nuxtjs/i18n",
-  ],
+  modules: ["@vueuse/nuxt", "@pinia/nuxt", "@nuxt/ui", "@nuxtjs/i18n"],
   future: {
     compatibilityVersion: 4,
   },
@@ -36,34 +30,15 @@ export default defineNuxtConfig({
       textExperienceEnabled: true,
       storyBufferEnabled: true,
       mapboxGlAccessToken: process.env.NUXT_PUBLIC_MAPBOX_GL_ACCESS_TOKEN || "",
-    },
-  },
-  vuefire: {
-    auth: {
-      enabled: true,
-    },
-    config: {
-      apiKey: process.env.VUEFIRE_API_KEY,
-      authDomain: process.env.VUEFIRE_AUTH_DOMAIN,
-      projectId: process.env.VUEFIRE_PROJECT_ID,
-      storageBucket: process.env.VUEFIRE_STORAGE_BUCKET,
-      messagingSenderId: process.env.VUEFIRE_MESSAGING_SENDER_ID,
-      appId: process.env.VUEFIRE_APP_ID,
-    },
-    ...(process.env.RECAPTCHA_KEY
-      ? {
-          appCheck: {
-            debug: process.env.NODE_ENV !== "production",
-            isTokenAutoRefreshEnabled: true,
-            provider: "ReCaptchaEnterprise" as const,
-            key: process.env.RECAPTCHA_KEY,
-          },
-        }
-      : {}),
-  },
-  vite: {
-    optimizeDeps: {
-      include: ["vuefire"],
+      firebase: {
+        apiKey: process.env.VUEFIRE_API_KEY,
+        authDomain: process.env.VUEFIRE_AUTH_DOMAIN,
+        projectId: process.env.VUEFIRE_PROJECT_ID,
+        storageBucket: process.env.VUEFIRE_STORAGE_BUCKET,
+        messagingSenderId: process.env.VUEFIRE_MESSAGING_SENDER_ID,
+        appId: process.env.VUEFIRE_APP_ID,
+      },
+      firebaseAppCheckSiteKey: process.env.RECAPTCHA_KEY || "",
     },
   },
   css: [

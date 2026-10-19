@@ -1,7 +1,7 @@
 <template>
   <BaseMap
     ref="baseMapRef"
-    :show-user-location="true"
+    :show-user-location="false"
     :on-map-click="selectPoint"
     :route-coordinates="routeCoordinates"
     @map-initialized="handleMapInitialized"
@@ -11,18 +11,17 @@
 <script lang="ts" setup>
 import mapboxgl from "mapbox-gl";
 import { ref, shallowRef, watch, onBeforeUnmount, nextTick } from "#imports";
-import { useGeolocationStore } from "~/stores/geolocationStore";
 import { useRouteStore } from "~/stores/routeStore";
 import BaseMap from "~/components/base/BaseMap.vue";
 import { useMapboxDirections } from "~/composables/map/useMapboxDirections";
 import { useMarkers } from "~/composables/map/useMarkers";
 import { useLogger } from "@/composables/utils/useLogger";
+import type { ICoordinate } from "~/types";
 
 const routeStore = useRouteStore();
-const geolocationStore = useGeolocationStore();
 const logger = useLogger();
 
-const selectedInitialArea = defineModel("selectedArea", {});
+const selectedInitialArea = defineModel<ICoordinate | null>("selectedArea");
 
 const baseMapRef = ref<InstanceType<typeof BaseMap> | null>(null);
 const mapInstance = shallowRef<mapboxgl.Map | null>(null);
@@ -56,6 +55,7 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
 };
 
 const selectPoint = (e: mapboxgl.MapMouseEvent) => {
+  if (routeStore.isCreating) return;
   selectedInitialArea.value = {
     lng: String(e.lngLat.lng),
     lat: String(e.lngLat.lat),
@@ -100,7 +100,18 @@ watch(
       clearDirections();
       clearAllMarkers();
       const start = routeStore.startPoint;
-      if (start) addMarker(Number(start.lat), Number(start.lng));
+      if (start) {
+        const marker = addMarker(Number(start.lat), Number(start.lng));
+        marker?.setDraggable(!routeStore.isCreating);
+        marker?.on("dragend", () => {
+          if (routeStore.isCreating) return;
+          const point = marker.getLngLat();
+          selectedInitialArea.value = {
+            lng: String(point.lng),
+            lat: String(point.lat),
+          };
+        });
+      }
       return;
     }
 

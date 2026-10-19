@@ -13,8 +13,14 @@ import { useAuth } from "~/composables/auth/useAuth";
 import { useFinishTour } from "~/composables/api/tours/useFinishTour";
 import ensureSentenceEndsProperly from "~/utils/pages/ensureSentenceEndsProperly";
 import { activatedStoryRecord } from "~/utils/activatedStoryRecord";
-import type { StoryBufferView, StoryPoint } from "#shared/types/storyBuffer";
+import type {
+  StoryBufferView,
+  StoryPoint,
+  StoryBufferMetadata,
+} from "#shared/types/storyBuffer";
 import { tourNarrationOptions } from "#shared/utils/tourNarration";
+import { useStoryBufferApi } from "~/composables/api/tours/useStoryBufferApi";
+import { useUserStore } from "~/stores/userStore";
 
 type Operation = { payload: string; id: string; params: ITourRecordRequest };
 type Delivery = "STARTED" | "COMPLETED" | "INTERRUPTED";
@@ -39,6 +45,8 @@ export const useTourStore = defineStore("tourStore", () => {
   const _textForDisplay = ref<string>("");
   const _textForSpeech = ref<string>("");
   const _userText = ref<string>("");
+  const _playbackNotice = ref<ITourRecord | null>(null);
+  const playbackNotice = computed(() => _playbackNotice.value);
 
   // Getters
   const tour = computed((): ICreatedTour | null => _tour.value);
@@ -155,6 +163,7 @@ export const useTourStore = defineStore("tourStore", () => {
       checkpoint?.segment === record.playback_segment_id
     )
       return;
+    _playbackNotice.value = null;
     checkpoint = {
       segment: record.playback_segment_id!,
       point,
@@ -171,6 +180,78 @@ export const useTourStore = defineStore("tourStore", () => {
         ..._currentTourRecord.value,
         audio_blob: blob,
       };
+  };
+  const recoverActivePlayback = async (
+    state?: StoryBufferMetadata,
+  ): Promise<boolean> => {
+    const tour = _tour.value;
+    const actor = useUserStore().user;
+    const uid = actor?.uid;
+    if (!tour?.playback_generation_id || tour.status === "FINISHED" || !uid)
+      return false;
+    const currentRevision = revision;
+    const metadata = state ?? (await useStoryBufferApi(tour.id, uid).state());
+    if (
+      currentRevision !== revision ||
+      useUserStore().user !== actor ||
+      _tour.value?.id !== tour.id ||
+      _tour.value?.status === "FINISHED" ||
+      _tour.value?.playback_generation_id !== tour.playback_generation_id ||
+      "status" in metadata ||
+      metadata.generation_id !== tour.playback_generation_id
+    )
+      return false;
+    const record = metadata.active_record;
+    if (
+      !record ||
+      record.playback_segment_id !== metadata.active_segment_id ||
+      !["GENERATED", "STARTED"].includes(metadata.active_delivery_state ?? "")
+    )
+      return false;
+    if (
+      checkpoint?.segment === metadata.active_segment_id &&
+      ["COMPLETED", "INTERRUPTED"].includes(checkpoint.delivery)
+    )
+      return false;
+    if (
+      !_playbackNotice.value?.playback_block &&
+      !_playbackNotice.value?.message.trim()
+    ) {
+      _playbackNotice.value = {
+        ...record,
+        point: { name: null, ...record.point },
+        message: "",
+        audio_data: null,
+        playback_block: {
+          reason: metadata.paused ? "paused" : "active_segment_unacknowledged",
+          active_segment_id: metadata.active_segment_id ?? null,
+          active_delivery_state: metadata.active_delivery_state ?? null,
+        },
+      };
+    }
+    if (
+      _currentTourRecord.value?.playback_segment_id ===
+        metadata.active_segment_id &&
+      (_currentTourRecord.value.audio_data ||
+        _currentTourRecord.value.audio_blob)
+    )
+      return true;
+    checkpoint = {
+      segment: metadata.active_segment_id!,
+      point: record.point,
+      delivery: metadata.active_delivery_state as Delivery | "GENERATED",
+    };
+    const previousSegment = _currentTourRecord.value?.playback_segment_id;
+    setCurrentTourRecord({
+      ...record,
+      point: { name: null, ...record.point },
+      audio_data: metadata.active_audio_data ?? record.audio_data ?? null,
+    });
+    setTextForSpeech(record.message);
+    if (previousSegment !== record.playback_segment_id)
+      appendToTextForDisplay(record.message);
+    saveRecovery();
+    return true;
   };
 
   // Actions
@@ -234,6 +315,12 @@ export const useTourStore = defineStore("tourStore", () => {
         operation.params.acknowledged_delivery_state
       ) {
         checkpoint.delivery = operation.params.acknowledged_delivery_state;
+        if (
+          ["COMPLETED", "INTERRUPTED"].includes(checkpoint.delivery) &&
+          _playbackNotice.value?.playback_block?.active_segment_id ===
+            checkpoint.segment
+        )
+          _playbackNotice.value = null;
       }
     } else {
       pendingOperation = null;
@@ -260,6 +347,15 @@ export const useTourStore = defineStore("tourStore", () => {
   ) => {
     const { userPreferences } = useAuth();
     const message = pendingOperation?.params.user_text ?? userText.value;
+    // Fresh narration cannot select a shorter policy. requestRecord still replays
+    // an uncertain operation's exact stored body/key, including legacy options.
+    const requestOptions = { ...options };
+    delete requestOptions.narration_style;
+    if (requestOptions.duration !== 0) delete requestOptions.duration;
+    // A question starts its own answer; resume alone cannot consume retained text.
+    // requestRecord still preserves an uncertain operation's original intent.
+    if (message.trim() || requestOptions.continue_story !== true)
+      delete requestOptions.continue_story;
     const record = await requestRecord({
       ...tourNarrationOptions(
         {
@@ -276,13 +372,21 @@ export const useTourStore = defineStore("tourStore", () => {
       user_text: message,
       type_llm: userPreferences.value.llmType,
       type_voice: userPreferences.value.voiceType,
-      ...options,
+      ...requestOptions,
     });
     if (!record) return null;
+    _playbackNotice.value = record;
     const text = ensureSentenceEndsProperly(record.message);
-    appendToTextForDisplay(text);
-    setTextForSpeech(text);
-    setCurrentTourRecord(record);
+    // A quiet /next is not a new playback owner or a receipt for the old one.
+    if (
+      record.message.trim() ||
+      !checkpoint ||
+      ["COMPLETED", "INTERRUPTED"].includes(checkpoint.delivery)
+    ) {
+      appendToTextForDisplay(text);
+      setTextForSpeech(text);
+      setCurrentTourRecord(record);
+    }
     if (_userText.value === message) setUserText("");
     return record;
   };
@@ -374,11 +478,22 @@ export const useTourStore = defineStore("tourStore", () => {
     _textForDisplay.value = "";
     _textForSpeech.value = "";
     _userText.value = "";
+    _playbackNotice.value = null;
   };
 
   return {
+    playbackNotice,
+    recoverActivePlayback,
     adoptBufferedStory,
     attachBufferedRecording,
+    recoverPendingNarration: async () => {
+      return pendingOperation
+        ? await fetchTourStep(
+            pendingOperation.params.point,
+            pendingOperation.params,
+          )
+        : null;
+    },
     getPlaybackCheckpoint: () => (checkpoint ? { ...checkpoint } : null),
     reset,
     sendPlaybackControl,

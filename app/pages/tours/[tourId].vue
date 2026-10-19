@@ -78,6 +78,12 @@
           :route-coordinates="routeCoordinates"
           @map-initialized="handleMapInitialized"
         >
+          <TourLocationMode
+            v-model="isManualMode"
+            :gps-available="
+              !!geolocationStore.coordinates && !geolocationStore.error
+            "
+          />
           <ul class="pg-map-legend" :aria-label="$t('components.map.legend')">
             <li v-if="positionMode === 'gps'" class="pg-map-legend__item">
               <span
@@ -180,6 +186,16 @@
       </p>
     </div>
 
+    <TourNarrationStatus
+      :record="tourStore.currentTourRecord"
+      :notice="tourStore.playbackNotice"
+      :buffer-status="continuation.status.value"
+      :busy="narrationActionsBlocked"
+      :can-prepare="!tourStore.tour.research_preview"
+      @reconcile="reconcileStory"
+      @prepare="openPreparationControls"
+    />
+
     <p
       v-if="waitHint"
       class="mx-4 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
@@ -189,19 +205,21 @@
     </p>
 
     <TourReadingPanel
-      v-if="isDevelopment"
-      :text="devGuideText"
+      :text="latestGuideText"
+      :transcript="tourStore.textForDisplay"
       :progress="tourProgress"
-    />
-    <!-- Text block -->
-    <TourTextDisplay
-      v-if="!isDevelopment"
-      ref="tourTextDisplayRef"
-      v-model:scrollToHighlightEnabled="isScrollingToHighlightTextEnabled"
-      :highlightSentence="currentHighlightSentence"
-      :show="isShowRecordText"
-      :text="tourStore.textForDisplay || ''"
-    />
+    >
+      <template v-if="!isDevelopment" #default>
+        <TourTextDisplay
+          ref="tourTextDisplayRef"
+          v-model:scrollToHighlightEnabled="isScrollingToHighlightTextEnabled"
+          :highlightSentence="currentHighlightSentence"
+          :show="!!latestGuideText"
+          :text="latestGuideText"
+          class="mt-3"
+        />
+      </template>
+    </TourReadingPanel>
 
     <CurrentStopExperience
       v-if="publicConfig.textExperienceEnabled"
@@ -211,44 +229,11 @@
       :before-visitor-action="() => continuation.suspend('question')"
     />
 
-    <!-- Question input -->
     <details
-      v-if="state !== STATE.INITIAL"
+      ref="preparationTools"
+      v-if="!tourStore.tour.research_preview"
       class="tour-tools mx-4"
-      :open="!publicConfig.textExperienceEnabled"
     >
-      <summary v-if="publicConfig.textExperienceEnabled">
-        {{ $t("experience.audioQuestion") }}
-      </summary>
-      <div class="grid gap-2 p-3">
-        <label for="tour-audio-question" class="sr-only">
-          {{ $t("components.tourPage.enterQuestion") }}
-        </label>
-        <input
-          id="tour-audio-question"
-          v-model="userText"
-          :placeholder="$t('components.tourPage.enterQuestion')"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-          maxlength="4000"
-          type="text"
-        />
-        <PGButton
-          :disabled="
-            requests.isBusy(tourId) || actions.isBusy.value || !userText.trim()
-          "
-          class="mx-auto mt-3 block"
-          @click="addQuestion"
-        >
-          {{ $t("components.tourPage.sendQuestion") }}
-        </PGButton>
-      </div>
-    </details>
-    <details v-if="!isDevelopment && tourProgress" class="tour-tools mx-4">
-      <summary>{{ $t("tourProgress.title") }}</summary>
-      <TourProgressSummary :progress="tourProgress" class="my-3" />
-    </details>
-
-    <details v-if="!tourStore.tour.research_preview" class="tour-tools mx-4">
       <summary>{{ $t("researchControls.title") }}</summary>
       <div class="grid gap-3 px-3 py-3">
         <TourResearchControls
@@ -317,6 +302,7 @@ import {
   ref,
   shallowRef,
   watch,
+  useTemplateRef,
 } from "vue";
 import { useRoute } from "vue-router";
 import { useTourStore } from "#imports";
@@ -343,17 +329,27 @@ import { useTourProgress } from "~/composables/tour/useTourProgress";
 import { tourWaitHint } from "#shared/utils/tourNarration";
 import { useExperienceStore } from "~/stores/experienceStore";
 import { useUserStore } from "~/stores/userStore";
-import TourProgressSummary from "~/components/tour/TourProgressSummary.vue";
 import TourPreparationProgress from "~/components/tour/TourPreparationProgress.vue";
 import TourResearchControls from "~/components/tour/TourResearchControls.vue";
 import TourResearchPreviewWarning from "~/components/tour/TourResearchPreviewWarning.vue";
 import { useTourPreparationProgress } from "~/composables/tour/useTourPreparationProgress";
 import TourReadingPanel from "~/components/tour/TourReadingPanel.vue";
+import TourLocationMode from "~/components/tour/TourLocationMode.vue";
 import { useRouteWalk } from "~/composables/map/useRouteWalk";
 import type { MapPoint } from "#shared/utils/routeMovement";
 import { isTourButtonBlocked } from "~/utils/tourControls";
 import { useRoutePlaces } from "~/composables/tour/useRoutePlaces";
 import RoutePlacesPanel from "~/components/tour/RoutePlacesPanel.vue";
+import TourNarrationStatus from "~/components/tour/TourNarrationStatus.vue";
+import type { CancelReason } from "#shared/types/storyBuffer";
+
+const preparationTools = useTemplateRef<HTMLDetailsElement>("preparationTools");
+function openPreparationControls() {
+  if (!preparationTools.value) return;
+  preparationTools.value.open = true;
+  preparationTools.value.scrollIntoView({ block: "start" });
+  preparationTools.value.querySelector("summary")?.focus();
+}
 
 const { public: publicConfig } = useRuntimeConfig();
 const isDevelopment = import.meta.dev;
@@ -470,6 +466,8 @@ const { positionMode, isManualMode } = usePositionMode();
 // Simulation marker (callback will be set after actions are created)
 const simulationMarker = useSimulationMarker({
   label: t("components.map.simulatedWalker"),
+  getInitialPosition: () =>
+    geolocationStore.coordinates ?? coordinates.getFallbackCoordinates(),
 });
 
 // Coordinates management
@@ -491,6 +489,7 @@ const audioPlayer = useTourAudioPlayer({
 
 // Tour actions
 const actions = useTourActions({
+  recoveryUnavailableMessage: t("narration.audioUnavailable"),
   completeBufferedStory: () => continuation.complete(),
   onStoryCompleted: () => continuation.afterCompletion(),
   state,
@@ -507,18 +506,19 @@ const continuation = useStoryContinuation({
   featureEnabled: publicConfig.storyBufferEnabled,
   state,
   setState,
+  getPosition: () => coordinates.getCurrentCoordinates(),
   remainingSeconds: () => {
     const audio = audioPlayer.audioElement.value;
     return audio ? audio.duration - audio.currentTime : NaN;
   },
   play: () => actions.playChunk(),
-  requestNext: () => actions.getRecord(true),
+  requestNext: () => actions.getRecord({ resume: true }),
 });
 
 simulationMarker.setDragEndCallback(() => {
   if (state.value === STATE.RECORD_FINISHED) {
     void cancelContinuation("movement").then((cancelled) => {
-      if (cancelled) return actions.getRecord();
+      if (cancelled) return actions.getRecord({ replaceActive: true });
     });
   }
 });
@@ -531,9 +531,14 @@ const mainButtonBlocked = computed(() =>
     requests.isBusy(tourId),
   ),
 );
+const narrationActionsBlocked = computed(
+  () =>
+    actions.isBusy.value ||
+    requests.isBusy(tourId) ||
+    state.value === STATE.TOUR_FINISHED,
+);
 type TState = TypeFrom<typeof STATE>;
 
-const userText = ref("");
 const isScrollingToHighlightTextEnabled = ref(true);
 
 const { currentSpokenSentence } = useTourTextSync();
@@ -580,13 +585,14 @@ const walking = useRouteWalk({
 simulationMarker.setMoveStartCallback(walking.reset);
 simulationMarker.setMapGestureCallback(walking.cancel);
 const requestNextStep = async () => {
+  if (narrationActionsBlocked.value) return;
+  audioPlayer.stopAudio();
+  setState(STATE.RECORD_PAUSED);
   walking.cancel();
   if (!(await cancelContinuation("visitor_cancel"))) return;
-  return actions.getRecord(true);
+  return actions.getRecord({ resume: true, replaceActive: true });
 };
-const devGuideText = computed(
-  () => tourProgress.value?.latestText || tourStore.textForDisplay || "",
-);
+const latestGuideText = computed(() => tourProgress.value?.latestText || "");
 
 let routeTimer: ReturnType<typeof setInterval> | undefined;
 function tryAddRouteWithCheck(retries = 5, delay = 100) {
@@ -612,10 +618,6 @@ function tryAddRouteWithCheck(retries = 5, delay = 100) {
 function tryAddRouteWithDelay(delay = 100) {
   tryAddRouteWithCheck(1, delay);
 }
-
-const isShowRecordText = computed<boolean>(() =>
-  Boolean(tourStore.textForDisplay),
-);
 
 const currentHighlightSentence = computed(() => currentSpokenSentence.value);
 
@@ -660,13 +662,6 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
     } catch (error) {
       logger.error("Failed to initialize directions:", error);
     }
-
-    if (positionMode.value === "manual" && geolocationStore.coordinates) {
-      logger.log(
-        "Map loaded - simulation mode already active, creating marker at GPS position",
-      );
-      simulationMarker.addSimulationMarker(geolocationStore.coordinates);
-    }
   });
 
   simulationMarker.setupMapClickHandler(map);
@@ -679,9 +674,7 @@ const handleMapInitialized = (map: mapboxgl.Map) => {
 /* -------------------------------------------
    Actions (delegated to useTourActions)
 ------------------------------------------- */
-async function cancelContinuation(
-  reason: import("#shared/types/storyBuffer").CancelReason,
-) {
+async function cancelContinuation(reason: CancelReason) {
   try {
     await continuation.suspend(reason);
     return true;
@@ -705,57 +698,17 @@ const handleCompleteTour = async () => {
   if (!(await cancelContinuation("completion"))) return;
   return actions.handleCompleteTour();
 };
-
-async function addQuestion() {
-  audioPlayer.stopAudio();
-  if (!(await cancelContinuation("question"))) return;
-  await actions.addQuestion(userText.value);
-  if (state.value !== STATE.ERROR) userText.value = "";
+async function reconcileStory() {
+  try {
+    await continuation.reconcile();
+  } catch (error) {
+    useNotification().showApiError(error, t("storyBuffer.uncertain"));
+  }
 }
 
 /* -------------------------------------------
    Watchers
 ------------------------------------------- */
-// Watch for position mode changes to manage simulation marker
-watch(positionMode, (newMode, oldMode) => {
-  logger.log(`Position mode changed from ${oldMode} to: ${newMode}`);
-
-  if (!mapInstance) {
-    logger.warn("Map not yet initialized, marker update skipped");
-    return;
-  }
-
-  if (newMode === "manual") {
-    logger.log("Switching to simulation mode");
-
-    if (geolocationStore.coordinates) {
-      const coords = geolocationStore.coordinates;
-      logger.log(
-        "Using GPS coordinates for simulation marker:",
-        coords,
-        "(lng, lat)",
-      );
-      simulationMarker.addSimulationMarker(coords);
-
-      mapInstance.flyTo({
-        center: coords,
-        duration: 1000,
-      });
-    } else {
-      const center = mapInstance.getCenter();
-      const fallbackCoords: [number, number] = [center.lng, center.lat];
-      logger.log(
-        "Using map center for simulation marker:",
-        fallbackCoords,
-        "(lng, lat)",
-      );
-      simulationMarker.addSimulationMarker(fallbackCoords);
-    }
-  } else if (newMode === "gps") {
-    logger.log("Switching to GPS mode - removing simulation marker");
-    simulationMarker.removeSimulationMarker();
-  }
-});
 
 // Discussion markers follow the displayed guide message, including cached reloads.
 watch(

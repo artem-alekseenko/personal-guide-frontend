@@ -24,6 +24,7 @@ const STATE = {
 export interface TourActionsOptions {
   completeBufferedStory?: () => Promise<boolean>;
   onStoryCompleted?: () => void;
+  recoveryUnavailableMessage?: string;
   state: Ref<TourState>;
   setState: (
     state: TourState,
@@ -61,6 +62,15 @@ export function useTourActions(options: TourActionsOptions) {
   const acknowledge = (delivery: "STARTED" | "COMPLETED" | "INTERRUPTED") =>
     tourStore.acknowledgePlayback(delivery);
   const playChunk = async (position?: number) => {
+    const checkpoint = tourStore.getPlaybackCheckpoint?.();
+    if (
+      checkpoint &&
+      checkpoint.segment === tourStore.currentTourRecord?.playback_segment_id &&
+      ["COMPLETED", "INTERRUPTED"].includes(checkpoint.delivery)
+    ) {
+      setState(STATE.RECORD_FINISHED);
+      return;
+    }
     if (
       !tourStore.textForSpeech ||
       !(
@@ -110,7 +120,14 @@ export function useTourActions(options: TourActionsOptions) {
       });
     return pauseRequest;
   };
-  const getRecord = async (explicitResume = false) => {
+  const getRecord = async (
+    intent: {
+      resume?: boolean;
+      continueStory?: boolean;
+      replaceActive?: boolean;
+      question?: string;
+    } = {},
+  ) => {
     if (disposed || isBusy.value) return;
     let coords = coordinates.getCurrentCoordinates();
     if (!coords && positionMode.value === "manual") {
@@ -131,7 +148,35 @@ export function useTourActions(options: TourActionsOptions) {
     audioPlayer.stopAudio();
     setState(STATE.RECORD_LOADING);
     try {
-      await acknowledge("INTERRUPTED");
+      const recovered = await tourStore.recoverPendingNarration?.();
+      if (disposed) return;
+      const checkpoint = tourStore.getPlaybackCheckpoint?.();
+      if (
+        !intent.replaceActive &&
+        (recovered ||
+          (checkpoint &&
+            ["GENERATED", "STARTED"].includes(checkpoint.delivery)))
+      ) {
+        if (
+          !tourStore.currentTourRecord?.audio_data &&
+          !tourStore.currentTourRecord?.audio_blob
+        )
+          await tourStore.recoverActivePlayback?.();
+        if (disposed) return;
+        if (
+          tourStore.currentTourRecord?.audio_data ||
+          tourStore.currentTourRecord?.audio_blob
+        ) {
+          setState(STATE.RECORD_RECEIVED);
+          await playChunk();
+        } else setState(STATE.RECORD_PAUSED);
+        return;
+      }
+      if (intent.replaceActive) {
+        if (!tourStore.currentTourRecord?.playback_segment_id)
+          await tourStore.recoverActivePlayback?.();
+        await acknowledge("INTERRUPTED");
+      }
       if (disposed) return;
       // Acknowledgement can take time while the visitor moves. Sample again at dispatch.
       const location = readTourStepLocation(
@@ -140,11 +185,23 @@ export function useTourActions(options: TourActionsOptions) {
         useGeolocationStore(),
       );
       if (!location) throw new Error("Current location is unavailable");
+      if (intent.question !== undefined) tourStore.setUserText(intent.question);
       const record = await tourStore.fetchTourStep(location.point, {
         ...location.options,
-        ...(explicitResume ? { resume: true } : {}),
+        ...(intent.resume ? { resume: true } : {}),
+        ...(intent.continueStory ? { continue_story: true } : {}),
       });
       if (!record || disposed) return;
+      if (!record.message.trim()) {
+        const recovered = await tourStore.recoverActivePlayback?.();
+        if (!disposed)
+          setState(
+            recovered || record.playback_block?.active_segment_id
+              ? STATE.RECORD_PAUSED
+              : STATE.RECORD_FINISHED,
+          );
+        return;
+      }
       setState(STATE.RECORD_RECEIVED);
       await playChunk();
     } catch (error) {
@@ -155,17 +212,45 @@ export function useTourActions(options: TourActionsOptions) {
   };
   const resumeTour = async () => {
     if (isBusy.value || pauseRequest) return;
-    if (
-      !(
-        tourStore.currentTourRecord?.audio_data ||
-        tourStore.currentTourRecord?.audio_blob
-      ) ||
-      !tourStore.textForSpeech
-    )
-      return getRecord(true);
     isBusy.value = true;
     try {
+      await tourStore.recoverPendingNarration?.();
+      if (
+        !tourStore.currentTourRecord?.audio_data &&
+        !tourStore.currentTourRecord?.audio_blob
+      )
+        await tourStore.recoverActivePlayback?.();
+      if (disposed) return;
+      const checkpoint = tourStore.getPlaybackCheckpoint?.();
+      if (
+        checkpoint &&
+        ["COMPLETED", "INTERRUPTED"].includes(checkpoint.delivery)
+      ) {
+        setState(STATE.RECORD_FINISHED);
+        return;
+      }
+      if (
+        !(
+          tourStore.currentTourRecord?.audio_data ||
+          tourStore.currentTourRecord?.audio_blob
+        ) ||
+        !tourStore.textForSpeech
+      ) {
+        const active = tourStore.getPlaybackCheckpoint?.();
+        if (active && ["GENERATED", "STARTED"].includes(active.delivery)) {
+          setState(STATE.RECORD_PAUSED);
+          notifications.showError({
+            message:
+              options.recoveryUnavailableMessage ??
+              "Original audio is unavailable. Retry recovery.",
+          });
+          return;
+        }
+        isBusy.value = false;
+        return await getRecord({ resume: true });
+      }
       await tourStore.sendPlaybackControl({ resume: true });
+      if (disposed || pauseRequest) return;
       if (audioPlayer.canResumeAudio()) {
         const played = await audioPlayer.resumeAudioFromSavedPosition();
         if (!disposed)
@@ -207,10 +292,13 @@ export function useTourActions(options: TourActionsOptions) {
     if (state.value === STATE.RECORD_ACTIVE) return pauseTour();
     if (isBusy.value) return;
     switch (state.value) {
-      case STATE.INITIAL:
       case STATE.RECORD_FINISHED:
+        // Only this visitor action advances a completed story's retained text.
+        // Automatic requests and ordinary audio resume never infer this intent.
+        return getRecord({ resume: true, continueStory: true });
+      case STATE.INITIAL:
       case STATE.ERROR:
-        return getRecord(true);
+        return getRecord({ resume: true });
       case STATE.RECORD_RECEIVED:
         return playChunk();
       case STATE.RECORD_PAUSED:
@@ -237,8 +325,11 @@ export function useTourActions(options: TourActionsOptions) {
   };
   const addQuestion = async (text: string) => {
     if (!text.trim() || isBusy.value) return;
-    tourStore.setUserText(text.trim());
-    await getRecord(true);
+    await getRecord({
+      resume: true,
+      replaceActive: true,
+      question: text.trim(),
+    });
   };
   const dispose = () => {
     disposed = true;

@@ -5,25 +5,31 @@
   place-items: center;
 }
 .pg-position-marker__dot {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: var(--pg-map-gps);
+  background: var(--pg-map-simulation);
   border: 3px solid var(--pg-map-surface);
-  box-shadow:
-    0 0 0 6px color-mix(in srgb, var(--pg-map-gps) 18%, transparent),
-    0 2px 6px var(--pg-map-shadow);
+  box-shadow: 0 2px 6px var(--pg-map-shadow);
+  cursor: grab;
+}
+.pg-position-marker:active .pg-position-marker__dot {
+  cursor: grabbing;
 }
 .pg-position-marker__walker {
   display: grid;
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 9px;
-  background: var(--pg-map-simulation);
+  border-radius: 50%;
+  background: var(--pg-map-gps);
   color: var(--pg-map-surface);
   border: 2px solid var(--pg-map-surface);
   box-shadow: 0 2px 6px var(--pg-map-shadow);
+}
+.pg-position-marker--simulation .pg-position-marker__walker {
+  background: var(--pg-map-simulation);
+  border-radius: 9px;
   cursor: grab;
 }
 .pg-position-marker__walker svg {

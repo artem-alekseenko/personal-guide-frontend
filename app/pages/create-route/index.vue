@@ -8,73 +8,29 @@
       :aria-busy="isCreating"
     >
       <!-- Instructions -->
-      <div v-if="!routeStore.routeSuggestion" class="prose px-4 pb-2">
-        {{ $t("pages.createRoute.selectArea") }}
+      <div
+        v-if="!routeStore.routeSuggestion"
+        id="route-start-hint"
+        role="status"
+        class="mx-4 mb-3 flex items-start gap-2 rounded-lg border p-3 text-sm"
+        :class="
+          selectedArea
+            ? 'border-transparent text-neutral-600 dark:text-neutral-300'
+            : 'border-amber-400 bg-amber-50 font-medium text-amber-950 dark:border-amber-500 dark:bg-amber-950/50 dark:text-amber-100'
+        "
+      >
+        <UIcon
+          v-if="!selectedArea"
+          name="i-lucide-map-pin"
+          class="mt-0.5 size-5 shrink-0"
+          aria-hidden="true"
+        />
+        <span>{{ $t("pages.createRoute.selectArea") }}</span>
       </div>
       <div v-else-if="routeStore.canCreate" class="prose px-4 pb-2">
         {{ $t("pages.createRoute.routeBuilt") }}
       </div>
 
-      <div class="mx-4 mb-4 grid min-w-0 gap-3">
-        <h2 class="font-medium">{{ $t("pages.createRoute.startLocation") }}</h2>
-        <button
-          type="button"
-          class="min-h-11 rounded border px-3 py-2"
-          :disabled="isCreating || !currentLocation"
-          @click="useCurrentLocation"
-        >
-          {{ $t("pages.createRoute.useCurrentLocation") }}
-        </button>
-        <p v-if="!currentLocation" class="text-sm">
-          {{ $t("pages.createRoute.locationUnavailable") }}
-        </p>
-        <form
-          class="grid min-w-0 grid-cols-2 gap-3"
-          @submit.prevent="applyStartLocation"
-        >
-          <label for="start-latitude" class="grid min-w-0 gap-1 text-sm">
-            {{ $t("pages.createRoute.latitude") }}
-            <input
-              id="start-latitude"
-              type="number"
-              inputmode="decimal"
-              min="-90"
-              max="90"
-              step="any"
-              required
-              :value="startLatitude"
-              class="min-h-11 w-full min-w-0 rounded border p-2"
-              @input="startLatitude = ($event.target as HTMLInputElement).value"
-            />
-          </label>
-          <label for="start-longitude" class="grid min-w-0 gap-1 text-sm">
-            {{ $t("pages.createRoute.longitude") }}
-            <input
-              id="start-longitude"
-              type="number"
-              inputmode="decimal"
-              min="-180"
-              max="180"
-              step="any"
-              required
-              :value="startLongitude"
-              class="min-h-11 w-full min-w-0 rounded border p-2"
-              @input="
-                startLongitude = ($event.target as HTMLInputElement).value
-              "
-            />
-          </label>
-          <p v-if="startLocationError" role="alert" class="col-span-2 text-sm">
-            {{ $t("pages.createRoute.invalidStartLocation") }}
-          </p>
-          <button
-            type="submit"
-            class="col-span-2 min-h-11 rounded border px-3 py-2"
-          >
-            {{ $t("pages.createRoute.applyStartLocation") }}
-          </button>
-        </form>
-      </div>
       <!-- Map -->
       <div class="relative">
         <client-only>
@@ -183,14 +139,18 @@
       </div>
     </fieldset>
     <!-- Main Button -->
-    <PGButton
-      :disabled="isMainButtonDisabled"
-      :loading="isButtonLoading"
-      class="mx-auto mt-6 flex"
-      @click="handleMainButtonClick"
-    >
-      {{ mainButtonText }}
-    </PGButton>
+    <div class="mt-6 flex justify-center px-4">
+      <PGButton
+        :disabled="isMainButtonDisabled"
+        :loading="isButtonLoading"
+        :aria-describedby="
+          !routeStore.routeSuggestion ? 'route-start-hint' : undefined
+        "
+        @click="handleMainButtonClick"
+      >
+        {{ mainButtonText }}
+      </PGButton>
+    </div>
 
     <!-- Guide Information -->
     <div class="my-6 flex justify-center gap-8">
@@ -221,7 +181,6 @@ import PersonalContextForm from "~/components/tour/PersonalContextForm.vue";
 import RoutePreview from "~/components/tour/RoutePreview.vue";
 import { useNotification } from "~/composables/ui/useNotification";
 import type { ICoordinate } from "~/types";
-import { useGeolocationStore } from "~/stores/geolocationStore";
 import PGMap from "~/components/PGMap.vue";
 import { definePageMeta, useGuidesStore } from "#imports";
 import { getMainButtonText } from "~/utils/pages/create-route/mainButtonText";
@@ -242,7 +201,6 @@ const STATE = {
 // Stores
 const guidesStore = useGuidesStore();
 const routeStore = useRouteStore();
-const geo = useGeolocationStore();
 const router = useRouter();
 const { t } = useI18n();
 const isSuggesting = ref(false);
@@ -263,52 +221,6 @@ const duration = computed({
     if (!isCreating.value) routeStore.setDuration(String(minutes));
   },
 });
-const startLatitude = ref(""),
-  startLongitude = ref(""),
-  startLocationError = ref(false);
-watch(
-  () => routeStore.startPoint,
-  (point) => {
-    startLatitude.value = point?.lat ?? "";
-    startLongitude.value = point?.lng ?? "";
-    startLocationError.value = false;
-  },
-  { immediate: true },
-);
-function validStartPoint(lat: string, lng: string) {
-  return (
-    !!lat.trim() &&
-    !!lng.trim() &&
-    Number.isFinite(Number(lat)) &&
-    Number.isFinite(Number(lng)) &&
-    Math.abs(Number(lat)) <= 90 &&
-    Math.abs(Number(lng)) <= 180
-  );
-}
-const currentLocation = computed<ICoordinate | null>(() => {
-  if (!geo.coordinates || geo.error) return null;
-  const point = {
-    lat: String(geo.coordinates[1]),
-    lng: String(geo.coordinates[0]),
-  };
-  return validStartPoint(point.lat, point.lng) ? point : null;
-});
-function useCurrentLocation() {
-  if (isCreating.value || !currentLocation.value) return;
-  routeStore.setStartPoint(currentLocation.value);
-}
-function applyStartLocation() {
-  if (isCreating.value) return;
-  startLocationError.value = !validStartPoint(
-    startLatitude.value,
-    startLongitude.value,
-  );
-  if (!startLocationError.value)
-    routeStore.setStartPoint({
-      lat: startLatitude.value.trim(),
-      lng: startLongitude.value.trim(),
-    });
-}
 const state = computed(() =>
   isCreating.value
     ? STATE.TOUR_APPROVING

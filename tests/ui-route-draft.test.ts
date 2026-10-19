@@ -1,6 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import * as Vue from "vue";
-import { useGeolocationStore } from "../app/stores/geolocationStore";
 import { useRouteStore } from "../app/stores/routeStore";
 import { mount, findAll } from "./helpers/render";
 import CreateRoute from "../app/pages/create-route/index.vue";
@@ -141,57 +140,26 @@ it("keeps a late created tour without redirecting after leaving the page", async
   expect(push).not.toHaveBeenCalled();
 });
 
-it("offers keyboard coordinate entry with bounds validation", async () => {
-  const route = useRouteStore();
+it("uses the map to choose a start without coordinate fields or a current-location button", () => {
   const app = render();
-  const latitude = findAll(
-    app.root,
-    (node) => node.type === "input" && node.props.id === "start-latitude",
-  )[0];
-  const longitude = findAll(
-    app.root,
-    (node) => node.type === "input" && node.props.id === "start-longitude",
-  )[0];
-  expect(latitude).toBeDefined();
-  expect(longitude).toBeDefined();
-  latitude.props.onInput({ target: { value: "91" } });
-  longitude.props.onInput({ target: { value: "19" } });
-  const form = findAll(app.root, (node) => node.type === "form")[0];
-  form.props.onSubmit({ preventDefault() {} });
-  await Vue.nextTick();
-  expect(route.startPoint).toBeNull();
-  expect(findAll(app.root, (node) => node.props.role === "alert")).toHaveLength(
-    1,
-  );
-  latitude.props.onInput({ target: { value: "47.5" } });
-  form.props.onSubmit({ preventDefault() {} });
-  await Vue.nextTick();
-  expect(route.startPoint).toEqual({ lat: "47.5", lng: "19" });
-  expect(findAll(app.root, (node) => node.props.role === "alert")).toHaveLength(
-    0,
-  );
-  app.unmount();
-});
-
-it("selects current GPS as the start through a named button", async () => {
-  const geo = useGeolocationStore();
-  geo.longitude = 19.04;
-  geo.latitude = 47.49;
-  const app = render();
-  const gps = findAll(
-    app.root,
-    (node) =>
-      node.type === "button" &&
-      findAll(
-        node,
-        (child) => child.text === t("pages.createRoute.useCurrentLocation"),
-      ).length > 0,
-  )[0];
-  expect(gps).toBeDefined();
-  expect(gps.props.disabled).toBe(false);
-  gps.props.onClick();
-  await Vue.nextTick();
-  expect(useRouteStore().startPoint).toEqual({ lat: "47.49", lng: "19.04" });
+  expect(
+    findAll(
+      app.root,
+      (node) =>
+        node.props.id === "start-latitude" ||
+        node.props.id === "start-longitude",
+    ),
+  ).toEqual([]);
+  expect(findAll(app.root, (node) => node.type === "form")).toEqual([]);
+  const text = findAll(app.root, () => true)
+    .map((node) => node.text)
+    .join(" ");
+  expect(text).not.toContain(en.pages.createRoute.useCurrentLocation);
+  expect(text).not.toContain(en.pages.createRoute.latitude);
+  expect(text).not.toContain(en.pages.createRoute.longitude);
+  expect(
+    findAll(app.root, (node) => node.props.class === "map-stub"),
+  ).toHaveLength(1);
   app.unmount();
 });
 

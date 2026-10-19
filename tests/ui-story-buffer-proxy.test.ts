@@ -68,3 +68,74 @@ it("rejects unauthenticated story-buffer requests before the backend", async () 
   expect(response.status).toBe(401);
   expect(upstream).not.toHaveBeenCalled();
 });
+
+it.each([
+  [404, "Not Found"],
+  [405, "Method Not Allowed"],
+])(
+  "reports an unsupported optional metadata route (%s)",
+  async (status, detail) => {
+    upstream.mockRejectedValue({
+      response: { status, _data: { detail } },
+    });
+    const response = await handler(
+      new Request("http://client.test/api/story-buffer/tour", {
+        headers: { authorization: "Bearer fixture" },
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      status: "unavailable",
+      reason: "unsupported_backend",
+    });
+  },
+);
+
+it.each([
+  [401, { detail: "Invalid token" }],
+  [403, { detail: "Forbidden" }],
+  [404, { detail: "Tour not found", code: "not_found" }],
+  [404, { detail: "Not Found", code: "access_denied" }],
+  [
+    404,
+    {
+      detail: "Story buffering is disabled by configuration",
+      code: "not_found",
+    },
+  ],
+  [404, undefined],
+  [502, { detail: "Upstream unavailable" }],
+])(
+  "preserves metadata errors that do not establish missing support (%s)",
+  async (status, data) => {
+    upstream.mockRejectedValue({
+      response: { status, _data: data },
+    });
+    const response = await handler(
+      new Request("http://client.test/api/story-buffer/tour", {
+        headers: { authorization: "Bearer fixture" },
+      }),
+    );
+    expect(response.status).toBe(status);
+  },
+);
+
+it.each(["prepare", "buffer/activate", "cancel"])(
+  "never converts a failed %s mutation into capability success",
+  async (action) => {
+    upstream.mockRejectedValue({
+      response: { status: 404, _data: { detail: "Not Found" } },
+    });
+    const response = await handler(
+      new Request(`http://client.test/api/story-buffer/tour/${action}`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer fixture",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ generation_id: "gen" }),
+      }),
+    );
+    expect(response.status).toBe(404);
+  },
+);

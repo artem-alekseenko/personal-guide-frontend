@@ -38,7 +38,7 @@ type TState = TypeFrom<typeof STATE>;
 
 const state = ref<TState>(STATE.INITIAL);
 
-const user = useCurrentUser();
+const user = useNuxtApp().$firebaseUser;
 const auth = getAuth();
 const router = useRouter();
 const route = useRoute();

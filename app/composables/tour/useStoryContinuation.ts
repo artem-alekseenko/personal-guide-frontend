@@ -8,11 +8,11 @@ import {
 } from "vue";
 import {
   createStoryBufferController,
-  storyPosition,
   type StoryBufferOperation,
   type StoryObservation,
 } from "#shared/utils/storyBuffer";
 import type { CancelReason } from "#shared/types/storyBuffer";
+import { canAutomaticallyContinueNarration } from "#shared/utils/tourNarration";
 import { useStoryBufferApi } from "~/composables/api/tours/useStoryBufferApi";
 import { useTourStore } from "~/stores/tourStore";
 import { useUserStore } from "~/stores/userStore";
@@ -34,6 +34,7 @@ export function useStoryContinuation(options: {
   remainingSeconds: () => number;
   play: () => Promise<void>;
   requestNext: () => Promise<void>;
+  getPosition: () => [number, number] | null;
 }) {
   const tours = useTourStore(),
     users = useUserStore(),
@@ -44,49 +45,21 @@ export function useStoryContinuation(options: {
     revision = ref(0);
   let controller: ReturnType<typeof createStoryBufferController> | null = null;
   let alive = true;
+  let scopeEpoch = 0;
   let scope = "";
   let timer: ReturnType<typeof setInterval> | undefined;
   let bufferUnsupported = false;
   const read = (): StoryObservation => {
     const record = tours.currentTourRecord,
       tour = tours.tour;
+    const coordinates = options.getPosition();
     let stopId =
       record?.discussion_focus?.object_id ?? record?.guidance?.stop_id ?? null;
-    // Grounded narration can omit legacy guidance. Resolve only against real route coordinates.
-    if (!stopId && geo.coordinates) {
-      const candidates =
-        tour?.route.points.filter((p) => {
-          const probe: StoryObservation = {
-            generationId: "probe",
-            segmentId: "probe",
-            stopId: "probe",
-            started: true,
-            enabled: true,
-            playing: true,
-            visible: true,
-            finished: false,
-            waiting: false,
-            point: {
-              lat: String(geo.coordinates![1]),
-              lng: String(geo.coordinates![0]),
-            },
-            stopPoint: p,
-            accuracy: geo.accuracy,
-            recordedAt: geo.recordedAt,
-            remainingSeconds: 0,
-          };
-          return !!storyPosition(probe, Date.now());
-        }) ?? [];
-      if (candidates.length === 1) {
-        const index = tour!.route.points.indexOf(candidates[0]!);
-        stopId =
-          candidates[0]!.id ||
-          (tour!.playback_generation_id
-            ? `stop_${index}`
-            : `route_point_${index}`);
-      }
-    }
+    const recordPoint = record?.point ?? null;
     const stop = resolveContinuationStop(tour?.route.points ?? [], stopId);
+    // Location anchors support ordinary streets without claiming arrival at a route stop.
+    if (!stopId && recordPoint)
+      stopId = `location:${recordPoint.lat},${recordPoint.lng}`;
     const checkpoint = tours.getPlaybackCheckpoint();
     return {
       generationId: tour?.playback_generation_id ?? null,
@@ -96,7 +69,9 @@ export function useStoryContinuation(options: {
         checkpoint?.segment === record?.playback_segment_id &&
         checkpoint?.delivery === "STARTED",
       enabled:
-        options.featureEnabled && positionMode.value === "gps" && !geo.error,
+        options.featureEnabled &&
+        canAutomaticallyContinueNarration(record?.story) &&
+        (positionMode.value === "manual" || !geo.error),
       visible: visible.value,
       playing: options.state.value === "RECORD_ACTIVE",
       finished:
@@ -105,12 +80,16 @@ export function useStoryContinuation(options: {
         !!record?.playback_wait_kind ||
         !!record?.guidance?.requires_resume ||
         options.state.value === "RECORD_PAUSED",
-      point: geo.coordinates
-        ? { lat: String(geo.coordinates[1]), lng: String(geo.coordinates[0]) }
+      point: coordinates
+        ? { lat: String(coordinates[1]), lng: String(coordinates[0]) }
         : null,
-      stopPoint: stop ?? null,
-      accuracy: geo.accuracy,
-      recordedAt: geo.recordedAt,
+      stopPoint: recordPoint ?? stop,
+      positionMode: positionMode.value,
+      accuracy: positionMode.value === "gps" ? geo.accuracy : null,
+      recordedAt: positionMode.value === "gps" ? geo.recordedAt : null,
+      // The backend checks actual route and accepted evidence scope at prepare/activate.
+      // Reliable motion is not a stop-arrival claim or a reason to restart current audio.
+      backendLocationAuthority: true,
       remainingSeconds: options.remainingSeconds(),
     };
   };
@@ -157,6 +136,7 @@ export function useStoryContinuation(options: {
         tours.tour?.playback_generation_id,
       ] as const,
     ([uid, id, owner, generation]) => {
+      const instanceEpoch = ++scopeEpoch;
       const previous = controller;
       fallback.suspend();
       bufferUnsupported = false;
@@ -173,6 +153,12 @@ export function useStoryContinuation(options: {
       )
         return;
       const capturedScope = scope;
+      const actor = users.user;
+      const current = () =>
+        alive &&
+        scopeEpoch === instanceEpoch &&
+        scope === capturedScope &&
+        users.user === actor;
       const key = `pg-story-buffer-${owner}-${id}-${generation}`;
       let recovery: StoryBufferOperation | null = null;
       try {
@@ -193,32 +179,22 @@ export function useStoryContinuation(options: {
         /* Invalid device metadata is ignored. */
       }
       const transport = useStoryBufferApi(id, uid);
-      const detectSupport = async <T>(
-        request: () => Promise<T>,
-      ): Promise<T> => {
-        try {
-          return await request();
-        } catch (error) {
-          const status =
-            (error as { statusCode?: number; status?: number }).statusCode ??
-            (error as { status?: number }).status;
-          if (scope === capturedScope && [404, 405].includes(status ?? 0))
-            bufferUnsupported = true;
-          throw error;
-        }
-      };
+      // Only the proxy's explicit unsupported_backend capability response enables
+      // legacy fallback. Domain 404/403 and auth failures are never capabilities.
       const instance = createStoryBufferController({
         read,
         transport: {
           ...transport,
-          state: () => detectSupport(transport.state),
-          prepare: (body, key) =>
-            detectSupport(() => transport.prepare(body, key)),
+          state: async () => {
+            const state = await transport.state();
+            if (current() && "status" in state) bufferUnsupported = true;
+            return state;
+          },
+          prepare: transport.prepare,
         },
         recovery,
-        current: () =>
-          alive && scope === capturedScope && users.user?.uid === uid,
-        canRequest: () => users.user?.uid === uid,
+        current,
+        canRequest: () => users.user === actor && users.user?.uid === uid,
         changed: () => {
           revision.value++;
         },
@@ -230,25 +206,37 @@ export function useStoryContinuation(options: {
             /* Same-tab recovery remains available without device storage. */
           }
         },
-        activated: async (view, point, recovered, mayContinue) => {
-          if (!alive || capturedScope !== scope || users.user?.uid !== uid)
+        recovered: async (state) => {
+          if (
+            !current() ||
+            tours.tour?.status === "FINISHED" ||
+            options.state.value === "TOUR_FINISHED" ||
+            tours.currentTourRecord?.audio_data ||
+            tours.currentTourRecord?.audio_blob
+          )
             return;
+          if ((await tours.recoverActivePlayback(state)) && current())
+            options.setState("RECORD_PAUSED");
+        },
+        activated: async (view, point, recovered, mayContinue) => {
+          if (!current()) return;
           // Backend atomically completed the anchor. Replace its checkpoint before any media request.
           tours.adoptBufferedStory(view, point);
           options.setState(recovered ? "RECORD_PAUSED" : "RECORD_RECEIVED");
-          const api = useNuxtApp().$apiFetch as typeof $fetch;
-          const blob = await api<Blob>(
-            `/api/tour-artifacts/${encodeURIComponent(id)}/${encodeURIComponent(view.content_refs[0]!)}`,
-            { responseType: "blob", retry: 0 },
-          );
+          if (!tours.currentTourRecord?.audio_data) {
+            const api = useNuxtApp().$apiFetch as typeof $fetch;
+            const blob = await api<Blob>(
+              `/api/tour-artifacts/${encodeURIComponent(id)}/${encodeURIComponent(view.content_refs[0]!)}`,
+              { responseType: "blob", retry: 0 },
+            );
+            if (!current()) return;
+            tours.attachBufferedRecording(view.segment_id!, blob);
+          }
           if (
-            !alive ||
-            scope !== capturedScope ||
-            users.user?.uid !== uid ||
+            !current() ||
             tours.currentTourRecord?.playback_segment_id !== view.segment_id
           )
             return;
-          tours.attachBufferedRecording(view.segment_id!, blob);
           const canStart = !recovered && mayContinue();
           if (canStart) await options.play();
           else options.setState("RECORD_PAUSED");
@@ -283,6 +271,7 @@ export function useStoryContinuation(options: {
     [
       positionMode,
       () => geo.coordinates,
+      () => options.getPosition(),
       () => geo.accuracy,
       () => geo.recordedAt,
       () => geo.error,
@@ -317,6 +306,7 @@ export function useStoryContinuation(options: {
       fallback.suspend();
       void controller?.suspend("visitor_cancel");
     },
+    { flush: "sync" },
   );
   const onVisibility = () => {
     visible.value = !document.hidden;

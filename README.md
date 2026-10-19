@@ -49,7 +49,7 @@ Routed geometry retains `geometry_leg_starts`; map lines, navigation distances a
 walking simulation do not bridge disconnected legs. Unrecoverable legacy discovery
 geometry is withheld rather than displayed as a fabricated continuous path.
 
-Latest local text-only verification: 606 tests in 65 files, typecheck and an isolated
+Preparation milestone verification: 606 tests in 65 files, typecheck and an isolated
 production build passed. The actual Nuxt preparation component was browser-exercised
 with labelled fixtures: a full terminal-state reload restored manual recovery with
 the original request key; provider-timeout uncertainty prevented new paid POSTs;
@@ -87,6 +87,17 @@ Stored and legacy routes share zoom-dependent styling; style reloads restore
 displayed geometry without another route request or automatic fit. Landmark
 buttons support keyboard activation and never relocate the simulation marker.
 
+Walking maps show a person marker and a visible **Real GPS / Simulation** selector.
+GPS uses a blue circular marker; simulation uses a purple square marker that can
+be dragged or placed by clicking the map. Switching back to GPS removes the
+simulated marker without changing real coordinates. The source choice survives
+reloads; simulation initializes even with location permission denied, using GPS,
+the route start or the map center. Switching modes does not move the camera.
+
+The restored controls were browser-exercised with actual Mapbox rendering and
+synthetic GPS: drag/click movement, keyboard switching, GPS-denied reloads,
+mobile/desktop sizes, Russian and dark mode. No audio was exercised.
+
 An empty stored geometry array uses the legacy routing fallback. Malformed
 nonempty geometry never triggers a replacement route. A newly supplied route
 retains its initial camera fit while sources load; restoring an existing route
@@ -101,7 +112,7 @@ responses, physical-device performance, authentication and audio remain unqualif
 
 ## Stack
 
-Nuxt 4, Vue 3, TypeScript, Pinia, Nuxt UI, Tailwind CSS, VueUse, Firebase/VueFire, Nuxt i18n, and Mapbox GL. The app renders in the browser (`ssr: false`); Nitro serves its authenticated `/api/*` proxy.
+Nuxt 4, Vue 3, Pinia, Nuxt UI, Tailwind CSS, VueUse, native Firebase Auth, Nuxt i18n, and Mapbox GL. TypeScript 7's native CLI runs beside the maintained TypeScript 6 API needed for Vue SFC tooling. The app renders in the browser (`ssr: false`); Nitro serves its authenticated `/api/*` proxy.
 
 Use NVM to install and select the pinned Node.js LTS release, `24.21.0`, with its latest compatible npm. `.nvmrc` and Docker use that release. The package engine range is `^24.21.0 || >=26.0.0`; Node 26 is allowed but is not the recommended development runtime. Use the pinned `pnpm@12.11.2` through Corepack and preserve `pnpm-lock.yaml` when installing dependencies.
 
@@ -164,6 +175,13 @@ See [.env.example](.env.example) for the complete template. Keep `.env` out of s
 Endpoint overrides such as `PG_API_GUIDES_URL` and `PG_API_CREATE_ROUTE_URL` are optional. The proxy defaults match the sibling backend's `/guides/`, `/tours/`, and `/users/me/` paths. See [AGENTS.md](AGENTS.md#endpoint-mapping-and-environment) for the full mapping.
 
 Firebase client configuration comes from `nuxt.config.ts` at build time. Rebuild after changing it. The backend origin stays private: browser API clients call the same-origin `/api/*` routes, attach Firebase ID tokens, and let Nitro forward them to the backend for validation and ownership checks.
+
+Story-buffer metadata is optional for older backends. If the backend has no GET
+route (its generic 404/405 response), the frontend proxy returns
+`{ status: "unavailable", reason: "unsupported_backend" }` and uses the existing
+completion-based continuation instead of buffered preparation. This does not
+enable buffering on the backend. Authentication, tour/ownership errors and failed
+buffer mutations remain errors; uncertain operations retain their recovery keys.
 
 ## Try a tour before research finishes
 
@@ -300,54 +318,57 @@ Only places with known coordinates can be highlighted; unknown names and aliases
 are not geocoded. Reload restores known route subjects from saved history;
 response-only places outside the route are not stored in that history.
 
-**Automatic same-stop stories** request one prepared continuation when the backend
-supports story buffering and the current story has at most 40 seconds left.
-The current recording, text and map focus remain in place until completion.
-Activation atomically acknowledges that
-segment and returns the next story's text, map focus and existing private recording
-reference. Buffer preparation itself does not generate new recordings. Preparation stops when
-supported prepared stories are exhausted. Each newly started story gets the same
-40-second preparation window, so continuation repeats until you press **Pause**
-or another eligibility condition changes.
+**Full narration and compatible recovery.** Every new speaking turn requests one
+complete response for the location or question. Fresh requests omit the legacy
+narration style and duration hints; there is no FULL/SHORT selector, sentence
+minimum or five-sentence pagination. The backend owns supported response length.
+A new complete response has one final story chunk and never arms automatic
+continuation at the same position. Historical multipart metadata remains readable,
+and original active audio and uncertain request bodies/keys retain their identities.
 
-The client requests a 90-second upper speaking target for walking commentary,
-stationary stories and visitor questions, regardless of generation metadata.
-A fresh, accurate at-stop GPS fix selects stationary mode; movement or uncertain
-location keeps walking mode. The backend chooses actual length and source
-eligibility, including brief navigation or a longer supported local story.
-Legacy guidance can still choose a 20-second walking transition.
-Simulated coordinates never acquire GPS metadata; move the marker close to a stop for its story. Simulation
-does not trigger automatic continuation. Empty replies caused by no new content
-or no location change show a hint to move closer or ask a specific question.
-These are upper targets: supported evidence, prepared
-content and backend policy determine how much text is actually returned.
+Insufficient supported material/time, budget or research preparation gaps, route
+choices, pauses and active unacknowledged audio have visible status rather than
+an empty panel implying completion. A generated segment is not a delivered fact.
+**Resume original audio** restores the durable active segment through read-only
+`GET /api/story-buffer/{tourId}` metadata, including `active_record` and existing
+audio. Recovery works for older empty `/next` responses without `playback_block`;
+it sends no new narration POST and does not acknowledge completion. Recovered
+audio stays paused until the visitor resumes. **New nearby story** explicitly
+interrupts the original segment before requesting a new story.
 
-The text panel and automatic-continuation frontend flags are enabled by default,
-as requested. There is no feature-toggle section on the tour page; **Pause**
-stops the current story and cancels its prepared continuation. It requires
-a fresh GPS fix whose distance plus accuracy is within 40 metres of the stop;
-simulation and unknown/stale GPS cannot establish that condition. Pause, visitor
-actions, movement, settings changes, hidden pages and navigation suspend the buffer.
-An explicit action reconciles uncertain requests before proceeding; if that fails,
-the notification asks you to retry or reload. Recovered stories remain paused and
-consumed stories never replay.
+For historical compatible multipart records, the existing story-buffer controller
+is the single scheduler. With at most 40 seconds remaining it can prepare using
+`POST /api/story-buffer/{tourId}/prepare`; preparation never replaces the current
+audio. On actual audio completion, activation atomically completes the anchor
+and adopts the returned record/audio. Uncertain prepare/activate operations
+retain their immutable original body and key. Recovery never auto-starts audio.
+Pause stops local playback immediately and cancels/fences late preparation.
+Movement changes future selection, not the current segment's receipt.
 
-The backend must implement the
-[story-buffer contract](../personal-guide.ai/.private/worktrees/system-improvement/current_implementation/proposed_tour_generation/story_buffer_contract.md)
-and enable `STORY_BUFFER_ENABLED` and `TEXT_EXPERIENCE_ENABLED`. The frontend
-switches are `NUXT_PUBLIC_STORY_BUFFER_ENABLED` and
-`NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED`. A backend without the buffer contract retains
-the existing manual controls and uses a completion fallback: the client arms one
-continuation when 40 seconds remain, acknowledges completion, then waits one second
-before requesting another turn with the latest GPS fix. This avoids sending a
-speculative `/next` while the backend still has an active segment. A silent `WAIT`
-ends this chain; the client does not poll it. The same GPS, cancellation and
-one-request-per-story rules apply to legacy tours. Lookahead preparation before
-completion still requires the backend story-buffer contract.
-The completion fallback uses the ordinary narration endpoint and the selected model
-and voice settings.
-Only metadata/control transitions have been verified. Audio and playback
-qualification still require explicit human approval.
+GPS continuation requires a fresh accurate fix; the backend checks actual route
+relation and accepted story scope at preparation and activation. Walking is not
+limited to standing within 40 metres of a stop. Explicit manual mode sends the
+selected map position with `position_mode: manual` and null GPS metadata. It
+does not establish real arrival, visibility or safe access. The backend rejects
+out-of-scope continuation without completing or restarting current audio.
+
+The frontend flags `NUXT_PUBLIC_STORY_BUFFER_ENABLED` and
+`NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED` default to enabled. The sibling backend
+implements `/tours/{tourId}/story-buffer` and its prepare/activate/cancel routes
+using the same durable playback store. Only the proxy's explicit
+`unsupported_backend` capability response enables the legacy completion
+fallback; supported endpoints, domain 404s and authentication failures never
+start a second scheduler. These changes are not evidence of authorized real
+provider latency, browser playback, heard audio or deployment.
+
+Browser integration surface: `/tours/{tourId}`, selectors
+`[data-testid=\"narration-duration\"]`, `story-progress`, `narration-reason`,
+`story-buffer-status`, `resume-active-story`, `next-nearby-story` and
+`reconcile-story` (the latter names are also `data-testid` values).
+Run `corepack pnpm dev` from this repository for the real page. Deterministic
+nonaudio component/controller fixtures are in `tests/ui-narration-status.test.ts`,
+`tests/ui-story-buffer.test.ts` and `tests/regressions.test.ts`; they do not prove
+real audio or paid-provider acceptance.
 
 The tour page shows route position, the last recorded location, and the latest
 guide text beneath playback controls. Recorded history restores this summary
@@ -360,14 +381,14 @@ Earlier conversation turns display their stop and source links available in the 
 
 ## Commands and verification
 
-| Command                        | Purpose                                               |
-| ------------------------------ | ----------------------------------------------------- |
-| `corepack pnpm dev`            | Run the development server.                           |
-| `corepack pnpm test:text`      | Run the approved nonaudio regression checks.          |
-| `corepack pnpm typecheck`      | Check TypeScript and Vue types.                       |
-| `corepack pnpm build`          | Build the production Nitro server and browser assets. |
-| `corepack pnpm preview`        | Preview a production build.                           |
-| `corepack pnpm prettier:check` | Check repository formatting.                          |
+| Command                        | Purpose                                                           |
+| ------------------------------ | ----------------------------------------------------------------- |
+| `corepack pnpm dev`            | Run the development server.                                       |
+| `corepack pnpm test:text`      | Run the approved nonaudio regression checks.                      |
+| `corepack pnpm typecheck`      | Check Vue SFC types plus native TypeScript 7 server/shared types. |
+| `corepack pnpm build`          | Build the production Nitro server and browser assets.             |
+| `corepack pnpm preview`        | Preview a production build.                                       |
+| `corepack pnpm prettier:check` | Check repository formatting.                                      |
 
 For the current milestone, run:
 
@@ -387,14 +408,17 @@ Check sign-in, maps, GPS, and provider-backed text in a configured browser. Pass
 
 ### Dependency and omp skill maintenance
 
-Use compatible stable releases rather than treating every new major as a required
-upgrade. Firebase 12 and Firebase Admin 13 remain inside VueFire's declared peer
-ranges; Pinia 4, VueUse 15 and TypeScript 6 are the current application
-contracts. Vite and its Vue plugin are explicit test-tool dependencies rather
-than accidental hoisted imports. Mapbox GL supplies its own types; the deprecated
-`@types/mapbox-gl` stub is not needed. GeoJSON annotations use explicit imports
-from the separately declared `@types/geojson` package instead of an implicit
-global namespace.
+The latest-major frontend migration uses Vue 3.5.44, Pinia 4.1.0 with
+`@pinia/nuxt` 1.0.3, Firebase 13.0.0, Firebase Admin 14.5.0 and Mapbox GL 3.33.0.
+VueFire and its Nuxt module are removed: `app/plugins/00-firebase.client.ts`
+initializes native Firebase Auth and the optional Enterprise App Check provider.
+Login/profile consumers share its `$firebaseUser` ref, and route guards await
+Firebase's persisted-auth restoration. Existing `VUEFIRE_*` environment names
+still configure the public client; no existing `.env` migration is required.
+
+Vite and its Vue plugin remain explicit test-tool dependencies. Mapbox GL
+supplies its own types; GeoJSON annotations import the separately declared
+`@types/geojson` package.
 
 `pnpm-workspace.yaml` contains scoped security overrides for Firebase's gRPC transport,
 Google GAX and its HTTP helpers' UUIDs, fontless's esbuild and typography's selector
@@ -407,22 +431,41 @@ Nuxt DevTools 3.4.3 removes `simple-git` from the dependency graph, resolving it
 critical and two high advisories without forcing an incompatible Git major.
 The obsolete Git argument-parser override has been removed.
 
-The dependency audit still reports two high upstream advisories:
+The registry audit still reports two high upstream advisories; both affected
+behaviors have version-pinned local code patches:
 
 - [`node-forge` 1.4.0: nested DigestAlgorithm signature verification](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
+  [`patches/node-forge@1.4.0.patch`](patches/node-forge@1.4.0.patch) backports the
+  proposed [upstream fix](https://github.com/digitalbazaar/forge/pull/1152), checking
+  nested algorithm element counts instead of accepting unconsumed garbage.
 - [`braces` 3.0.3: stack exhaustion from deeply nested patterns](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
+  [`patches/braces@3.0.3.patch`](patches/braces@3.0.3.patch) limits parsed
+  brace/parenthesis nesting to 100 and guards all three recursive AST walkers,
+  including direct AST inputs. Excessive nesting raises a controlled SyntaxError.
 
-Neither has a published fixed version as of 2026-10-15. These are transitive
-development/build dependencies; that classification does not establish runtime
-exploitability or safety. Do not suppress these findings; revisit them when
-compatible upstream fixes are available.
+Neither has a published fixed version as of 2026-10-15. The patches are registered
+in `pnpm-workspace.yaml` and apply during frozen installs, including Docker.
+The Dockerfile copies `patches/` before installation; `.private` staging and smoke
+material are excluded from the build context. These are transitive development/
+build dependencies; that classification alone does not establish runtime safety.
 
-The frontend-only compatible upgrade uses Pinia 4.0.3 with `@pinia/nuxt` 1.0.2,
-VueUse 15.0.0, Vitest 5.0.4, logos 1.2.16 and pnpm 12.11.2; remaining direct
-packages were checked against the registry. Firebase 13/Admin 14 exceed VueFire's
-published peer ranges. TypeScript 7 fails the current Vue checker with
-`ERR_PACKAGE_PATH_NOT_EXPORTED` for `typescript/lib/tsc`. Node types stay on the
-latest Node 24 line. These are deliberate compatibility holds, not hidden updates.
+`pnpm audit` remains nonzero because it matches the original package versions,
+not the local patched code. No advisory ignores, package renaming or misleading
+version changes are used. Replace the patches when verified upstream fixes ship.
+The eight focused regressions in `tests/ui-dependency-security.test.ts` pass;
+real Node RSA/glob consumer smoke also passed on the host and in an offline
+container with a frozen dependency installation. On the updated working tree,
+all 649 approved nonaudio tests in 65 files, Nuxt/native type checks, production
+build and the frontend Docker build stage passed. No image was deployed and no
+audio was exercised.
+
+TypeScript uses Microsoft's [documented side-by-side installation](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/):
+`@typescript/native` aliases TypeScript 7.0.2 and supplies `tsc`; `typescript`
+aliases `@typescript/typescript6` 6.0.2 and supplies the maintained 6.0.3 JS API
+and `tsc6`. Vue's checker still requires that API, so native 7 does not replace
+SFC checking. `pnpm typecheck` first runs Nuxt/Vue checks and then checks the
+generated server/shared projects with native 7. Node types stay on the latest
+Node 24 line to match the pinned runtime.
 
 [pnpm 12 configuration](https://pnpm.io/settings) lives in
 `pnpm-workspace.yaml`: existing hoisting, pre/post hooks, security overrides and
@@ -431,20 +474,21 @@ installation. The obsolete project `.npmrc` and `package.json.pnpm` were removed
 Release-age exceptions name only the four explicitly requested logos/Vitest
 patch versions. No unrestricted build permission or advisory suppression was added.
 
-Upgrade verification passed 606 approved nonaudio tests in 65 files, typecheck,
-production build and frozen-lockfile installation. The production sign-in,
-registration transition and unauthenticated tour redirect were browser-exercised
-at mobile/desktop sizes; a controlled browser fixture exercised guide filtering,
-selection, accepted-generation text reload and original-key caption recovery with
-zero media execution. The browser blocked the external Iconify request, so the
-Google icon was not visually qualified. Live sign-in, providers, GPS/Mapbox and
-audio remain unqualified. The current audit reports the two high upstream
-advisories described above; no critical advisories remain.
+Current upgrade verification passed 635 approved nonaudio tests in 63 files,
+Nuxt/Vue and native TypeScript checks, production build and a frozen-lockfile
+installation. The production login screen and anonymous private-route redirect
+were browser-exercised without signing in. A separate metadata-only browser
+surface used the actual Mapbox components to check stored-route rendering,
+whole-route fitting, simulated person dragging, GPS switching and landmark popups.
+The browser used software WebGL and synthetic GPS/route metadata. External
+Iconify was blocked in the login smoke, so its Google icon was not qualified.
+Production proxy smoke returned 401 before upstream access. Live sign-in,
+provider-backed text, physical GPS/Directions and audio were not exercised.
+The audit still reports the two high upstream advisories above.
 
-Docker's build stage also completed a clean frozen install and Nuxt build with
-the migrated workspace configuration. No image was deployed or live service
-restarted. Production proxy smoke rejected an unauthenticated list request with
-401 before forwarding upstream.
+Earlier Docker verification completed a clean frozen install and Nuxt build
+with the workspace configuration. Docker was not rebuilt or deployed for the
+latest-major migration.
 
 The omp skill audit added `pinia`, `pnpm`, `vitest`, `vueuse-functions`,
 `firebase-auth-basics` and `mapbox-web-integration-patterns` to the user-level

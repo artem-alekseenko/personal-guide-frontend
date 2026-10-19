@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
-import { effectScope } from "vue";
+import { effectScope, nextTick } from "vue";
+import type { Map as MapboxMap } from "mapbox-gl";
 import { useSimulationMarker } from "../app/composables/map/useSimulationMarker";
 import { usePositionMode } from "../app/composables/map/usePositionMode";
 const markers = vi.hoisted(() => [] as any[]);
@@ -80,5 +81,64 @@ it("updates the same walker without firing drag callbacks and detaches map liste
   expect(markers[0].removed).toBe(true);
   expect(events.click).toBeUndefined();
   expect(events.movestart).toBeUndefined();
+  scope.stop();
+});
+
+it("restores a movable simulated walker without GPS after a reload", () => {
+  markers.length = 0;
+  localStorage.setItem("tour-position-mode", "manual");
+  Object.assign(globalThis, { document: { createElement: () => ({}) } });
+  const scope = effectScope();
+  const marker = scope.run(() => useSimulationMarker())!;
+  // Only the camera API is used to initialize a marker in this isolated fixture.
+  const map = {
+    getCenter: () => ({ lng: 19, lat: 47 }),
+  } as unknown as MapboxMap;
+  marker.initialize(map);
+  expect(marker.getMarkerPosition()).toEqual([19, 47]);
+  expect(markers[0].options.draggable).toBe(true);
+  markers[0].setLngLat([19.002, 47.002]);
+  markers[0].events.dragend();
+  expect(marker.getMarkerPosition()).toEqual([19.002, 47.002]);
+  marker.cleanup();
+  scope.stop();
+});
+
+it("switches markers on source changes and ignores simulation clicks in GPS mode", async () => {
+  markers.length = 0;
+  Object.assign(globalThis, { document: { createElement: () => ({}) } });
+  const scope = effectScope();
+  const mode = scope.run(() => usePositionMode())!;
+  const marker = scope.run(() =>
+    useSimulationMarker({ getInitialPosition: () => [19.01, 47.01] }),
+  )!;
+  const events: Record<string, Function> = {};
+  const mapFixture = {
+    getCenter: () => ({ lng: 0, lat: 0 }),
+    on: (name: string, callback: Function) => {
+      events[name] = callback;
+    },
+    off: (name: string) => {
+      delete events[name];
+    },
+  };
+  // Choosing simulation before the map is initialized must not lose the choice.
+  mode.setSimulationMode();
+  await nextTick();
+  // Only event and camera APIs are used by the marker in this isolated fixture.
+  const map = mapFixture as unknown as MapboxMap;
+  marker.initialize(map);
+  marker.setupMapClickHandler(map);
+  expect(marker.getMarkerPosition()).toEqual([19.01, 47.01]);
+  events.click({ lngLat: { lng: 19.02, lat: 47.02 } });
+  expect(marker.getMarkerPosition()).toEqual([19.02, 47.02]);
+  const simulated = markers[0];
+  mode.setGpsMode();
+  await nextTick();
+  expect(simulated.removed).toBe(true);
+  expect(marker.getMarkerPosition()).toBeNull();
+  events.click({ lngLat: { lng: 19.03, lat: 47.03 } });
+  expect(marker.getMarkerPosition()).toBeNull();
+  marker.cleanup();
   scope.stop();
 });

@@ -2,6 +2,7 @@ node_modules
 .nuxt
 .output
 .git
+.private
 .env
 .env.*
 service-account*.json

@@ -1,6 +1,5 @@
 import { useExperienceStore } from "~/stores/experienceStore";
 import { useRoutePlacesStore } from "~/stores/routePlacesStore";
-import { useCurrentUser } from "vuefire";
 import { useUserStore } from "~/stores/userStore";
 import { useGuidesStore } from "~/stores/guidesStore";
 import { useRouteStore } from "~/stores/routeStore";
@@ -8,7 +7,7 @@ import { useTourStore } from "~/stores/tourStore";
 import { useTourRequestStore } from "~/stores/tourRequestStore";
 
 export default defineNuxtPlugin((nuxtApp) => {
-  const firebaseUser = useCurrentUser();
+  const firebaseUser = nuxtApp.$firebaseUser;
   const users = useUserStore();
   const guides = useGuidesStore();
   const routes = useRouteStore();
