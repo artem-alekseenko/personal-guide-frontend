@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { effectScope, shallowRef, type EffectScope } from "vue";
 import { createPinia, setActivePinia } from "pinia";
+import { usePreparationMessageStore } from "../app/stores/preparationMessageStore";
 import type { PreparationProgress } from "../shared/types/preparationProgress";
 import type { GenerationDetail } from "../shared/types/researchLifecycle";
 import { useTourPreparationProgress } from "../app/composables/tour/useTourPreparationProgress";
@@ -48,6 +49,11 @@ function pendingDetail() {
 }
 async function flush() {
   for (let step = 0; step < 24; step++) await Promise.resolve();
+}
+async function requestCaption(app: ReturnType<typeof consumer>) {
+  // Simulate the visitor's explicit refresh, independently of factual polling.
+  void app.state.refresh();
+  await flush();
 }
 const posts = () =>
   fetch.mock.calls.filter(([, options]) => options.method === "POST");
@@ -100,9 +106,12 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("consumes real status POST results on initial, scheduled and manual visible refreshes", async () => {
+it("keeps initial and scheduled reads cheap and writes captions only on manual refresh", async () => {
   const app = consumer();
   await flush();
+  expect(posts()).toHaveLength(0);
+  expect(app.state.progress.value?.activity_source).toBe("recorded");
+  await requestCaption(app);
   expect(app.state.progress.value).toMatchObject({
     activity_source: "llm",
     activity_model: "small-status-model",
@@ -118,20 +127,21 @@ it("consumes real status POST results on initial, scheduled and manual visible r
     retry: 0,
     body: {
       lang: "en",
-      message_variant: 0,
+      message_variant: 1,
       previous_activity_text: "Reading a source for Clock House.",
     },
   });
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(posts()).toHaveLength(1);
   await app.state.refresh();
   expect(posts().map(([, options]) => options.body.message_variant)).toEqual([
-    0, 1, 2,
+    1, 3,
   ]);
   expect(
     new Set(posts().map(([, options]) => options.headers["Idempotency-Key"]))
       .size,
-  ).toBe(3);
-  expect(reads()).toHaveLength(3);
+  ).toBe(2);
+  expect(reads()).toHaveLength(4);
   expect(fetch.mock.calls.every(([, options]) => options.retry === 0)).toBe(
     true,
   );
@@ -155,6 +165,7 @@ it("keeps canonical numbers when a caption response contains different numbers",
   );
   const app = consumer();
   await flush();
+  await requestCaption(app);
   expect(app.state.progress.value).toMatchObject({
     activity_source: "llm",
     percent: 37,
@@ -182,6 +193,7 @@ it.each(["budget_unavailable", "unsafe_output", "repeated_output"])(
     );
     const app = consumer();
     await flush();
+    await requestCaption(app);
     expect(app.state.progress.value).toMatchObject({
       activity_source: "fallback",
       activity_fallback_reason: reason,
@@ -200,6 +212,7 @@ it("retains immutable key/body after a lost response, polls numbers cheaply, and
       : Promise.resolve(preparationDetail()),
   );
   await flush();
+  await requestCaption(app);
   expect(app.state.captionUncertain.value).toBe(true);
   const original = posts()[0]![1];
   app.tour.value = current(
@@ -216,9 +229,9 @@ it("retains immutable key/body after a lost response, polls numbers cheaply, and
         : preparationDetail(app.tour.value.preparation_progress),
     ),
   );
-  await vi.advanceTimersByTimeAsync(15000);
+  await vi.advanceTimersByTimeAsync(3000);
   expect(posts()).toHaveLength(1);
-  expect(reads()).toHaveLength(4);
+  expect(reads()).toHaveLength(5);
   expect(app.state.progress.value).toMatchObject({
     percent: 58,
     elapsed_seconds: 150,
@@ -227,7 +240,9 @@ it("retains immutable key/body after a lost response, polls numbers cheaply, and
   expect(posts()[1]![1].headers).toEqual(original.headers);
   expect(posts()[1]![1].body).toEqual(original.body);
   expect(app.state.captionUncertain.value).toBe(false);
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(posts()).toHaveLength(2);
+  await app.state.refresh();
   expect(posts()).toHaveLength(3);
   expect(posts()[2]![1].headers).not.toEqual(original.headers);
 });
@@ -251,11 +266,12 @@ it.each([
   );
   const app = consumer();
   await flush();
+  await requestCaption(app);
   expect(app.state.captionUncertain.value).toBe(true);
   const uuid = vi.spyOn(crypto, "randomUUID");
-  await vi.advanceTimersByTimeAsync(15000);
+  await vi.advanceTimersByTimeAsync(3000);
   expect(posts()).toHaveLength(1);
-  expect(reads()).toHaveLength(4);
+  expect(reads()).toHaveLength(5);
   expect(uuid).not.toHaveBeenCalled();
   const original = posts()[0]![1];
   await app.state.refresh();
@@ -274,8 +290,9 @@ it("shares simultaneous list/detail requests and retains uncertain receipt acros
   const first = consumer();
   const second = consumer();
   await flush();
+  await Promise.all([requestCaption(first), requestCaption(second)]);
   expect(posts()).toHaveLength(1);
-  await vi.advanceTimersByTimeAsync(10000);
+  await vi.advanceTimersByTimeAsync(2000);
   expect(posts()).toHaveLength(1);
   request.reject(new Error("lost"));
   await flush();
@@ -301,32 +318,32 @@ it("does not overlap factual reads or caption calls in one consumer", async () =
   fetch.mockReturnValueOnce(read.promise);
   const app = consumer();
   await app.state.refresh();
-  await vi.advanceTimersByTimeAsync(20000);
+  await vi.advanceTimersByTimeAsync(4000);
   expect(fetch).toHaveBeenCalledTimes(1);
   read.resolve(preparationDetail());
   await flush();
-  expect(posts()).toHaveLength(1);
+  expect(posts()).toHaveLength(0);
 });
 
 it.each(["hidden", "offscreen"])(
-  "does not issue paid polling while %s and refreshes on return",
+  "keeps factual reads suspended while %s and refreshes without paid wording on return",
   async (kind) => {
     if (kind === "hidden") visibility = "hidden";
     const app = consumer(preparationSnapshot(), kind !== "offscreen");
-    await vi.advanceTimersByTimeAsync(20000);
+    await vi.advanceTimersByTimeAsync(4000);
     expect(fetch).not.toHaveBeenCalled();
     if (kind === "hidden") {
       visibility = "visible";
       visibilityChanged();
     } else app.onscreen.value = true;
     await flush();
-    expect(posts()).toHaveLength(1);
+    expect(posts()).toHaveLength(0);
     if (kind === "hidden") {
       visibility = "hidden";
       visibilityChanged();
     } else app.onscreen.value = false;
-    await vi.advanceTimersByTimeAsync(20000);
-    expect(posts()).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(posts()).toHaveLength(0);
   },
 );
 
@@ -352,6 +369,7 @@ it.each(["phase", "stop", "activity"])(
     );
     const app = consumer();
     await flush();
+    await requestCaption(app);
     const newer = preparationSnapshot({
       percent: 58,
       elapsed_seconds: 150,
@@ -387,6 +405,7 @@ it.each(["owner", "tour", "generation", "language"])(
     );
     const app = consumer();
     await flush();
+    await requestCaption(app);
     fetch.mockImplementation((_path, options) =>
       options.method === "POST"
         ? Promise.reject(new Error("unconfirmed"))
@@ -430,6 +449,7 @@ it("retains the old-language uncertain body until manual reconciliation, never s
   );
   const app = consumer();
   await flush();
+  await requestCaption(app);
   const original = posts()[0]![1];
   app.language.value = "ru";
   await flush();
@@ -452,7 +472,9 @@ it("retains the old-language uncertain body until manual reconciliation, never s
     "Читаем записанный источник.",
   );
   expect(app.state.progress.value?.activity_source).toBe("recorded");
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(posts()).toHaveLength(2);
+  await app.state.refresh();
   expect(posts()[2]![1].body.lang).toBe("ru");
 });
 
@@ -469,13 +491,14 @@ it.each(["owner", "generation", "source"])(
     );
     const app = consumer();
     await flush();
+    await requestCaption(app);
     expect(app.state.captionUncertain.value).toBe(true);
     expect(app.state.progress.value).toMatchObject({
       percent: 37,
       elapsed_seconds: 125,
       activity_source: "recorded",
     });
-    await vi.advanceTimersByTimeAsync(10000);
+    await vi.advanceTimersByTimeAsync(2000);
     expect(posts()).toHaveLength(1);
   },
 );
@@ -492,8 +515,8 @@ it("keeps timer refreshes alive while frequent source snapshots update numeric f
       }),
     );
   }
-  expect(reads()).toHaveLength(2);
-  expect(posts()).toHaveLength(2);
+  expect(reads()).toHaveLength(7);
+  expect(posts()).toHaveLength(0);
   expect(app.state.progress.value?.elapsed_seconds).toBe(131);
 });
 
@@ -516,7 +539,7 @@ it.each(["READY", "FAILED", "CANCELLED"] as const)(
       claims_count: 0,
       activity_source: "recorded",
     });
-    await vi.advanceTimersByTimeAsync(60000);
+    await vi.advanceTimersByTimeAsync(12000);
     expect(reads()).toHaveLength(1);
     expect(posts()).toHaveLength(0);
     await app.state.refresh();
@@ -534,14 +557,14 @@ it("does not regress numeric facts from older GET/list snapshots and stops on di
   });
   app.tour.value = current(latest);
   app.tour.value = current(preparationSnapshot());
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(app.state.progress.value).toMatchObject({
     percent: 58,
     elapsed_seconds: 150,
   });
   const before = fetch.mock.calls.length;
   app.scope.stop();
-  await vi.advanceTimersByTimeAsync(60000);
+  await vi.advanceTimersByTimeAsync(12000);
   expect(fetch).toHaveBeenCalledTimes(before);
 });
 
@@ -557,8 +580,10 @@ it("retains useful metrics on GET failure and never requests a caption without c
       options.method === "POST" ? generated() : preparationDetail(),
     ),
   );
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(app.state.refreshFailed.value).toBe(false);
+  expect(posts()).toHaveLength(0);
+  await app.state.refresh();
   expect(posts()).toHaveLength(1);
 });
 
@@ -570,6 +595,7 @@ it("restores an uncertain key/body after a full store reload instead of issuing 
   );
   const first = consumer();
   await flush();
+  await requestCaption(first);
   const original = posts()[0]![1];
   first.scope.stop();
   setActivePinia(createPinia());
@@ -597,14 +623,15 @@ it("keeps factual progress without paid dispatch if the immutable receipt cannot
   });
   const app = consumer();
   await flush();
+  await requestCaption(app);
   expect(posts()).toHaveLength(0);
   expect(app.state.progress.value).toMatchObject({
     percent: 37,
     activity_source: "recorded",
   });
   expect(app.state.captionUncertain.value).toBe(true);
-  await vi.advanceTimersByTimeAsync(10000);
-  expect(reads()).toHaveLength(3);
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(reads()).toHaveLength(4);
   expect(posts()).toHaveLength(0);
 });
 
@@ -616,6 +643,7 @@ it("blocks fresh paid keys after generation replacement until the original gener
   );
   const app = consumer();
   await flush();
+  await requestCaption(app);
   const original = posts()[0]![1];
   const replacement = preparationSnapshot({
     generation_id: "generation-2",
@@ -629,7 +657,7 @@ it("blocks fresh paid keys after generation replacement until the original gener
   );
   app.tour.value = current(replacement);
   await flush();
-  await vi.advanceTimersByTimeAsync(10000);
+  await vi.advanceTimersByTimeAsync(2000);
   expect(posts()).toHaveLength(1);
   expect(app.state.progress.value).toMatchObject({
     generation_id: "generation-2",
@@ -644,7 +672,9 @@ it("blocks fresh paid keys after generation replacement until the original gener
   expect(posts()[1]![1].body).toEqual(original.body);
   expect(posts()[1]![1].headers).toEqual(original.headers);
   expect(app.state.progress.value?.activity_source).toBe("recorded");
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(posts()).toHaveLength(2);
+  await app.state.refresh();
   expect(posts()[2]![0]).toBe(
     "/api/tour-generations/tour/generation-2/progress-message",
   );
@@ -674,12 +704,13 @@ it("encodes pins and bounds novelty data without sending client factual work", a
   );
   app.onscreen.value = true;
   await flush();
+  await requestCaption(app);
   expect(posts()[0]![0]).toBe(
     "/api/tour-generations/tour%2Fone%3Fpin/generation%2Fone%3Fpin/progress-message",
   );
   expect(posts()[0]![1].body).toEqual({
     lang: "en",
-    message_variant: 0,
+    message_variant: 1,
     previous_activity_text: "x".repeat(280),
   });
   expect(app.state.progress.value?.generation_id).toBe("generation/one?pin");
@@ -708,6 +739,7 @@ it("preserves sparse legacy numeric snapshots without inventing missing percenta
   );
   const app = consumer(sparse);
   await flush();
+  await requestCaption(app);
   expect(app.state.progress.value).not.toHaveProperty("percent");
   expect(app.state.progress.value).not.toHaveProperty("elapsed_seconds");
   expect(app.state.progress.value).not.toHaveProperty("remaining_time_kind");
@@ -717,6 +749,7 @@ it("preserves sparse legacy numeric snapshots without inventing missing percenta
 it("replaces caption metadata exactly rather than keeping model or fallback metadata from older text", async () => {
   const app = consumer();
   await flush();
+  await requestCaption(app);
   expect(app.state.progress.value?.activity_model).toBe("small-status-model");
   fetch.mockImplementation((_path, options) =>
     Promise.resolve(
@@ -750,7 +783,7 @@ it("does not request paid wording when the canonical generation has no progress 
   await flush();
   expect(app.state.progress.value?.percent).toBe(37);
   expect(posts()).toHaveLength(0);
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(reads()).toHaveLength(2);
   expect(posts()).toHaveLength(0);
 });
@@ -814,6 +847,8 @@ it.each(["owner", "tour", "generation", "language"])(
     await flush();
     expect(app.state.refreshing.value).toBe(false);
     expect(app.state.progress.value?.percent).toBe(48);
+    expect(posts()).toHaveLength(0);
+    await requestCaption(app);
     expect(posts()).toHaveLength(1);
     expect(posts()[0]![1].body.lang).toBe(change === "language" ? "ru" : "en");
   },
@@ -856,6 +891,7 @@ it("keeps selected-language caption on same-work numeric source updates without 
   );
   app.onscreen.value = true;
   await flush();
+  await requestCaption(app);
   app.tour.value = current(
     preparationSnapshot({
       percent: 58,
@@ -879,7 +915,7 @@ it("uses basic factual GET only when rich progress is explicitly disabled, inclu
   fetch.mockResolvedValue(preparationDetail(basic));
   const app = consumer(basic);
   await flush();
-  await vi.advanceTimersByTimeAsync(10000);
+  await vi.advanceTimersByTimeAsync(2000);
   await app.state.refresh();
   expect(posts()).toHaveLength(0);
   expect(reads()).toHaveLength(4);
@@ -899,13 +935,14 @@ it("retains an unresolved caption across disabling and reenabling rich progress 
   );
   const app = consumer(rich);
   await flush();
+  await requestCaption(app);
   const original = posts()[0]![1];
   const basic = { ...rich, rich_progress_enabled: false };
   fetch.mockResolvedValue(preparationDetail(basic));
   app.tour.value = current(basic);
   await flush();
   await app.state.refresh();
-  await vi.advanceTimersByTimeAsync(10000);
+  await vi.advanceTimersByTimeAsync(2000);
   expect(posts()).toHaveLength(1);
   expect(app.state.captionUncertain.value).toBe(true);
   fetch.mockImplementation((_path, options) =>
@@ -956,6 +993,7 @@ it("honors disabling rich progress in the status response without replacing nume
   );
   const app = consumer(preparationSnapshot({ rich_progress_enabled: true }));
   await flush();
+  await requestCaption(app);
   expect(app.state.progress.value).toMatchObject({
     rich_progress_enabled: false,
     percent: 37,
@@ -973,6 +1011,7 @@ it("retains the original uncertain receipt when manual reconciliation encounters
   );
   const app = consumer(rich);
   await flush();
+  await requestCaption(app);
   const original = posts()[0]![1];
   fetch.mockImplementation((_path, options) =>
     Promise.resolve(
@@ -1018,13 +1057,15 @@ it("replaces cached live-sounding captions when source activity ages while a pai
   );
   const app = consumer(live);
   await flush();
+  await requestCaption(app);
   expect(app.state.progress.value?.activity_source).toBe("llm");
   fetch.mockImplementation((_path, options) =>
     options.method === "POST"
       ? Promise.reject(new Error("Lost response"))
       : Promise.resolve(preparationDetail(live)),
   );
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
+  await requestCaption(app);
   expect(app.state.captionUncertain.value).toBe(true);
   const stale = {
     ...live,
@@ -1033,7 +1074,7 @@ it("replaces cached live-sounding captions when source activity ages while a pai
     activity_source: "recorded" as const,
   };
   fetch.mockResolvedValue(preparationDetail(stale));
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(posts()).toHaveLength(2);
   expect(app.state.progress.value?.activity_text).toBe(stale.activity_text);
   expect(app.state.progress.value?.activity_source).toBe("recorded");
@@ -1082,7 +1123,7 @@ it.each(["READY", "FAILED", "CANCELLED"] as const)(
     await flush();
     expect(reloaded.state.captionUncertain.value).toBe(true);
     expect(posts()).toHaveLength(0);
-    await vi.advanceTimersByTimeAsync(60000);
+    await vi.advanceTimersByTimeAsync(12000);
     expect(posts()).toHaveLength(0);
     expect(reads()).toHaveLength(1);
     const view = mount(TourPreparationProgress, {
@@ -1221,7 +1262,7 @@ it.each(["malformed", "unavailable"])(
     const uuid = vi.spyOn(crypto, "randomUUID");
     const app = consumer();
     await flush();
-    await vi.advanceTimersByTimeAsync(10000);
+    await vi.advanceTimersByTimeAsync(2000);
     await app.state.refresh();
     expect(app.state.progress.value?.percent).toBe(37);
     expect(posts()).toHaveLength(0);
@@ -1229,20 +1270,23 @@ it.each(["malformed", "unavailable"])(
   },
 );
 
-it("shares settled captions inside the cooldown but allocates fresh keys at the exact boundary", async () => {
-  const first = consumer();
-  await flush();
-  first.scope.stop();
+it("preserves shared caption-store cooldown and its exact key boundary", async () => {
+  const store = usePreparationMessageStore();
+  const scope = {
+    uid: "firebase-owner",
+    ownerId: "backend-owner",
+    tourId: "tour",
+    generationId: "generation-1",
+  };
+  const body = { lang: "en" as const, message_variant: 0 };
+  await store.request(scope, body, true);
   const uuid = vi.spyOn(crypto, "randomUUID");
   await vi.advanceTimersByTimeAsync(4999);
-  const within = consumer();
-  await flush();
+  await store.request(scope, body, false);
   expect(posts()).toHaveLength(1);
   expect(uuid).not.toHaveBeenCalled();
-  within.scope.stop();
   await vi.advanceTimersByTimeAsync(1);
-  consumer();
-  await flush();
+  await store.request(scope, body, false);
   expect(posts()).toHaveLength(2);
   expect(uuid).toHaveBeenCalledTimes(1);
   expect(posts()[1]![1].headers).not.toEqual(posts()[0]![1].headers);
@@ -1258,6 +1302,7 @@ it("keeps a held original request uncertain after work changes and reconciles wi
   );
   const app = consumer();
   await flush();
+  await requestCaption(app);
   const original = posts()[0]![1];
   const uuid = vi.spyOn(crypto, "randomUUID");
   factual = preparationSnapshot({
@@ -1266,7 +1311,7 @@ it("keeps a held original request uncertain after work changes and reconciles wi
     activity_updated_at: "2026-10-12T12:02:30Z",
     updated_at: "2026-10-12T12:02:30Z",
   });
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(posts()).toHaveLength(1);
   expect(app.state.progress.value).toMatchObject({
     phase: factual.phase,
@@ -1291,14 +1336,14 @@ it("keeps a held original request uncertain after work changes and reconciles wi
         : preparationDetail(factual),
     ),
   );
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(posts()).toHaveLength(1);
   await app.state.refresh();
   expect(posts()).toHaveLength(2);
   expect(posts()[1]![1].headers).toEqual(original.headers);
   expect(posts()[1]![1].body).toEqual(original.body);
   expect(app.state.captionUncertain.value).toBe(true);
-  await vi.advanceTimersByTimeAsync(10000);
+  await vi.advanceTimersByTimeAsync(2000);
   expect(posts()).toHaveLength(2);
   expect(uuid).not.toHaveBeenCalled();
 });
@@ -1325,6 +1370,7 @@ it("keeps fresh GET spend text, ledger and counters when a same-work caption ref
   );
   const app = consumer(first);
   await flush();
+  await requestCaption(app);
   const caption = app.state.progress.value?.activity_text;
   const latest = {
     ...first,
@@ -1343,7 +1389,8 @@ it("keeps fresh GET spend text, ledger and counters when a same-work caption ref
       ? Promise.reject(new Error("caption response lost"))
       : Promise.resolve(preparationDetail(latest)),
   );
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
+  await requestCaption(app);
   expect(posts()).toHaveLength(2);
   expect(app.state.captionUncertain.value).toBe(true);
   expect(app.state.progress.value).toMatchObject({
@@ -1354,7 +1401,7 @@ it("keeps fresh GET spend text, ledger and counters when a same-work caption ref
     activity_text: caption,
     activity_source: "llm",
   });
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(posts()).toHaveLength(2);
   expect(app.state.progress.value?.status_text).toBe(latest.status_text);
   expect(app.state.progress.value?.research_spend).toEqual(

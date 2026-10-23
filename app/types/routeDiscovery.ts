@@ -17,11 +17,13 @@ export interface PublicMapSubject extends ICoordinate {
   research_status?:
     | "SOURCE_BACKED"
     | "UNCHECKED_ACCOUNT"
+    | "UNVERIFIED_INFORMATION"
     | "NO_ELIGIBLE_CONTENT"
     | "NOT_RESEARCHED"
     | null;
   approved_claim_count?: number | null;
   unchecked_account_count?: number | null;
+  unverified_claim_count?: number | null;
 }
 export interface DiscoveredPlace extends PublicMapSubject {
   distance_to_route_meters: number;

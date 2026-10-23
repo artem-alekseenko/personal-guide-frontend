@@ -7,10 +7,11 @@ const props = defineProps<{
   progress: PreparationProgress;
   compact?: boolean;
   refreshing?: boolean;
+  statusRefreshing?: boolean;
   refreshFailed?: boolean;
   captionUncertain?: boolean;
 }>();
-const emit = defineEmits<{ refresh: [] }>();
+const emit = defineEmits<{ refresh: []; refreshStatus: [] }>();
 const fields = [
   "turns_started",
   "turns_completed",
@@ -28,6 +29,16 @@ const visibleFields = [
   "word_count",
 ] as const;
 const compactFields = ["sources_count"] as const;
+const liveCounterFields = [
+  "turns_started",
+  "turns_completed",
+  "tool_calls_completed",
+] as const;
+const liveSpendFields = [
+  "spent_micros",
+  "reserved_micros",
+  "remaining_micros",
+] as const;
 const phases = [
   "CAPTURE",
   "ROUTE",
@@ -64,6 +75,25 @@ const richProgress = computed(
 const isPending = computed(() =>
   ["PENDING", "RUNNING"].includes(props.progress.status),
 );
+const isLoading = computed(
+  () => isPending.value && props.progress.is_loading !== false,
+);
+const partialCompletion = computed(() => {
+  if (props.progress.status !== "READY") return null;
+  if (props.progress.completion_reason === "budget_wrap_up")
+    return "budgetWrapUp";
+  if (
+    props.progress.partial_result ||
+    props.progress.completion_reason === "incomplete_wrap_up"
+  )
+    return "incompleteWrapUp";
+  return null;
+});
+const validPercent = (value: number | undefined): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= 100;
 const statusClass = computed(() =>
   props.progress.status === "FAILED"
     ? "border-error/40 text-error"
@@ -143,7 +173,7 @@ const captionFallback = computed(() => {
   return "unavailable";
 });
 const formatSpend = (micros: number) =>
-  isNonnegative(micros)
+  isNonnegative(micros) && Number.isSafeInteger(micros)
     ? (micros / 1_000_000).toLocaleString(undefined, {
         style: "currency",
         currency: "USD",
@@ -160,9 +190,9 @@ const formatSpend = (micros: number) =>
     class="bg-elevated mt-3 min-w-0 rounded-lg border text-sm"
     :class="[statusClass, compact ? 'p-3' : 'p-4']"
   >
-    <div class="flex items-start gap-2">
+    <div class="flex items-start gap-2" :aria-busy="isLoading">
       <span
-        v-if="isPending"
+        v-if="isLoading"
         aria-hidden="true"
         class="border-primary/30 border-t-primary mt-0.5 size-5 shrink-0 animate-spin rounded-full border-2 motion-reduce:animate-none"
       />
@@ -182,6 +212,43 @@ const formatSpend = (micros: number) =>
         </p>
       </div>
     </div>
+    <div
+      v-if="progress.step_name || progress.step_description"
+      data-preparation-step
+      class="text-default mt-2 break-words"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <p v-if="progress.step_name" class="font-medium">
+        {{ progress.step_name }}
+      </p>
+      <p v-if="progress.step_description" class="text-muted mt-1">
+        {{ progress.step_description }}
+      </p>
+      <p
+        v-if="isPending && validPercent(progress.step_percent)"
+        class="text-muted mt-1 text-xs"
+      >
+        {{ $t("preparationProgress.stepProgress") }}:
+        {{ Math.floor(progress.step_percent) }}%
+      </p>
+    </div>
+    <p
+      v-if="isLoading"
+      data-preparation-loading
+      class="text-muted mt-1 text-xs"
+    >
+      {{ $t("preparationProgress.loadingStep") }}
+    </p>
+    <p
+      v-if="partialCompletion"
+      data-preparation-partial-result
+      role="status"
+      class="text-warning mt-2 break-words"
+    >
+      {{ $t(`preparationProgress.${partialCompletion}`) }}
+    </p>
     <p
       v-if="richProgress && progress.status_text && !compact"
       class="text-default mt-2 break-words"
@@ -222,6 +289,47 @@ const formatSpend = (micros: number) =>
               : "preparationProgress.progressEstimateNotice",
           )
         }}
+      </p>
+    </div>
+    <div
+      v-if="richProgress"
+      data-live-research-summary
+      class="border-default mt-3 border-t pt-3"
+    >
+      <p class="text-muted text-xs">
+        {{ $t("preparationProgress.livePhase") }}
+      </p>
+      <p class="text-default break-words">
+        {{
+          phases.includes(progress.phase)
+            ? $t(`preparationProgress.phases.${progress.phase}`)
+            : progress.phase || $t("preparationProgress.phaseUnknown")
+        }}
+      </p>
+      <dl
+        class="text-default mt-2 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums"
+      >
+        <div v-for="field in liveCounterFields" :key="field">
+          <dt class="text-muted">
+            {{ $t(`preparationProgress.metrics.${field}`) }}
+          </dt>
+          <dd :data-live-research-counter="field">
+            {{ formatCount(progress[field]) }}
+          </dd>
+        </div>
+        <template v-if="progress.research_spend">
+          <div v-for="field in liveSpendFields" :key="field">
+            <dt class="text-muted">
+              {{ $t(`preparationProgress.spend.${field}`) }}
+            </dt>
+            <dd :data-live-research-spend="field">
+              {{ formatSpend(progress.research_spend[field]) }}
+            </dd>
+          </div>
+        </template>
+      </dl>
+      <p v-if="isPending" class="text-muted mt-2 text-xs">
+        {{ $t("preparationProgress.liveCadence") }}
       </p>
     </div>
     <template v-if="richProgress">
@@ -446,12 +554,26 @@ const formatSpend = (micros: number) =>
       {{ $t("preparationProgress.captionUncertain") }}
     </p>
     <button
+      v-if="progress.status === 'FAILED'"
+      type="button"
+      :disabled="statusRefreshing ?? refreshing"
+      class="focus-visible:outline-primary mt-2 min-h-11 rounded px-2 text-xs underline underline-offset-2 focus-visible:outline-2"
+      data-refresh-status
+      @click="emit('refreshStatus')"
+    >
+      {{ $t("preparationProgress.refreshStatus") }}
+    </button>
+    <button
       v-if="(richProgress && captionUncertain) || isPending"
       type="button"
       :disabled="refreshing"
       class="focus-visible:outline-primary mt-2 min-h-11 rounded px-2 text-xs underline underline-offset-2 focus-visible:outline-2"
       data-refresh-progress
-      @click="emit('refresh')"
+      @click="
+        richProgress && captionUncertain
+          ? emit('refresh')
+          : emit('refreshStatus')
+      "
     >
       {{
         $t(
@@ -539,6 +661,20 @@ const formatSpend = (micros: number) =>
             }}
             · {{ $t("preparationProgress.attempt") }}
             {{ formatCount(stop.attempt) }}
+          </p>
+          <p v-if="stop.step_name" class="mt-1 break-words" data-stop-step>
+            {{ stop.step_name }}
+          </p>
+          <p v-if="stop.step_description" class="text-muted mt-1 break-words">
+            {{ stop.step_description }}
+          </p>
+          <p
+            v-if="validPercent(stop.progress_percent)"
+            class="text-muted mt-1 text-xs"
+            data-stop-progress
+          >
+            {{ $t("preparationProgress.stopProgress") }}:
+            {{ Math.floor(stop.progress_percent) }}%
           </p>
           <dl
             class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs tabular-nums"

@@ -591,8 +591,9 @@ not elapsed-time completion or story availability. The usePreparationPercent
 composable animates increases toward each recorded target in one-percentage-point
 steps every 80 ms; it never advances beyond the target or reaches 100 before
 READY. Initial/restored snapshots and generation changes adopt their recorded
-value; failures, cancellation, corrected lower targets and unknown values stop
-animation immediately. VueUse's reduced-motion preference bypasses animation,
+value. Within one generation, lower targets retain the highest recorded target;
+unknown values hide the meter without clearing that history. Failures and cancellation
+stop animation immediately. Only generation changes reset the high water. VueUse's reduced-motion preference bypasses animation,
 and watcher cleanup disposes timers. Missing percent stays unknown. `elapsed_seconds` is time since the generation was queued, rendered
 as HH:MM:SS; terminal snapshots freeze it. `remaining_time_kind` distinguishes
 an estimate from a current-stage deadline, unknown time and ended processing.
@@ -600,6 +601,12 @@ The current backend produces a deadline or unknown, not a reliable finish ETA.
 Completed and skipped research stay separate, including immutable preview gaps.
 Retained findings, words and archive bytes are not independent factual approval.
 Source/action counters include retries and may grow before saved findings exist.
+
+Recorded step names/descriptions and bounded step percentages are available on
+compact and full preparation panels, independently of paid captions. Loading has
+an accessible busy state and stops for terminal snapshots. READY partial results
+explain budget or incomplete wrap-up in English and Russian without implying
+complete research. Per-stop details retain their recorded steps and percentages.
 
 Compact cards keep stage, percentage, timing and current activity visible.
 Secondary status, per-stop counters and USD-micro spend/reservations use the

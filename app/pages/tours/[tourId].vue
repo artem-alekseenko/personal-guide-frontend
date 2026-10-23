@@ -33,9 +33,11 @@
         v-if="preparationProgress"
         :progress="preparationProgress"
         :refreshing="preparationRefreshing"
+        :status-refreshing="preparationStatusRefreshing"
         :refresh-failed="preparationRefreshFailed"
         :caption-uncertain="preparationCaptionUncertain"
         @refresh="refreshPreparation"
+        @refresh-status="refreshPreparationStatus"
       />
       <template v-else>
         <p
@@ -252,9 +254,11 @@
           v-if="preparationProgress && !showPreparationStatus"
           :progress="preparationProgress"
           :refreshing="preparationRefreshing"
+          :status-refreshing="preparationStatusRefreshing"
           :refresh-failed="preparationRefreshFailed"
           :caption-uncertain="preparationCaptionUncertain"
           @refresh="refreshPreparation"
+          @refresh-status="refreshPreparationStatus"
         />
       </div>
     </details>
@@ -333,6 +337,7 @@ import TourPreparationProgress from "~/components/tour/TourPreparationProgress.v
 import TourResearchControls from "~/components/tour/TourResearchControls.vue";
 import TourResearchPreviewWarning from "~/components/tour/TourResearchPreviewWarning.vue";
 import { useTourPreparationProgress } from "~/composables/tour/useTourPreparationProgress";
+import { mergeRecoveredPreparationTour } from "~/utils/recoveredPreparationTour";
 import TourReadingPanel from "~/components/tour/TourReadingPanel.vue";
 import TourLocationMode from "~/components/tour/TourLocationMode.vue";
 import { useRouteWalk } from "~/composables/map/useRouteWalk";
@@ -373,11 +378,20 @@ const {
   progress: preparationProgress,
   refreshFailed: preparationRefreshFailed,
   refreshing: preparationRefreshing,
+  statusRefreshing: preparationStatusRefreshing,
   captionUncertain: preparationCaptionUncertain,
   refresh: refreshPreparation,
+  refreshStatus: refreshPreparationStatus,
 } = useTourPreparationProgress(
   computed(() => (tourStore.tour?.id === tourId ? tourStore.tour : null)),
   computed(() => users.user?.uid ?? null),
+  undefined,
+  {
+    onRecovered: (source) => {
+      const updated = mergeRecoveredPreparationTour(tourStore.tour, source);
+      if (updated) tourStore.setTour(updated);
+    },
+  },
 );
 const showPreparationStatus = computed(
   () =>

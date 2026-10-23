@@ -28,6 +28,7 @@
     "unknownIdentity": "Building footprint only; its exact identity and history are not established.",
     "discussing": "Discussing: {name} · visit progress is unchanged",
     "research": {
+      "UNVERIFIED_INFORMATION": "Unverified information is available; it has not been independently checked.",
       "SOURCE_BACKED": "Reviewed source-backed context is available.",
       "UNCHECKED_ACCOUNT": "A qualified account is available; its events are not verified.",
       "NO_ELIGIBLE_CONTENT": "Research was attempted; no eligible material is retained.",
@@ -120,6 +121,14 @@
     "routeOnly": "No structured findings were saved. This is a route-only draft with explicit research gaps."
   },
   "preparationProgress": {
+    "stepProgress": "Current step",
+    "stopProgress": "Stop research progress",
+    "loadingStep": "Preparation is in progress…",
+    "budgetWrapUp": "Preparation finished with partial research at the spending limit. Saved findings are retained; some details remain unavailable.",
+    "incompleteWrapUp": "Preparation finished with the findings collected so far. Some research remains incomplete.",
+    "refreshStatus": "Refresh status",
+    "livePhase": "Last reported phase",
+    "liveCadence": "Updates about every second while visible. Intermediate changes may be combined.",
     "rateLimited": "Research stopped because of provider rate limits. Saved sources are kept.",
     "budgetUnavailable": "Research stopped: the tour’s spending limit was reached or its remaining budget could not be verified.",
     "creditsExhausted": "The research provider has no credits. Add credits before retrying.",

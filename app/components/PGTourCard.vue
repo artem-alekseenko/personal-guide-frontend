@@ -61,9 +61,11 @@
         v-if="livePreparationProgress && !researchPreview"
         :progress="livePreparationProgress"
         :refreshing="preparationRefreshing"
+        :status-refreshing="preparationStatusRefreshing"
         :refresh-failed="preparationRefreshFailed"
         :caption-uncertain="preparationCaptionUncertain"
         @refresh="refreshPreparation"
+        @refresh-status="refreshPreparationStatus"
         compact
       />
       <div v-else-if="!researchPreview" class="mt-3">
@@ -154,8 +156,10 @@ const {
   progress: livePreparationProgress,
   refreshFailed: preparationRefreshFailed,
   refreshing: preparationRefreshing,
+  statusRefreshing: preparationStatusRefreshing,
   captionUncertain: preparationCaptionUncertain,
   refresh: refreshPreparation,
+  refreshStatus: refreshPreparationStatus,
 } = useTourPreparationProgress(
   computed(() =>
     props.researchPreview
@@ -168,7 +172,7 @@ const {
   ),
   computed(() => users.user?.uid ?? null),
   undefined,
-  { visible: cardVisible },
+  { visible: cardVisible, onRecovered: () => emit("updated") },
 );
 
 const isExpanded = ref(false);

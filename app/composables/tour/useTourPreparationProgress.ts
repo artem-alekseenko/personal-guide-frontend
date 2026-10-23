@@ -46,7 +46,10 @@ export function useTourPreparationProgress(
   tour: Readonly<Ref<PreparationTour | null>>,
   firebaseUid: Readonly<Ref<string | null>>,
   language?: Readonly<Ref<string>>,
-  options: { visible?: Readonly<Ref<boolean>> } = {},
+  options: {
+    visible?: Readonly<Ref<boolean>>;
+    onRecovered?: (source: ICreatedTour) => void;
+  } = {},
 ) {
   const api = useTourResearchApi();
   const messages = usePreparationMessageStore();
@@ -91,6 +94,7 @@ export function useTourPreparationProgress(
   let revision = 0;
   let sequence = 0;
   let identity = "";
+  let recoveryNeeded = false;
   const confirmedOwner = shallowRef("");
   let rejectedTour: PreparationTour | null = null;
   let caption: { work: string; lang: string; fields: Caption } | null = null;
@@ -119,6 +123,7 @@ export function useTourPreparationProgress(
   };
   function applyFacts(value: PreparationProgress, localized: boolean) {
     if (!newer(value, progress.value)) return;
+    if (value.status === "FAILED") recoveryNeeded = true;
     if (
       caption &&
       (caption.work !== workKey(value) || caption.lang !== lang.value)
@@ -153,12 +158,15 @@ export function useTourPreparationProgress(
       generationId() &&
       visible.value &&
       (!progress.value ||
-        ["PENDING", "RUNNING"].includes(progress.value.status))
+        ["PENDING", "RUNNING", "FAILED"].includes(progress.value.status))
     )
-      timer = setTimeout(() => {
-        timer = undefined;
-        void refresh();
-      }, 5000);
+      timer = setTimeout(
+        () => {
+          timer = undefined;
+          void refresh();
+        },
+        progress.value?.status === "FAILED" ? 15_000 : 1000,
+      );
   }
   async function refresh(manual = false) {
     const id = tour.value?.id;
@@ -201,6 +209,30 @@ export function useTourPreparationProgress(
       confirmedOwner.value = result.generation.owner_id;
       // Owner-less list snapshots cannot select a receipt until detail confirms ownership.
       if (scope.value) messages.restore(scope.value);
+      if (
+        recoveryNeeded &&
+        result.progress?.status === "READY" &&
+        newer(result.progress, progress.value) &&
+        options.onRecovered
+      ) {
+        // Confirm source metadata before retiring the failed view. If this read
+        // fails, retain the failure and retry cheaply instead of stranding navigation.
+        const source = await api.source(id);
+        if (!isCurrent() || !visible.value) return;
+        const sourceGeneration =
+          source.latest_generation_id ||
+          source.preparation_progress?.generation_id;
+        if (
+          source.user_id !== result.generation.owner_id ||
+          sourceGeneration !== generation ||
+          (source.preparation_progress &&
+            (source.preparation_progress.generation_id !== generation ||
+              source.preparation_progress.status !== "READY"))
+        )
+          throw new Error("The recovered preparation source changed");
+        options.onRecovered(source);
+        recoveryNeeded = false;
+      }
       if (result.progress) applyFacts(result.progress, true);
       factual = result.progress ? progress.value : null;
       refreshFailed.value = false;
@@ -213,8 +245,10 @@ export function useTourPreparationProgress(
         schedule();
       }
     }
-    // No paid status request without a freshly confirmed owner and actual factual work.
+    // Mounts, timers and visibility changes only read factual snapshots.
+    // Paid caption requests and original-key reconciliation require a visitor action.
     if (
+      !manual ||
       !isCurrent() ||
       !visible.value ||
       !factual ||
@@ -282,6 +316,7 @@ export function useTourPreparationProgress(
         revision++;
         clear();
         identity = "";
+        recoveryNeeded = false;
         confirmedOwner.value = "";
         caption = null;
         progress.value = null;
@@ -308,6 +343,7 @@ export function useTourPreparationProgress(
         factualRefreshing.value = false;
         refreshFailed.value = false;
         if (changed) {
+          recoveryNeeded = false;
           sequence = 0;
           confirmedOwner.value = "";
           progress.value = null;
@@ -318,12 +354,15 @@ export function useTourPreparationProgress(
           progress.value = safe;
         }
       }
+      const previousStatus = progress.value?.status;
       const snapshot = current.preparation_progress;
       if (snapshot?.generation_id === generation) applyFacts(snapshot, false);
+      // A status transition changes cadence; repeated snapshots cannot starve it.
+      if (progress.value?.status !== previousStatus) clear();
       if (current.user_id && scope.value) messages.restore(scope.value);
       if (
         progress.value &&
-        !["PENDING", "RUNNING"].includes(progress.value.status)
+        !["PENDING", "RUNNING", "FAILED"].includes(progress.value.status)
       )
         clear();
       if (changed || languageChanged || richChanged) void refresh();
@@ -347,6 +386,7 @@ export function useTourPreparationProgress(
   );
   onScopeDispose(() => {
     active = false;
+    recoveryNeeded = false;
     revision++;
     clear();
     if (typeof document !== "undefined")
@@ -356,7 +396,9 @@ export function useTourPreparationProgress(
     progress,
     refreshFailed,
     refreshing,
+    statusRefreshing: factualRefreshing,
     captionUncertain,
+    refreshStatus: () => refresh(false),
     refresh: () => refresh(true),
   };
 }

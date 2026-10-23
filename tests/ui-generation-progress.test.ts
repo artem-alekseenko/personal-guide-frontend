@@ -491,11 +491,139 @@ it("honors reduced motion immediately, including a preference change mid-animati
   expect(displayedPercent(app.root)).toBe(70);
 });
 
-it("applies corrected server progress without animating backwards", async () => {
+it("preserves the same-generation high water when a server poll regresses", async () => {
   vi.useFakeTimers();
   const app = render(preparationSnapshot({ percent: 70 }));
   app.props.progress = preparationSnapshot({ percent: 35 });
   await nextTick();
-  expect(displayedPercent(app.root)).toBe(35);
+  expect(displayedPercent(app.root)).toBe(70);
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("keeps the recorded high water through a lower poll and an unknown snapshot", async () => {
+  vi.useFakeTimers();
+  const app = render(preparationSnapshot({ percent: 15 }));
+  app.props.progress = preparationSnapshot({ percent: 40 });
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(160);
+  app.props.progress = preparationSnapshot({ percent: 20 });
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(23 * 80);
+  expect(displayedPercent(app.root)).toBe(40);
+  app.props.progress = preparationSnapshot({ percent: undefined });
+  await nextTick();
+  expect(displayedPercent(app.root)).toBeUndefined();
+  app.props.progress = preparationSnapshot({ percent: 20 });
+  await nextTick();
+  expect(displayedPercent(app.root)).toBe(40);
+});
+
+it.each(["en", "ru"] as const)(
+  "shows recorded steps, loading and localized partial completion in %s",
+  async (language) => {
+    const stop = preparationSnapshot().stops[0]!;
+    const app = render(
+      preparationSnapshot({
+        step_name: "<b>Reading the city archive</b>",
+        step_description: "Checking evidence for this stop.",
+        step_percent: 42,
+        is_loading: true,
+        stops: [
+          {
+            ...stop,
+            progress_percent: 65,
+            step_name: "Source capture",
+            step_description: "Saving the public document.",
+          },
+        ],
+      }),
+      language,
+      true,
+    );
+    expect(text(app.root)).toContain("<b>Reading the city archive</b>");
+    expect(findAll(app.root, (node) => node.type === "b")).toHaveLength(0);
+    expect(text(app.root)).toContain("Checking evidence for this stop.");
+    expect(text(app.root)).toContain("42%");
+    expect(text(app.root)).toContain("65%");
+    expect(text(app.root)).toContain("Saving the public document.");
+    expect(
+      findAll(app.root, (node) => node.props["aria-busy"] === true),
+    ).toHaveLength(1);
+    expect(text(app.root)).toContain(
+      translate(language)("preparationProgress.loadingStep"),
+    );
+    app.props.progress = preparationSnapshot({
+      status: "READY",
+      percent: 100,
+      partial_result: true,
+      completion_reason: "budget_wrap_up",
+      is_loading: true,
+    });
+    await nextTick();
+    expect(text(app.root)).toContain(
+      translate(language)("preparationProgress.budgetWrapUp"),
+    );
+    expect(
+      findAll(app.root, (node) => "data-preparation-loading" in node.props),
+    ).toHaveLength(0);
+    expect(
+      findAll(app.root, (node) => node.props["aria-busy"] === true),
+    ).toHaveLength(0);
+    app.props.progress = preparationSnapshot({
+      status: "READY",
+      percent: 100,
+      completion_reason: "incomplete_wrap_up",
+    });
+    await nextTick();
+    expect(text(app.root)).toContain(
+      translate(language)("preparationProgress.incompleteWrapUp"),
+    );
+    for (const status of ["FAILED", "CANCELLED"] as const) {
+      app.props.progress = preparationSnapshot({
+        status,
+        partial_result: true,
+        completion_reason: "budget_wrap_up",
+        is_loading: true,
+      });
+      await nextTick();
+      expect(
+        findAll(
+          app.root,
+          (node) => "data-preparation-partial-result" in node.props,
+        ),
+      ).toHaveLength(0);
+      expect(
+        findAll(app.root, (node) => "data-preparation-loading" in node.props),
+      ).toHaveLength(0);
+    }
+  },
+);
+
+it("keeps recorded basic steps visible without rich captions and rejects invalid step bounds", async () => {
+  const app = render(
+    preparationSnapshot({
+      rich_progress_enabled: false,
+      step_name: "Review",
+      step_description: "Checking saved findings.",
+      step_percent: 25,
+      is_loading: false,
+    }),
+  );
+  expect(text(app.root)).toContain("Checking saved findings.");
+  expect(text(app.root)).toContain("25%");
+  expect(
+    findAll(app.root, (node) => "data-preparation-loading" in node.props),
+  ).toHaveLength(0);
+  for (const step_percent of [-1, 101, NaN, Infinity]) {
+    app.props.progress = preparationSnapshot({
+      step_name: "Review",
+      step_percent,
+    });
+    await nextTick();
+    expect(
+      text(
+        findAll(app.root, (node) => "data-preparation-step" in node.props)[0]!,
+      ),
+    ).not.toContain("%");
+  }
 });

@@ -11,6 +11,7 @@ export function usePreparationPercent(
 ) {
   const displayed = shallowRef<number | null>(null);
   const reducedMotion = usePreferredReducedMotion();
+  let highWater: number | null = null;
   watch(
     () =>
       [
@@ -25,13 +26,18 @@ export function usePreparationPercent(
         Number.isFinite(value) &&
         value >= 0 &&
         value <= 100;
-      const target = valid
+      const recorded = valid
         ? status === "READY"
           ? 100
           : Math.min(99, Math.floor(value))
         : null;
+      const generationChanged = generation !== previous?.[0];
+      if (generationChanged) highWater = null;
+      if (recorded !== null) highWater = Math.max(highWater ?? 0, recorded);
+      // Unknown values hide the meter without discarding this generation's history.
+      const target = recorded === null ? null : highWater;
       if (
-        generation !== previous?.[0] ||
+        generationChanged ||
         target === null ||
         displayed.value === null ||
         target <= displayed.value ||

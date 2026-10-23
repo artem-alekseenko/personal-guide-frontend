@@ -1,3 +1,6 @@
+export type PreparationCompletionReason =
+  "completed" | "budget_wrap_up" | "incomplete_wrap_up";
+
 export interface PreparationCounters {
   turns_started: number;
   turns_completed: number;
@@ -16,6 +19,10 @@ export interface PreparationStopProgress extends PreparationCounters {
     "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED" | "SKIPPED";
   phase: string;
   attempt: number;
+  progress_percent?: number;
+  completion_reason?: PreparationCompletionReason | null;
+  step_name?: string;
+  step_description?: string;
   updated_at: string | null;
 }
 
@@ -42,6 +49,12 @@ export interface PreparationProgress extends PreparationCounters {
   rich_progress_enabled?: boolean;
   /** Backend stage-weighted estimate, not elapsed-time completion. */
   percent?: number;
+  step_percent?: number;
+  step_name?: string;
+  step_description?: string;
+  is_loading?: boolean;
+  partial_result?: boolean;
+  completion_reason?: PreparationCompletionReason | null;
   status_text?: string;
   elapsed_seconds?: number;
   remaining_seconds?: number | null;
