@@ -1,14 +1,35 @@
 <template>
-  <details class="rounded-lg border p-3">
-    <summary class="cursor-pointer font-medium">
-      {{ $t("experience.forThisWalk") }}
+  <details class="personal-context">
+    <summary class="personal-context__summary">
+      <span>
+        <span class="personal-context__title">{{
+          $t("experience.forThisWalk")
+        }}</span>
+        <span class="personal-context__hint">{{
+          $t("pages.createRoute.preferencesHint")
+        }}</span>
+      </span>
+      <svg
+        class="personal-context__chevron"
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="m5 7 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
     </summary>
-    <div class="mt-3 grid gap-3">
-      <label
+    <div class="personal-context__fields">
+      <label class="personal-context__check"
         ><input v-model="value.enabled" type="checkbox" />
         {{ $t("experience.personalize") }}</label
       >
-      <label
+      <label class="personal-context__check"
         ><input v-model="value.step_free" type="checkbox" />
         {{ $t("experience.stepFree") }}</label
       >
@@ -137,3 +158,100 @@ const topics = [
   "for_child",
 ];
 </script>
+
+<style scoped>
+.personal-context {
+  min-inline-size: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 1.125rem;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+.personal-context__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-block-size: 3.5rem;
+  padding: 1rem;
+  border-radius: inherit;
+  list-style: none;
+  cursor: pointer;
+}
+.personal-context__summary::-webkit-details-marker {
+  display: none;
+}
+.personal-context__summary:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+}
+.personal-context__title {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--ui-text-highlighted);
+}
+.personal-context__hint {
+  display: block;
+  margin-block-start: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ui-text-muted);
+}
+.personal-context__chevron {
+  flex: 0 0 1.25rem;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  transition: transform 150ms ease;
+}
+.personal-context[open] .personal-context__chevron {
+  transform: rotate(180deg);
+}
+.personal-context__fields {
+  display: grid;
+  gap: 1rem;
+  padding: 0.25rem 1rem 1rem;
+  font-size: 0.8125rem;
+}
+.personal-context__check {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--ui-bg-muted);
+  cursor: pointer;
+}
+.personal-context__check input {
+  flex-shrink: 0;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  accent-color: var(--ui-primary);
+}
+.personal-context__fields :deep(select) {
+  min-inline-size: 0;
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  border: 1px solid var(--ui-border-accented);
+  border-radius: 0.75rem;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+}
+.personal-context__fields :deep(.base-selector__label) {
+  color: var(--ui-text);
+  font-size: 0.8125rem;
+}
+.personal-context__fields :deep(select:focus-visible),
+.personal-context__check input:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .personal-context__chevron {
+    transition: none;
+  }
+}
+</style>

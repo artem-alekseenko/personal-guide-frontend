@@ -65,8 +65,8 @@ function selectGuide() {
           :alt="guide.name"
           :src="guide.avatar"
           class="pg-guide__avatar"
-          width="64"
-          height="64"
+          width="80"
+          height="80"
           loading="lazy"
           decoding="async"
           @error="avatarFailed = true"
@@ -192,24 +192,37 @@ function selectGuide() {
 <style scoped>
 .pg-guide {
   display: grid;
-  gap: 0.875rem;
+  gap: 1rem;
   min-inline-size: 0;
-  padding: 1.125rem;
+  padding: 1.25rem;
   border: 1px solid var(--ui-border);
-  border-radius: 1.25rem;
-  background: color-mix(in srgb, var(--ui-primary) 4%, var(--ui-bg));
+  border-radius: 1.5rem;
+  background: var(--ui-bg);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ui-text) 4%, transparent);
   color: var(--ui-text);
   overflow-wrap: anywhere;
-  transition: border-color 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .pg-guide--selected {
-  border-color: var(--ui-primary);
+  border-color: color-mix(
+    in srgb,
+    var(--ui-primary) 45%,
+    var(--ui-text-highlighted)
+  );
+  box-shadow: 0 0 0 1px var(--ui-primary);
+}
+@media (hover: hover) {
+  .pg-guide:hover {
+    border-color: color-mix(in srgb, var(--ui-primary) 45%, var(--ui-border));
+  }
 }
 
 .pg-guide__identity {
   display: grid;
-  grid-template-columns: 4rem minmax(0, 1fr);
+  grid-template-columns: 5rem minmax(0, 1fr);
   align-items: center;
   gap: 0.875rem;
 }
@@ -217,16 +230,12 @@ function selectGuide() {
 .pg-guide__portrait {
   display: grid;
   place-items: center;
-  inline-size: 4rem;
-  block-size: 4rem;
+  inline-size: 5rem;
+  block-size: 5rem;
   overflow: hidden;
   border: 1px solid var(--ui-border);
-  border-radius: 1.125rem;
-  background: color-mix(
-    in srgb,
-    var(--ui-secondary) 12%,
-    var(--ui-bg-elevated)
-  );
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ui-primary) 8%, var(--ui-bg-elevated));
 }
 
 .pg-guide__avatar {
@@ -237,7 +246,7 @@ function selectGuide() {
 
 .pg-guide__initial {
   font-family: Georgia, serif;
-  font-size: 1.75rem;
+  font-size: 2rem;
   color: var(--ui-text-highlighted);
 }
 
@@ -252,8 +261,8 @@ function selectGuide() {
   margin: 0;
   text-wrap: balance;
   font-family: Georgia, serif;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: 1.5rem;
+  font-weight: 500;
   line-height: 1.3;
   color: var(--ui-text-highlighted);
 }
@@ -276,7 +285,7 @@ function selectGuide() {
 .pg-guide__selected {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--ui-text-highlighted);
+  color: color-mix(in srgb, var(--ui-primary) 45%, var(--ui-text-highlighted));
 }
 
 .pg-guide__context,
@@ -444,7 +453,8 @@ function selectGuide() {
 }
 
 .pg-guide__choose {
-  min-block-size: 2.75rem;
+  min-block-size: 3rem;
+  border-radius: 0.875rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

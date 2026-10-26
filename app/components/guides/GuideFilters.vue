@@ -26,10 +26,30 @@ function updateQuery(event: Event) {
 <template>
   <div class="guide-filters">
     <div class="guide-filters__search-group">
-      <label :for="searchId" class="guide-filters__label">{{
+      <label :for="searchId" class="sr-only">{{
         $t("pages.guides.searchLabel")
       }}</label>
       <div class="guide-filters__search-wrap">
+        <svg
+          class="guide-filters__search-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle
+            cx="10.75"
+            cy="10.75"
+            r="6.75"
+            stroke="currentColor"
+            stroke-width="1.7"
+          />
+          <path
+            d="m16 16 4.5 4.5"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          />
+        </svg>
         <input
           :id="searchId"
           type="search"
@@ -51,52 +71,74 @@ function updateQuery(event: Event) {
         </button>
       </div>
     </div>
-    <fieldset class="guide-filters__fieldset">
-      <legend class="guide-filters__label">
-        {{ $t("pages.guides.styleLabel") }}
-      </legend>
-      <div class="guide-filters__styles">
-        <button
-          v-for="mode in modes"
-          :key="mode"
-          type="button"
-          class="guide-filters__choice"
-          :aria-pressed="props.mode === mode"
-          @click="emit('update:mode', mode)"
+    <details class="guide-filters__advanced">
+      <summary class="guide-filters__summary">
+        {{ $t("pages.guides.filterOptions") }}
+        <svg
+          class="guide-filters__chevron"
+          viewBox="0 0 20 20"
+          fill="none"
+          aria-hidden="true"
         >
-          {{
-            mode
-              ? $t(`pages.guides.styles.${mode}`)
-              : $t("pages.guides.allStyles")
-          }}
-        </button>
+          <path
+            d="m5 7 5 5 5-5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </summary>
+      <div class="guide-filters__advanced-fields">
+        <fieldset class="guide-filters__fieldset">
+          <legend class="guide-filters__label">
+            {{ $t("pages.guides.styleLabel") }}
+          </legend>
+          <p class="guide-filters__hint">{{ $t("pages.guides.styleHint") }}</p>
+          <div class="guide-filters__styles">
+            <button
+              v-for="mode in modes"
+              :key="mode"
+              type="button"
+              class="guide-filters__choice"
+              :aria-pressed="props.mode === mode"
+              @click="emit('update:mode', mode)"
+            >
+              {{
+                mode
+                  ? $t(`pages.guides.styles.${mode}`)
+                  : $t("pages.guides.allStyles")
+              }}
+            </button>
+          </div>
+        </fieldset>
+        <fieldset v-if="props.topics.length" class="guide-filters__fieldset">
+          <legend class="guide-filters__label">
+            {{ $t("pages.guides.topicsLabel") }}
+          </legend>
+          <div class="guide-filters__topics">
+            <button
+              type="button"
+              class="guide-filters__choice guide-filters__choice--topic"
+              :aria-pressed="!props.topic"
+              @click="emit('update:topic', '')"
+            >
+              {{ $t("pages.guides.allTopics") }}
+            </button>
+            <button
+              v-for="topic in props.topics"
+              :key="topic.value"
+              type="button"
+              class="guide-filters__choice guide-filters__choice--topic"
+              :aria-pressed="props.topic === topic.value"
+              @click="emit('update:topic', topic.value)"
+            >
+              {{ topic.label }}
+            </button>
+          </div>
+        </fieldset>
       </div>
-    </fieldset>
-    <fieldset v-if="props.topics.length" class="guide-filters__fieldset">
-      <legend class="guide-filters__label">
-        {{ $t("pages.guides.topicsLabel") }}
-      </legend>
-      <div class="guide-filters__topics">
-        <button
-          type="button"
-          class="guide-filters__choice guide-filters__choice--topic"
-          :aria-pressed="!props.topic"
-          @click="emit('update:topic', '')"
-        >
-          {{ $t("pages.guides.allTopics") }}
-        </button>
-        <button
-          v-for="topic in props.topics"
-          :key="topic.value"
-          type="button"
-          class="guide-filters__choice guide-filters__choice--topic"
-          :aria-pressed="props.topic === topic.value"
-          @click="emit('update:topic', topic.value)"
-        >
-          {{ topic.label }}
-        </button>
-      </div>
-    </fieldset>
+    </details>
     <button
       v-if="props.active"
       type="button"
@@ -111,7 +153,58 @@ function updateQuery(event: Event) {
 <style scoped>
 .guide-filters {
   display: grid;
-  gap: 1.15rem;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 1.25rem;
+  background: var(--ui-bg);
+}
+.guide-filters__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-block-size: 2.75rem;
+  padding: 0.25rem;
+  list-style: none;
+  cursor: pointer;
+  color: var(--ui-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.guide-filters__summary::-webkit-details-marker {
+  display: none;
+}
+.guide-filters__summary:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+.guide-filters__chevron {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  flex-shrink: 0;
+}
+.guide-filters__advanced[open] .guide-filters__chevron {
+  transform: rotate(180deg);
+}
+.guide-filters__advanced-fields {
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 0.25rem;
+}
+.guide-filters__search-icon {
+  flex: 0 0 1.125rem;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-inline-start: 0.875rem;
+  color: var(--ui-text-muted);
+}
+.guide-filters__hint {
+  margin: -0.125rem 0 0.625rem;
+  color: var(--ui-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.55;
 }
 .guide-filters__search-group {
   display: grid;
@@ -174,14 +267,16 @@ function updateQuery(event: Event) {
 .guide-filters__styles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.375rem;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.875rem;
+  background: var(--ui-bg-muted);
 }
 .guide-filters__topics {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.375rem;
-  overflow-x: auto;
-  padding: 0.25rem 0.2rem 0.5rem;
-  scrollbar-width: thin;
+  padding: 0.125rem 0;
 }
 .guide-filters__choice {
   min-block-size: 2.75rem;
@@ -205,6 +300,16 @@ function updateQuery(event: Event) {
   background: color-mix(in srgb, var(--ui-primary) 12%, var(--ui-bg));
   color: var(--ui-text-highlighted);
   font-weight: 650;
+}
+.guide-filters__styles .guide-filters__choice {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0.25rem;
+}
+.guide-filters__styles .guide-filters__choice[aria-pressed="true"] {
+  border-color: var(--ui-border);
+  background: var(--ui-bg);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ui-text) 8%, transparent);
 }
 .guide-filters__choice--topic {
   flex: 0 0 auto;

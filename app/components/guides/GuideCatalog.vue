@@ -6,6 +6,7 @@ import type { GuideInteractionMode } from "#shared/types/guideInteraction";
 import PGGuide from "~/components/PGGuide.vue";
 import PGButton from "~/components/ui/PGButton.vue";
 import GuideFilters from "./GuideFilters.vue";
+import WalkSetupHeader from "~/components/route/WalkSetupHeader.vue";
 
 const props = defineProps<{
   guides: readonly IGuide[];
@@ -63,52 +64,11 @@ function clearFilters() {
 
 <template>
   <div class="guide-catalog">
-    <header class="guide-catalog__hero">
-      <div class="guide-catalog__illustration" aria-hidden="true">
-        <svg viewBox="0 0 180 130" fill="none" class="guide-catalog__journal">
-          <rect
-            x="30"
-            y="18"
-            width="112"
-            height="98"
-            rx="16"
-            class="guide-catalog__paper"
-          />
-          <path
-            d="M54 95C37 66 102 88 81 56C64 30 133 44 117 26"
-            class="guide-catalog__trail"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-dasharray="4 7"
-          />
-          <circle cx="54" cy="95" r="6" class="guide-catalog__dot" />
-          <circle cx="117" cy="26" r="6" class="guide-catalog__dot" />
-          <path d="M126 77L135 68L144 77L135 86Z" class="guide-catalog__star" />
-        </svg>
-      </div>
-      <p class="guide-catalog__eyebrow">{{ $t("pages.guides.heroEyebrow") }}</p>
-      <h1 class="guide-catalog__title">{{ $t("pages.guides.heroTitle") }}</h1>
-      <p class="guide-catalog__description">
-        {{ $t("pages.guides.heroDescription") }}
-      </p>
-      <ol class="guide-catalog__steps">
-        <li
-          class="guide-catalog__step guide-catalog__step--current"
-          aria-current="step"
-        >
-          <span class="guide-catalog__step-number" aria-hidden="true">1</span
-          >{{ $t("pages.guides.steps.guide") }}
-        </li>
-        <li class="guide-catalog__step">
-          <span class="guide-catalog__step-number" aria-hidden="true">2</span
-          >{{ $t("pages.guides.steps.route") }}
-        </li>
-        <li class="guide-catalog__step">
-          <span class="guide-catalog__step-number" aria-hidden="true">3</span
-          >{{ $t("pages.guides.steps.walk") }}
-        </li>
-      </ol>
-    </header>
+    <WalkSetupHeader
+      :step="1"
+      :title="$t('pages.guides.heroTitle')"
+      :description="$t('pages.guides.heroDescription')"
+    />
 
     <section
       class="guide-catalog__browse"
@@ -199,111 +159,13 @@ function clearFilters() {
 <style scoped>
 .guide-catalog {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.5rem;
   inline-size: 100%;
   box-sizing: border-box;
   min-inline-size: 0;
-  padding: 1rem;
+  padding: 1.25rem 1rem 1.5rem;
+  background: color-mix(in srgb, var(--ui-primary) 2%, var(--ui-bg));
   color: var(--ui-text);
-}
-.guide-catalog__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  padding: 1.125rem 1rem 1rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 1.5rem;
-  background: color-mix(in srgb, var(--ui-secondary) 6%, var(--ui-bg-elevated));
-}
-.guide-catalog__illustration {
-  position: absolute;
-  z-index: -1;
-  inset-block-start: -0.5rem;
-  inset-inline-end: -2rem;
-  inline-size: 11rem;
-  transform: rotate(12deg);
-  opacity: 0.45;
-  pointer-events: none;
-}
-.guide-catalog__journal {
-  inline-size: 100%;
-}
-.guide-catalog__paper {
-  fill: var(--ui-bg);
-  stroke: var(--ui-border);
-}
-.guide-catalog__trail {
-  stroke: var(--ui-primary);
-}
-.guide-catalog__dot {
-  fill: var(--ui-primary);
-}
-.guide-catalog__star {
-  fill: var(--ui-secondary);
-}
-.guide-catalog__eyebrow {
-  position: relative;
-  margin: 0 0 0.5rem;
-  max-inline-size: 75%;
-  color: var(--ui-text-muted);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-.guide-catalog__title {
-  position: relative;
-  max-inline-size: 20ch;
-  margin: 0;
-  color: var(--ui-text-highlighted);
-  font-size: clamp(1.75rem, 7vw, 2.25rem);
-  font-weight: 650;
-  line-height: 1.15;
-  letter-spacing: -0.035em;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
-}
-.guide-catalog__description {
-  margin: 0.625rem 0 1rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-.guide-catalog__steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
-  padding: 0.75rem 0 0;
-  margin: 0;
-  list-style: none;
-  border-block-start: 1px solid var(--ui-border);
-}
-.guide-catalog__step {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  min-inline-size: 0;
-  color: var(--ui-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-.guide-catalog__step--current {
-  color: var(--ui-text-highlighted);
-  font-weight: 650;
-}
-.guide-catalog__step-number {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  inline-size: 1.5rem;
-  block-size: 1.5rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 50%;
-}
-.guide-catalog__step--current .guide-catalog__step-number {
-  background: color-mix(in srgb, var(--ui-primary) 16%, var(--ui-bg));
-  border-color: var(--ui-primary);
 }
 .guide-catalog__browse {
   min-inline-size: 0;
@@ -311,7 +173,7 @@ function clearFilters() {
 .guide-catalog__browse-title {
   margin: 0 0 0.75rem;
   color: var(--ui-text-highlighted);
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
@@ -381,9 +243,6 @@ function clearFilters() {
 @media (min-width: 480px) {
   .guide-catalog {
     padding: 1.25rem;
-  }
-  .guide-catalog__hero {
-    padding: 1.75rem 1.5rem 1.25rem;
   }
 }
 </style>
