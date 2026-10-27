@@ -573,6 +573,36 @@
     "finished": "Walk finished",
     "stopNumber": "Stop {position}"
   },
+  "researchDepth": {
+    "title": "Saved route research",
+    "unknownValue": "Unknown",
+    "status": {
+      "NOT_PREPARED": "Research not prepared",
+      "SHORTFALL": "Below the saved-text target",
+      "ENOUGH_SAVED_TEXT": "Saved-text target reached",
+      "UNKNOWN": "Research coverage unavailable"
+    },
+    "minutes": "{minutes} min",
+    "lessThanMinutes": "Less than {minutes} min",
+    "capacity": "Estimated saved material: {estimated}; target: {target}.",
+    "words": "Factual words: {eligible} of {target}; still needed: {missing}.",
+    "verification": "Independently verified: {verified} words; unverified: {unverified}.",
+    "currentPlace": "Selected story:",
+    "readiness": {
+      "NOT_SELECTED": "No place selected.",
+      "AVAILABLE": "Eligible source material remains untold. Independent verification is separate.",
+      "CONTEXT_ONLY": "Background context only; no untold local story evidence.",
+      "UNCHECKED_ACCOUNT": "Only unchecked accounts are available, not supported story facts.",
+      "EXHAUSTED": "The eligible evidence for this place has already been told.",
+      "MISSING": "No eligible story evidence is available for this place.",
+      "UNKNOWN": "Story readiness is unknown."
+    },
+    "accounting": "What these numbers mean",
+    "method": "Saved factual sentences count once, estimated at {rate} words per minute. Capacity rounds down and the target up to tenths of a minute.",
+    "methodUnknown": "The estimation method is unavailable; no reading rate is assumed.",
+    "limitations": "This is saved-text inventory, not remaining untold material or guaranteed speech duration. Reaching the target does not mean every claim is independently verified or the tour is complete.",
+    "separateReadiness": "Route coverage and the next story are separate. Preparation progress, captured pages and spending do not establish either."
+  },
   "experience": {
     "interactionStyle": "Guide interaction",
     "interactionModes": {
@@ -585,6 +615,8 @@
     "reconcileRequired": "Refresh this walk before making another change.",
     "ask": "Ask",
     "askAnything": "Ask anything…",
+    "generalAnswerNotice": "Answers here use general AI knowledge, not checked route research.",
+    "generalAnswerLabel": "General AI answer — not checked against tour sources",
     "title": "Your current stop",
     "intro": "Explore with your AI guide. Choose a stop and ask a question, or take a moment for yourself.",
     "forThisWalk": "About you, for this walk",
@@ -643,7 +675,7 @@
     "storyReadiness": "Story evidence at this stop",
     "readiness": {
       "NOT_SELECTED": "Select a stop to check its story evidence.",
-      "AVAILABLE": "Verified, unspoken evidence is available.",
+      "AVAILABLE": "Eligible, untold source material is available. Independent verification is separate.",
       "CONTEXT_ONLY": "Context only — no eligible unspoken story evidence.",
       "UNCHECKED_ACCOUNT": "Accounts remain unchecked; they are not verified facts.",
       "EXHAUSTED": "The eligible story evidence has already been told.",

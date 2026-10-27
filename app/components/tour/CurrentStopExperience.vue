@@ -13,6 +13,7 @@ import { useAuth } from "~/composables/auth/useAuth";
 import { experienceErrorKey } from "~/utils/experienceErrors";
 import { safeSourceUrl } from "~/utils/safeText";
 import PGButton from "~/components/ui/PGButton.vue";
+import TourResearchCoverage from "~/components/tour/TourResearchCoverage.vue";
 
 const props = defineProps<{
   tourId: string;
@@ -59,8 +60,19 @@ const showRecovery = computed(
     store.needsReconciliation ||
     (!store.view && !loading.value),
 );
+const currentView = computed(() => {
+  const uid = auth.user.value?.uid;
+  if (!uid) return null;
+  const view = store.viewFor(props.tourId, uid);
+  if (
+    props.generationId !== undefined &&
+    view?.generation_id !== props.generationId
+  )
+    return null;
+  return view;
+});
 const visibleTurns = computed(() =>
-  (store.view?.turns ?? [])
+  (currentView.value?.turns ?? [])
     .filter((turn) => turn.text.trim())
     .map((turn) => ({
       turn,
@@ -68,7 +80,7 @@ const visibleTurns = computed(() =>
     })),
 );
 const reviewLinks = computed(() =>
-  (store.view?.sources ?? []).filter(
+  (currentView.value?.sources ?? []).filter(
     (source) =>
       source.kind === "external_review_link" && safeSourceUrl(source.url),
   ),
@@ -227,6 +239,11 @@ onBeforeUnmount(() => {
         {{ $t("experience.refresh") }}
       </PGButton>
     </div>
+    <TourResearchCoverage
+      v-if="currentView"
+      :depth="currentView.route_research_depth"
+      :readiness="currentView.story_readiness"
+    />
     <form class="grid min-w-0 gap-3" @submit.prevent="ask">
       <label for="general-question" class="sr-only">
         {{ $t("experience.question") }}
@@ -236,9 +253,13 @@ onBeforeUnmount(() => {
         v-model="question"
         maxlength="4000"
         rows="3"
+        aria-describedby="general-answer-notice"
         :placeholder="$t('experience.askAnything')"
         class="question-input w-full min-w-0 resize-y rounded-2xl px-5 py-4 text-base leading-relaxed"
       />
+      <p id="general-answer-notice" class="text-muted text-sm">
+        {{ $t("experience.generalAnswerNotice") }}
+      </p>
       <PGButton
         type="submit"
         class="justify-self-start"
@@ -261,10 +282,9 @@ onBeforeUnmount(() => {
             rel="noopener noreferrer"
             class="underline"
           >
-            <span
-              translate="no"
-              class="font-normal whitespace-nowrap"
-            >Google Maps</span>
+            <span translate="no" class="font-normal whitespace-nowrap"
+              >Google Maps</span
+            >
             — {{ $t("experience.openPlaceReviews") }}
           </a>
         </li>
@@ -287,6 +307,12 @@ onBeforeUnmount(() => {
             ? $t("experience.you")
             : $t("experience.guide")
         }}</strong>
+        <p
+          v-if="turn.role === 'guide' && turn.kind === 'conversation'"
+          class="text-muted text-xs"
+        >
+          {{ $t("experience.generalAnswerLabel") }}
+        </p>
         <p>{{ turn.text }}</p>
         <ul v-if="sources.length" class="mt-2 text-xs">
           <li v-for="source in sources" :key="source.id">

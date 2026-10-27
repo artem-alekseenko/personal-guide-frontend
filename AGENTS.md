@@ -279,6 +279,17 @@ Node is installed through NVM. Noninteractive shells may need `source "$HOME/.nv
 
 `NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED=true` exposes the standalone `CurrentStopExperience` question composer; the backend must also enable `TEXT_EXPERIENCE_ENABLED` and support `ASK_GENERAL`. The frontend default is on by explicit user instruction; backend enablement remains separate. `experienceStore` is separate from playback and resets on account/tour changes. It forwards revision and generation identity with an idempotency key; uncertain questions must be retried or explicitly reconciled by reloading. The proxy uses the existing authenticated same-origin API boundary. Tour preferences are configured during creation; the question composer has no heading, place selector, personal-context editor or activity controls. Text questions do not pause existing audio.
 
+`TourResearchCoverage` is a read-only child above the composer. It consumes the
+optional `Experience.route_research_depth` from the same owner/tour/generation-
+scoped view, without extra requests or storage. The API supplies the target and
+word/rate estimates; missing metadata remains unknown. Saved inventory, independent
+verification and current-place story readiness stay distinct. Never infer speech
+coverage from READY, preparation percentage, page counts or spending, or treat
+saved text as remaining untold speech. Capacity rounds down rather than making a
+shortfall look sufficient. The composer helper and only guide turns marked
+`kind: "conversation"` label general AI answers as not checked against route
+sources; source-backed and untyped historical replies retain their provenance.
+
 Creation uses the selected suggested variant, preserving named stops separately from route geometry. Changing start/duration invalidates the suggestion. New tours draw their stored geometry directly rather than requesting a second route; legacy tours retain the existing map path. Context form fields are optional. The text feature's Python/client tests do not establish live GPS, provider factual accuracy, field accessibility or public-launch readiness.
 
 User constraint for this milestone: **do not generate, listen to, test or benchmark audio. Existing audio remains in use. Future audio verification MUST receive explicit human approval.** Use focused `tests/experience.test.ts`, `tests/experience-proxy.test.ts`, `tests/tour-contract.test.ts`, `tests/stored-route.test.ts`, `tests/client-auth.test.ts`, and `tests/auth.test.ts`, plus typecheck/build. Audio-inclusive regression/smoke suites are excluded until that approval.

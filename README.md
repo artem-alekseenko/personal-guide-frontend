@@ -1,6 +1,6 @@
 # Personal Guide frontend
 
-A mobile-first web app for location-aware walking tours. Choose a guide, plan a route, follow named stops on a map, and request narration or ask questions during your walk. The optional current-stop text panel adds explanations, activities, navigation instructions, and source links.
+A mobile-first web app for location-aware walking tours. Choose a guide, plan a route, follow named stops on a map, and request narration or ask general questions during your walk. The text panel distinguishes saved route research from general AI answers.
 
 This repository contains the browser UI and a Nuxt server proxy. The sibling [Personal Guide backend](../personal-guide.ai/README.md) handles authentication validation, route planning, tour preparation, persistence, research, and speech generation.
 
@@ -12,7 +12,7 @@ This repository contains the browser UI and a Nuxt server proxy. The sibling [Pe
 - Theme-aware Mapbox maps, numbered stops, GPS following, a whole-route view, optional 3D exploration, and a draggable manual-simulation marker.
 - Narration controls, visitor questions, and durable playback recovery.
 - English and Russian UI, with language, voice, and model preferences.
-- An opt-in text experience with stop selection, questions, backend navigation instructions, and explicit save/clear actions for future preferences.
+- A text question composer, enabled by default, with source provenance, saved-research coverage and explicit retry/reload recovery.
 
 The layout fills a mobile viewport and uses a phone-style frame on desktop. Route previews report unknown access and opening conditions; step-free routing needs verified accessibility along the whole path. Research-management controls are available on original tour cards and detail views; account-deletion screens remain outside the current UI scope.
 
@@ -284,11 +284,48 @@ NUXT_PUBLIC_TEXT_EXPERIENCE_ENABLED=true
 
 Set `TEXT_EXPERIENCE_ENABLED=true` in the backend configuration and restart the affected services. Without both flags, the text panel or backend endpoints remain unavailable.
 
-In the panel, select a stop, ask a question, or use the navigation shortcuts. Navigation instructions and status come from the backend. GPS sharing requires a fresh fix and GPS mode; a manual simulation marker does not represent your physical location.
+The standalone composer sends general questions without selecting a place or
+sending GPS. These answers use general AI knowledge, not checked route research;
+the helper beside Ask and conversation-kind guide replies state that distinction.
+Historical source-backed stories retain their source links and are not relabelled.
+Empty research does not disable general questions or silently change their mode.
 
-Per-tour context edits apply to that walk. Use the save action to update preferences for future tours, or the explicit clear action to remove them. New route drafts load those saved preferences without overwriting edits you made while the profile loaded.
+**Saved route research** reports the API's `route_research_depth`: estimated
+saved-text minutes against its target, eligible and missing factual words, and
+independently verified versus unverified words. The current backend's minimum
+route target is twenty minutes at 120 words/minute; the client displays the
+returned target rather than hardcoding it. Capacity rounds down, so 76 words
+display as 0.6 minutes, not a complete story or twenty minutes.
 
-Choose **Guide's style**, **Explore together**, or **Just guide me** in the personal-context form. Guide's style follows the selected guide card; Just guide me keeps stories and directions without unsolicited questions. You can still ask your own questions and use photo/rest controls. Apply a change to the active walk with **Apply to this walk**; saving it for future tours is a separate action. The panel shows the backend's effective style. Clearing personal memories can retain an operational no-questions override; change the selector explicitly to replace it.
+Not prepared, below target, target reached and unavailable metadata are distinct.
+Missing metadata does not become a zero or an invented target. Selected-story
+readiness stays separate: saved route inventory may remain after a place's
+eligible evidence is exhausted. Neither READY, 100% preparation, captured pages
+nor spending guarantees supported narration. The explanation disclosure describes
+deduplication and makes clear that saved capacity is not remaining untold text,
+independent approval or measured speech duration.
+
+Coverage reuses the existing scoped experience read and adds no research or
+provider request. Tour, Firebase UID and accepted-generation changes clear stale
+coverage and replies. Questions retain the shared mutation queue and original
+payload/key on uncertain retries. Tour preferences remain in route creation and
+Settings; the composer has no place selector, context editor or activity controls.
+
+Client verification used actual components and stores in Chromium with retained
+Novi Sad zero-word metrics and synthetic boundary states: tiny/near-target
+inventory, enough unverified text, exhausted stories, absent metadata, scope
+changes and original-key question recovery. English/Russian, light/dark,
+320/390-pixel mobile and 1280-pixel desktop layouts were exercised. The built
+frontend served HTTP 200 and rejected an unauthenticated experience request with
+HTTP 401. This does not verify live sign-in, provider answers, GPS or audio, and
+does not establish twenty minutes of generated speech.
+
+The approved nonaudio suite passed 721 tests; Nuxt/Vue and server/shared
+typechecking and the production build passed. Build warnings remain for the
+existing duplicate `IGeolocationStore` auto-import and large bundles. Changed
+runtime files pass Prettier; an unrelated pre-existing formatting difference in
+the external-review assertion in `tests/experience-question-ui.test.ts` was left
+unchanged rather than restyling unrelated code.
 
 In development (`pnpm dev`), a **Next step** button beside Pause/Resume requests another step through the existing tour action. It is hidden in production builds.
 

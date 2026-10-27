@@ -295,7 +295,6 @@ it("submits an unbound question without public-subject or location controls", as
       .filter((node) => node.type === "button")
       .map((node) => text(node).trim()),
   ).toEqual([t("experience.ask")]);
-  expect(all(root).some((node) => node.type === "details")).toBe(false);
   await typeQuestion(root, "Why is the sky blue?");
   expect(button(root, "experience.ask")?.props.disabled).toBe(false);
   await click(root, "experience.ask");

@@ -70,9 +70,22 @@ export interface StoryReadiness {
   unchecked_account_count: number;
   prepared_story_available: boolean;
 }
+export interface RouteResearchDepth {
+  status: "NOT_PREPARED" | "SHORTFALL" | "ENOUGH_SAVED_TEXT";
+  target_seconds: number;
+  target_words: number;
+  eligible_words: number;
+  verified_words: number;
+  unverified_words: number;
+  estimated_seconds: number;
+  missing_words: number;
+  words_per_minute: number;
+  estimation_method: "deduplicated_claim_text";
+}
 export interface Experience {
   language?: string;
   story_readiness?: StoryReadiness;
+  route_research_depth?: RouteResearchDepth | null;
   route_places?: PublicMapSubject[];
   route_discovery?: RouteDiscovery | null;
   nearby_discovery?: NearbyPublicDiscovery | null;
