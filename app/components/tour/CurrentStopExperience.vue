@@ -13,7 +13,6 @@ import { useAuth } from "~/composables/auth/useAuth";
 import { experienceErrorKey } from "~/utils/experienceErrors";
 import { safeSourceUrl } from "~/utils/safeText";
 import PGButton from "~/components/ui/PGButton.vue";
-import TourResearchCoverage from "~/components/tour/TourResearchCoverage.vue";
 
 const props = defineProps<{
   tourId: string;
@@ -239,11 +238,6 @@ onBeforeUnmount(() => {
         {{ $t("experience.refresh") }}
       </PGButton>
     </div>
-    <TourResearchCoverage
-      v-if="currentView"
-      :depth="currentView.route_research_depth"
-      :readiness="currentView.story_readiness"
-    />
     <form class="grid min-w-0 gap-3" @submit.prevent="ask">
       <label for="general-question" class="sr-only">
         {{ $t("experience.question") }}

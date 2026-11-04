@@ -59,6 +59,9 @@ export default defineNuxtPlugin(() => {
           (options.headers as any).Authorization = `Bearer ${tokenValue}`;
         }
 
+        const capabilityHeaders = new Headers(options.headers as HeadersInit);
+        capabilityHeaders.set("X-Tour-Contract-Version", "3");
+        options.headers = capabilityHeaders;
         options.credentials = "include";
       } catch (error) {
         logger.warn("apiFetch: no token available");

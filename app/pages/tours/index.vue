@@ -16,29 +16,35 @@
       }}</PGButton>
     </div>
     <div v-if="routeStore.allTours.length" class="tours-page__list">
-      <PGTourCard
-        v-for="tour in routeStore.allTours"
-        :key="tour.id"
-        :description="tour.description"
-        :preparationProgress="tour.preparation_progress"
-        :latestGenerationId="
-          tour.latest_generation_id || tour.active_generation_id
-        "
-        :researchPreview="tour.research_preview"
-        :routeStops="tour.route?.points"
-        :generatingText="
-          tour.preparation_error
-            ? $t('pages.tours.preparationFailed')
-            : tour.generating_string
-        "
-        :status="tour.status"
-        :preparationError="tour.preparation_error"
-        :guideName="tour.guide?.name || $t('pages.tours.missingGuide')"
-        :imageUrl="tour.image"
-        :name="tour.name"
-        :tourId="tour.id"
-        @updated="routeStore.fetchListTours()"
-      />
+      <template v-for="tour in routeStore.allTours" :key="tour.id">
+        <NativeTourCard
+          v-if="tour.route?.walking_plan"
+          :tour="tour"
+          @updated="routeStore.fetchListTours()"
+        />
+        <PGTourCard
+          v-else
+          :description="tour.description"
+          :preparationProgress="tour.preparation_progress"
+          :latestGenerationId="
+            tour.latest_generation_id || tour.active_generation_id
+          "
+          :researchPreview="tour.research_preview"
+          :routeStops="tour.route?.points"
+          :generatingText="
+            tour.preparation_error
+              ? $t('pages.tours.preparationFailed')
+              : tour.generating_string
+          "
+          :status="tour.status"
+          :preparationError="tour.preparation_error"
+          :guideName="tour.guide?.name || $t('pages.tours.missingGuide')"
+          :imageUrl="tour.image"
+          :name="tour.name"
+          :tourId="tour.id"
+          @updated="routeStore.fetchListTours()"
+        />
+      </template>
     </div>
     <div v-else-if="routeStore.isLoading" class="tours-page__empty">
       <UIcon class="tours-page__loader" name="svg-spinners:6-dots-scale" />
@@ -58,6 +64,7 @@
 
 <script lang="ts" setup>
 import { definePageMeta } from "#imports";
+import NativeTourCard from "~/components/tour/NativeTourCard.vue";
 
 definePageMeta({});
 

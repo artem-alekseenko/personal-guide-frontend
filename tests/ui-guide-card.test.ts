@@ -140,7 +140,7 @@ it.each(modes)(
     expect(route.personalContext.note).toBe("");
     expect(route.personalContext.interests).toEqual([]);
     expect(route.tags.every((tag) => !tag.is_selected)).toBe(true);
-    expect(push).toHaveBeenCalledExactlyOnceWith("/create-route");
+    expect(push).toHaveBeenCalledExactlyOnceWith("/create-walk");
   },
 );
 

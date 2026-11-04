@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import type { User } from "firebase/auth";
 import type * as VueRouter from "vue-router";
-import TourDetail from "../app/pages/tours/[tourId].vue";
+import TourDetail from "../app/components/tour/LegacyTourWalk.vue";
 import PGButton from "../app/components/ui/PGButton.vue";
 import { useTourStore } from "../app/stores/tourStore";
 import { useUserStore } from "../app/stores/userStore";

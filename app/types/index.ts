@@ -69,6 +69,7 @@ export interface IRoute {
 }
 
 interface IGeneratedRoute {
+  walking_plan?: import("#shared/types/nativeWalk").WalkingRoutePlan | null;
   discovered_places?: DiscoveredPlace[];
   discovery?: RouteDiscovery | null;
   nearby_discovery?: NearbyPublicDiscovery | null;

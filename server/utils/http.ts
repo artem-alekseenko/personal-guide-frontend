@@ -68,6 +68,8 @@ export async function forwardAuthAndFetch<T>(
 
   const idempotencyKey = getRequestHeader(event, "idempotency-key");
   if (idempotencyKey) headers.set("idempotency-key", idempotencyKey);
+  const tourContract = getRequestHeader(event, "x-tour-contract-version");
+  if (tourContract === "3") headers.set("x-tour-contract-version", "3");
 
   const existingReqId = getRequestHeader(event, "x-request-id");
   const generatedReqId = `${Date.now().toString(36)}-${Math.random()

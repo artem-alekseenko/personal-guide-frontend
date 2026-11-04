@@ -51,7 +51,7 @@ function toggleDetails(event: Event) {
 function selectGuide() {
   useRouteStore().reset();
   guidesStore.setSelectedGuide(props.guide);
-  router.push("/create-route");
+  router.push("/create-walk");
 }
 </script>
 

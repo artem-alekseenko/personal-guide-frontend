@@ -707,3 +707,17 @@ Guide tags are backend `{ id, name }` objects; catalog/card filters use `name`.
 Empty route geometry uses legacy Directions; malformed nonempty geometry does
 not. Initial route fitting survives source loading, while style/theme restoration
 of an existing route preserves the camera.
+
+## Continuous walks (contract 3)
+
+New guide planning uses `/create-walk` and the server-owned WalkingRoutePlan.
+Native tours have `route.walking_plan` and no required stops. The tour page mounts
+only NativeTourWalk or the preserved LegacyTourWalk, never both controllers.
+The API capability header is `X-Tour-Contract-Version: 3`; native controls use
+`/tours/{id}/walk` and immutable operation bodies/keys. New generation preparation
+can initially return a documented 409; retain the Web Lock and read refresh so the
+view becomes usable after publication without a reload. See
+`docs/route-native-client.md` for exact boundaries. `pnpm test:text` includes
+native-walk tests; these are controlled nonaudio checks. Keep the existing
+explicit-human-approval audio restriction. This frontend task does not authorize
+changes to the companion backend.
