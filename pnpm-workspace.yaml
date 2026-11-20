@@ -4,30 +4,32 @@ saveExact: true
 
 overrides:
   "minimatch@>=7.0.0 <11.0.1": 11.0.9
-  "@tiptap/y-tiptap": 3.3.0
+  "@tiptap/y-tiptap": 3.3.1
+  "@intlify/unplugin-vue-i18n>@typescript-eslint/scope-manager": 8.72.2
+  "@intlify/unplugin-vue-i18n>@typescript-eslint/typescript-estree": 8.72.2
   "@firebase/firestore>@grpc/grpc-js": 1.14.7
   "@tailwindcss/typography>postcss-selector-parser": 7.2.1
   "fontless>esbuild": 0.28.2
   "gaxios>uuid": 11.1.1
   "google-gax>uuid": 11.1.1
   "teeny-request>uuid": 11.1.1
-  "@nuxt/ui>@tiptap/pm": 3.34.0
-  "@nuxt/ui>@tiptap/core": 3.34.0
-  "@nuxt/ui>@tiptap/vue-3": 3.34.0
-  "@nuxt/ui>@tiptap/markdown": 3.34.0
-  "@nuxt/ui>@tiptap/suggestion": 3.34.0
-  "@nuxt/ui>@tiptap/starter-kit": 3.34.0
-  "@nuxt/ui>@tiptap/extension-code": 3.34.0
-  "@nuxt/ui>@tiptap/extension-image": 3.34.0
-  "@nuxt/ui>@tiptap/extension-mention": 3.34.0
-  "@nuxt/ui>@tiptap/extension-node-range": 3.34.0
-  "@nuxt/ui>@tiptap/extension-bubble-menu": 3.34.0
-  "@nuxt/ui>@tiptap/extension-drag-handle": 3.34.0
-  "@nuxt/ui>@tiptap/extension-placeholder": 3.34.0
-  "@nuxt/ui>@tiptap/extension-collaboration": 3.34.0
-  "@nuxt/ui>@tiptap/extension-floating-menu": 3.34.0
-  "@nuxt/ui>@tiptap/extension-horizontal-rule": 3.34.0
-  "@nuxt/ui>@tiptap/extension-drag-handle-vue-3": 3.34.0
+  "@nuxt/ui>@tiptap/pm": 3.35.0
+  "@nuxt/ui>@tiptap/core": 3.35.0
+  "@nuxt/ui>@tiptap/vue-3": 3.35.0
+  "@nuxt/ui>@tiptap/markdown": 3.35.0
+  "@nuxt/ui>@tiptap/suggestion": 3.35.0
+  "@nuxt/ui>@tiptap/starter-kit": 3.35.0
+  "@nuxt/ui>@tiptap/extension-code": 3.35.0
+  "@nuxt/ui>@tiptap/extension-image": 3.35.0
+  "@nuxt/ui>@tiptap/extension-mention": 3.35.0
+  "@nuxt/ui>@tiptap/extension-node-range": 3.35.0
+  "@nuxt/ui>@tiptap/extension-bubble-menu": 3.35.0
+  "@nuxt/ui>@tiptap/extension-drag-handle": 3.35.0
+  "@nuxt/ui>@tiptap/extension-placeholder": 3.35.0
+  "@nuxt/ui>@tiptap/extension-collaboration": 3.35.0
+  "@nuxt/ui>@tiptap/extension-floating-menu": 3.35.0
+  "@nuxt/ui>@tiptap/extension-horizontal-rule": 3.35.0
+  "@nuxt/ui>@tiptap/extension-drag-handle-vue-3": 3.35.0
 
 allowBuilds:
   "@firebase/util": true
@@ -51,5 +53,52 @@ minimumReleaseAgeExclude:
   - "@firebase/auth-compat@0.6.16"
   - "@firebase/auth@1.13.11"
   - "@firebase/crashlytics@0.2.0"
-  - "@nuxt/ui@4.12.2"
   - firebase@13.4.0
+  - "@tiptap/core@3.35.0"
+  - "@tiptap/extension-blockquote@3.35.0"
+  - "@tiptap/extension-bold@3.35.0"
+  - "@tiptap/extension-bubble-menu@3.35.0"
+  - "@tiptap/extension-bullet-list@3.35.0"
+  - "@tiptap/extension-code-block@3.35.0"
+  - "@tiptap/extension-code@3.35.0"
+  - "@tiptap/extension-collaboration@3.35.0"
+  - "@tiptap/extension-document@3.35.0"
+  - "@tiptap/extension-drag-handle-vue-3@3.35.0"
+  - "@tiptap/extension-drag-handle@3.35.0"
+  - "@tiptap/extension-dropcursor@3.35.0"
+  - "@tiptap/extension-floating-menu@3.35.0"
+  - "@tiptap/extension-gapcursor@3.35.0"
+  - "@tiptap/extension-hard-break@3.35.0"
+  - "@tiptap/extension-heading@3.35.0"
+  - "@tiptap/extension-horizontal-rule@3.35.0"
+  - "@tiptap/extension-image@3.35.0"
+  - "@tiptap/extension-italic@3.35.0"
+  - "@tiptap/extension-link@3.35.0"
+  - "@tiptap/extension-list-item@3.35.0"
+  - "@tiptap/extension-list-keymap@3.35.0"
+  - "@tiptap/extension-list@3.35.0"
+  - "@tiptap/extension-mention@3.35.0"
+  - "@tiptap/extension-node-range@3.35.0"
+  - "@tiptap/extension-ordered-list@3.35.0"
+  - "@tiptap/extension-paragraph@3.35.0"
+  - "@tiptap/extension-placeholder@3.35.0"
+  - "@tiptap/extension-strike@3.35.0"
+  - "@tiptap/extension-text@3.35.0"
+  - "@tiptap/extension-underline@3.35.0"
+  - "@tiptap/extensions@3.35.0"
+  - "@tiptap/markdown@3.35.0"
+  - "@tiptap/pm@3.35.0"
+  - "@tiptap/starter-kit@3.35.0"
+  - "@tiptap/suggestion@3.35.0"
+  - "@tiptap/vue-3@3.35.0"
+  - "@tiptap/y-tiptap@3.3.1"
+  - "@vue/compiler-core@3.5.46"
+  - "@vue/compiler-dom@3.5.46"
+  - "@vue/compiler-sfc@3.5.46"
+  - "@vue/compiler-ssr@3.5.46"
+  - "@vue/reactivity@3.5.46"
+  - "@vue/runtime-core@3.5.46"
+  - "@vue/runtime-dom@3.5.46"
+  - "@vue/server-renderer@3.5.46"
+  - "@vue/shared@3.5.46"
+  - vue@3.5.46

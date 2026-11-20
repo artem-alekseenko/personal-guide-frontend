@@ -19,7 +19,7 @@
   "devDependencies": {
     "@iconify-json/logos": "1.2.20",
     "@iconify-json/svg-spinners": "1.2.4",
-    "@nuxt/ui": "4.12.2",
+    "@nuxt/ui": "4.13.0",
     "@nuxtjs/i18n": "10.6.0",
     "@pinia/nuxt": "1.0.3",
     "@tailwindcss/typography": "0.5.20",
@@ -40,14 +40,14 @@
     "tailwindcss": "4.3.5",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "vite": "8.3.8",
-    "vitest": "5.1.0",
+    "vitest": "5.1.1",
     "vue-tsc": "3.3.14"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-directions": "4.3.3",
     "firebase": "13.4.0",
-    "mapbox-gl": "3.35.0",
-    "vue": "3.5.45",
+    "mapbox-gl": "3.35.1",
+    "vue": "3.5.46",
     "vue-router": "5.5.1"
   },
   "packageManager": "pnpm@12.21.0",

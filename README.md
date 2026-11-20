@@ -445,8 +445,8 @@ Check sign-in, maps, GPS, and provider-backed text in a configured browser. Pass
 
 ### Dependency and omp skill maintenance
 
-The latest-major frontend migration uses Vue 3.5.45, Pinia 4.1.0 with
-`@pinia/nuxt` 1.0.3, Firebase 13.4.0, Firebase Admin 14.5.1 and Mapbox GL 3.35.0.
+The frontend uses Vue 3.5.46, Nuxt UI 4.13.0, Pinia 4.1.0 with `@pinia/nuxt`
+1.0.3, Firebase 13.4.0, Firebase Admin 14.5.1, and Mapbox GL 3.35.1.
 VueFire and its Nuxt module are removed: `app/plugins/00-firebase.client.ts`
 initializes native Firebase Auth and the optional Enterprise App Check provider.
 Login/profile consumers share its `$firebaseUser` ref, and route guards await
@@ -498,6 +498,8 @@ and `tsc6`. Vue's checker still requires that API, so native 7 does not replace
 SFC checking. `pnpm typecheck` first runs Nuxt/Vue checks and then checks the
 generated server/shared projects with native 7. Node types stay on the latest
 Node 24 line to match the pinned runtime.
+The i18n build plugin uses the TypeScript ESLint 8.72.2 parser and scope manager
+until the parser supports the pinned stable native TypeScript release.
 
 The pinned `vite-plugin-checker@0.14.5` compatibility patch resolves the full
 TypeScript 6 compiler behind its wrapper and caches only successful setup. This
@@ -509,8 +511,9 @@ empty cache and detects an intentional Vue script type error.
 `pnpm-workspace.yaml`: existing hoisting, pre/post hooks, security overrides and
 approved dependency builds were migrated there, and Docker copies it before
 installation. The obsolete project `.npmrc` and `package.json.pnpm` were removed.
-Release-age exceptions name only exact versions from this update: Firebase
-13.4.0 and its newly published SDK packages, Nuxt UI 4.12.2, and minimatch 11.0.9. No unrestricted build permission or advisory suppression was added.
+Release-age exceptions pin exact versions of Firebase 13.4.0 and its SDK
+packages, minimatch 11.0.9, Vue 3.5.46 and its compiler packages, and the Tiptap
+3.35.0 family with y-tiptap 3.3.1.
 
 The 2026-11-17 update passed 757 approved nonaudio tests in 81 files, Nuxt/Vue
 and native TypeScript checks, production build, focused formatting and a
