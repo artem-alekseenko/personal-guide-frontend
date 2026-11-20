@@ -1,10 +1,12 @@
 <template>
   <section class="tours-page">
-    <div class="tours-page__create-btn-wrap">
-      <PGButton @click="handleCreateTour">
+    <header class="tours-page__intro">
+      <h1 class="pg-page-title">{{ $t("pages.tours.heading") }}</h1>
+      <p class="pg-page-description">{{ $t("pages.tours.description") }}</p>
+      <PGButton block @click="handleCreateTour">
         {{ $t("pages.tours.createNewTour") }}
       </PGButton>
-    </div>
+    </header>
     <div
       v-if="routeStore.error && routeStore.allTours.length"
       class="p-4 text-center"
@@ -46,10 +48,15 @@
         />
       </template>
     </div>
-    <div v-else-if="routeStore.isLoading" class="tours-page__empty">
-      <UIcon class="tours-page__loader" name="svg-spinners:6-dots-scale" />
+    <div
+      v-else-if="routeStore.isLoading"
+      class="tours-page__empty"
+      role="status"
+    >
+      <span class="tours-page__loader" aria-hidden="true" />
+      <p>{{ $t("common.loading") }}</p>
     </div>
-    <div v-else class="p-4 text-center" role="status">
+    <div v-else class="tours-page__empty" role="status">
       <p>
         {{
           routeStore.error ? $t("common.loadFailed") : $t("pages.tours.empty")
@@ -59,16 +66,62 @@
         $t("buttons.tryAgain")
       }}</PGButton>
     </div>
+    <div v-if="routeStore.loadMoreError" class="tours-page__empty" role="alert">
+      <p>{{ $t("pages.tours.loadMoreFailed") }}</p>
+      <PGButton
+        :disabled="routeStore.isLoading"
+        @click="routeStore.loadMoreTours()"
+      >
+        {{ $t("buttons.tryAgain") }}
+      </PGButton>
+    </div>
+    <p
+      v-if="routeStore.isLoadingMore"
+      class="text-muted text-center"
+      role="status"
+    >
+      {{ $t("pages.tours.loadingMore") }}
+    </p>
+    <div
+      v-if="routeStore.hasMoreTours"
+      ref="listEnd"
+      class="h-px"
+      aria-hidden="true"
+    />
   </section>
 </template>
 
 <script lang="ts" setup>
 import { definePageMeta } from "#imports";
+import { ref, watch } from "vue";
 import NativeTourCard from "~/components/tour/NativeTourCard.vue";
 
 definePageMeta({});
 
 const routeStore = useRouteStore();
+const listEnd = ref<HTMLElement | null>(null);
+const canLoadMore = () =>
+  routeStore.hasMoreTours &&
+  !routeStore.isLoading &&
+  !routeStore.isLoadingMore &&
+  !routeStore.loadMoreError;
+watch(
+  [listEnd, canLoadMore, () => routeStore.allTours.length],
+  ([target, enabled], _, onCleanup) => {
+    if (!target || !enabled || typeof IntersectionObserver === "undefined")
+      return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting && canLoadMore())
+          void routeStore.loadMoreTours();
+      },
+      { rootMargin: "0px 0px 300px" },
+    );
+    observer.observe(target);
+    onCleanup(() => observer.disconnect());
+  },
+  { flush: "post" },
+);
 void routeStore.fetchListTours();
 onBeforeUnmount(() => routeStore.stopPolling());
 
@@ -81,38 +134,47 @@ const handleCreateTour = () => {
 
 <style scoped>
 .tours-page {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  inline-size: 100%;
-  max-inline-size: 80rem;
-  margin-inline: auto;
-  padding-block-start: 1rem;
-  padding-block-end: 2rem;
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+  width: 100%;
+  padding: 1.5rem 1rem 2rem;
 }
-
-.tours-page__create-btn-wrap {
-  align-self: center;
+.tours-page__intro {
+  display: grid;
+  gap: 0.875rem;
 }
-
 .tours-page__list {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
   gap: 1rem;
-  padding: 1rem;
+  min-inline-size: 0;
 }
-
 .tours-page__empty {
-  display: flex;
-  flex-grow: 1;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2rem 1.25rem;
+  border: 1px dashed var(--ui-border);
+  border-radius: 1.25rem;
+  color: var(--ui-text-muted);
+  text-align: center;
 }
-
 .tours-page__loader {
-  inline-size: 12rem;
-  block-size: 12rem;
-  color: oklch(0.439 0 0);
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--ui-border);
+  border-top-color: var(--ui-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tours-page__loader {
+    animation: none;
+  }
 }
 </style>

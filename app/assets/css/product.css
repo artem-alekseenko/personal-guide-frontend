@@ -1,0 +1,70 @@
+/* Shared reading rhythm and surfaces for the mobile application. */
+@layer base {
+  body {
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  :where(button, a, input, textarea, select, summary):focus-visible {
+    outline: 2px solid var(--ui-primary);
+    outline-offset: 3px;
+  }
+  :where(input, textarea, select) {
+    font-size: 1rem;
+  }
+  :where(textarea) {
+    resize: vertical;
+  }
+}
+.pg-page-title {
+  margin: 0;
+  color: var(--ui-text-highlighted);
+  font-family: Georgia, serif;
+  font-size: clamp(1.75rem, 7vw, 2.125rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.pg-page-description {
+  margin: 0;
+  color: var(--ui-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+.pg-surface {
+  min-inline-size: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 1.25rem;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--ui-text) 4%, transparent);
+  overflow-wrap: anywhere;
+}
+.pg-disclosure {
+  min-inline-size: 0;
+  padding: 0.25rem 1rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 1rem;
+  background: var(--ui-bg);
+}
+.pg-disclosure > summary {
+  min-block-size: 2.75rem;
+  padding-block: 0.75rem;
+  color: var(--ui-text-highlighted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pg-disclosure[open] {
+  padding-block-end: 1rem;
+}
+.pg-text-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  color: var(--ui-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

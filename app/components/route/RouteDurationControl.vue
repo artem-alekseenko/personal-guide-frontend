@@ -6,6 +6,9 @@ const { t } = useI18n();
 const formattedTime = computed(() =>
   t("common.timeFormat.minutes", { count: duration.value }),
 );
+const presets = computed(() =>
+  [15, 30, 45, 60].filter((value) => value >= props.min && value <= props.max),
+);
 </script>
 
 <template>
@@ -17,6 +20,21 @@ const formattedTime = computed(() =>
       <output for="tour-duration" class="route-duration__value">{{
         formattedTime
       }}</output>
+    </div>
+    <div
+      class="route-duration__presets"
+      :aria-label="$t('pages.createRoute.durationTitle')"
+      role="group"
+    >
+      <button
+        v-for="minutes in presets"
+        :key="minutes"
+        type="button"
+        :aria-pressed="duration === minutes"
+        @click="duration = minutes"
+      >
+        {{ $t("common.timeFormat.minutes", { count: minutes }) }}
+      </button>
     </div>
     <input
       id="tour-duration"
@@ -36,6 +54,28 @@ const formattedTime = computed(() =>
 </template>
 
 <style scoped>
+.route-duration__presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.route-duration__presets button {
+  min-height: 2.75rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ui-text);
+}
+.route-duration__presets button[aria-pressed="true"] {
+  border-color: var(--ui-primary);
+  background: color-mix(in srgb, var(--ui-primary) 10%, var(--ui-bg));
+  font-weight: 600;
+}
+.route-duration__presets button:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+}
 .route-duration__heading {
   display: flex;
   align-items: center;

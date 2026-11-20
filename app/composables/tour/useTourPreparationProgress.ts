@@ -12,7 +12,12 @@ import type { ICreatedTour } from "~/types";
 import type { PreparationProgress } from "#shared/types/preparationProgress";
 
 type PreparationTour = Pick<ICreatedTour, "id" | "preparation_progress"> &
-  Partial<Pick<ICreatedTour, "user_id" | "latest_generation_id">>;
+  Partial<
+    Pick<
+      ICreatedTour,
+      "user_id" | "latest_generation_id" | "status" | "playback_generation_id"
+    >
+  >;
 
 // Caption text is pinned to factual work, not just the generation or a timestamp.
 const workKey = (value: PreparationProgress) =>
@@ -49,6 +54,7 @@ export function useTourPreparationProgress(
   options: {
     visible?: Readonly<Ref<boolean>>;
     onRecovered?: (source: ICreatedTour) => void;
+    onPublished?: (source: ICreatedTour) => void;
   } = {},
 ) {
   const api = useTourResearchApi();
@@ -150,16 +156,18 @@ export function useTourPreparationProgress(
       progress.value = safe;
     }
   }
+  const publicationPending = () =>
+    !!options.onPublished &&
+    progress.value?.status === "READY" &&
+    tour.value?.status === "GENERATING" &&
+    !tour.value.playback_generation_id;
+  const needsPolling = () =>
+    !progress.value ||
+    ["PENDING", "RUNNING", "FAILED"].includes(progress.value.status) ||
+    publicationPending();
   function schedule() {
     clear();
-    if (
-      active &&
-      identity &&
-      generationId() &&
-      visible.value &&
-      (!progress.value ||
-        ["PENDING", "RUNNING", "FAILED"].includes(progress.value.status))
-    )
+    if (active && identity && generationId() && visible.value && needsPolling())
       timer = setTimeout(
         () => {
           timer = undefined;
@@ -235,6 +243,24 @@ export function useTourPreparationProgress(
       }
       if (result.progress) applyFacts(result.progress, true);
       factual = result.progress ? progress.value : null;
+      if (publicationPending()) {
+        // READY is written before activation. Keep reading until the parent can
+        // adopt the published tour, including after a transient source failure.
+        const source = await api.source(id);
+        if (!isCurrent() || !visible.value) return;
+        if (
+          source.id !== id ||
+          source.user_id !== result.generation.owner_id ||
+          (source.latest_generation_id ||
+            source.preparation_progress?.generation_id) !== generation
+        )
+          throw new Error("The published preparation source changed");
+        if (
+          source.status !== "GENERATING" &&
+          source.playback_generation_id === generation
+        )
+          options.onPublished?.(source);
+      }
       refreshFailed.value = false;
     } catch {
       if (isCurrent()) refreshFailed.value = true;
@@ -307,6 +333,8 @@ export function useTourPreparationProgress(
       lang,
       generationId,
       () => tour.value?.preparation_progress?.rich_progress_enabled !== false,
+      () => tour.value?.status,
+      () => tour.value?.playback_generation_id,
     ],
     ([current, uid, selectedLanguage, generation, richEnabled], previous) => {
       const [previousTour, previousUid, previousLanguage] = previous;
@@ -360,11 +388,7 @@ export function useTourPreparationProgress(
       // A status transition changes cadence; repeated snapshots cannot starve it.
       if (progress.value?.status !== previousStatus) clear();
       if (current.user_id && scope.value) messages.restore(scope.value);
-      if (
-        progress.value &&
-        !["PENDING", "RUNNING", "FAILED"].includes(progress.value.status)
-      )
-        clear();
+      if (!needsPolling()) clear();
       if (changed || languageChanged || richChanged) void refresh();
       // Frequent list updates must not restart or starve the scheduled refresh.
       else if (!timer && readVersion !== revision) schedule();

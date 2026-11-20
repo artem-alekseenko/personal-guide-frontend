@@ -403,6 +403,43 @@ it("keeps a reset list request from clearing a newer request's loading state", a
   store.stopPolling();
 });
 
+it("progressively loads older tours, including after a failed page or a newer insertion", async () => {
+  const store = useRouteStore();
+  const tours = Array.from({ length: 23 }, (_, i) => ({ id: String(i) }));
+  list.mockImplementation(async ({ skip, limit }) =>
+    tours.slice(skip, skip + limit),
+  );
+  try {
+    await store.fetchListTours();
+    expect(list).toHaveBeenLastCalledWith({ skip: 0, limit: 11 });
+    expect(store.allTours).toEqual(tours.slice(0, 10));
+    expect(store.hasMoreTours).toBe(true);
+
+    list.mockRejectedValueOnce(new Error("Offline"));
+    await store.loadMoreTours();
+    expect(store.allTours).toEqual(tours.slice(0, 10));
+    expect(store.loadMoreError).toBe(true);
+    expect(store.error).toBeNull();
+
+    await store.loadMoreTours();
+    expect(list).toHaveBeenLastCalledWith({ skip: 9, limit: 12 });
+    expect(store.allTours).toEqual(tours.slice(0, 20));
+    expect(store.loadMoreError).toBe(false);
+    await store.fetchListTours();
+    expect(list).toHaveBeenLastCalledWith({ skip: 0, limit: 21 });
+    expect(store.allTours).toEqual(tours.slice(0, 20));
+
+    tours.unshift({ id: "new" });
+    await store.loadMoreTours();
+    expect(store.allTours).toEqual(tours);
+    expect(store.hasMoreTours).toBe(false);
+    await store.fetchListTours();
+    expect(store.allTours).toEqual(tours);
+  } finally {
+    store.stopPolling();
+  }
+});
+
 it.each(["pending", "failure"])(
   "resumes %s list polling after remounting during an unfinished request",
   async (result) => {

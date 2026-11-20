@@ -22,6 +22,7 @@
     v-else-if="tourStore.tour"
     class="container mx-auto flex min-w-0 grow flex-col gap-y-3 py-4"
   >
+    <h1 class="sr-only">{{ tourStore.tour.name }}</h1>
     <div v-if="tourStore.tour.research_preview" class="mx-4">
       <TourResearchPreviewWarning
         :preview="tourStore.tour.research_preview"
@@ -29,46 +30,13 @@
       />
     </div>
     <div v-if="showPreparationStatus" class="mx-4">
-      <TourPreparationProgress
-        v-if="preparationProgress"
+      <TourGenerationStatus
         :progress="preparationProgress"
-        :refreshing="preparationRefreshing"
-        :status-refreshing="preparationStatusRefreshing"
+        :status="tourStore.tour.status"
+        :preparation-error="tourStore.tour.preparation_error"
+        :generating-text="tourStore.tour.generating_string"
         :refresh-failed="preparationRefreshFailed"
-        :caption-uncertain="preparationCaptionUncertain"
-        @refresh="refreshPreparation"
-        @refresh-status="refreshPreparationStatus"
       />
-      <template v-else>
-        <p
-          v-if="
-            !tourStore.tour.preparation_error &&
-            (preparationRefreshing || tourStore.tour.status === 'GENERATING')
-          "
-          role="status"
-          class="border-default bg-elevated text-default flex items-center gap-2 rounded-lg border p-3 text-sm"
-        >
-          <span
-            aria-hidden="true"
-            class="border-primary/30 border-t-primary size-5 shrink-0 animate-spin rounded-full border-2 motion-reduce:animate-none"
-          />
-          {{ $t("preparationProgress.waitingForSnapshot") }}
-        </p>
-        <p
-          v-if="tourStore.tour.preparation_error"
-          role="alert"
-          class="text-error break-words"
-        >
-          {{ tourStore.tour.preparation_error }}
-        </p>
-        <p
-          v-if="preparationRefreshFailed"
-          class="text-warning mt-2 text-sm"
-          role="status"
-        >
-          {{ $t("preparationProgress.refreshFailed") }}
-        </p>
-      </template>
     </div>
     <!-- Map -->
     <div class="relative mx-4">
@@ -251,7 +219,7 @@
           @updated="routeStore.fetchListTours()"
         />
         <TourPreparationProgress
-          v-if="preparationProgress && !showPreparationStatus"
+          v-if="preparationProgress"
           :progress="preparationProgress"
           :refreshing="preparationRefreshing"
           :status-refreshing="preparationStatusRefreshing"
@@ -292,6 +260,7 @@
 </template>
 
 <script lang="ts" setup>
+import TourGenerationStatus from "./TourGenerationStatus.vue";
 import { useNotification } from "~/composables/ui/useNotification";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";

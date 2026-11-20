@@ -1,5 +1,6 @@
 <template>
   <section class="settings-page">
+    <h1 class="sr-only">{{ $t("common.settings") }}</h1>
     <UserSettings />
   </section>
 </template>
@@ -21,7 +22,7 @@ onMounted(() => {
 <style scoped>
 .settings-page {
   width: 100%;
-  padding-inline: 1rem;
+  padding: 1rem;
   padding-block-end: 2rem;
 
   @container main (width > 414px) {

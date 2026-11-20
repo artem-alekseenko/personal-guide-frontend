@@ -35,9 +35,6 @@ const steps = ["guide", "route", "walk"] as const;
       </li>
     </ol>
     <div class="walk-setup-header__copy">
-      <p class="walk-setup-header__eyebrow">
-        {{ $t("pages.guides.heroEyebrow") }}
-      </p>
       <h1 class="walk-setup-header__title">{{ title }}</h1>
       <p class="walk-setup-header__description">{{ description }}</p>
     </div>

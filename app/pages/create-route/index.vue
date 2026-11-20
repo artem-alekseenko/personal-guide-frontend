@@ -62,58 +62,13 @@
 
       <section
         class="route-setup__section route-setup__section--surface"
-        aria-labelledby="route-duration-title"
+        :aria-label="$t('pages.createRoute.durationTitle')"
       >
-        <div class="route-setup__heading">
-          <span class="route-setup__number" aria-hidden="true">02</span>
-          <h2 id="route-duration-title">
-            {{ $t("pages.createRoute.durationTitle") }}
-          </h2>
-        </div>
         <RouteDurationControl
           v-model="duration"
           :min="MIN_DURATION_TOUR_MINUTES"
           :max="MAX_DURATION_TOUR_MINUTES"
         />
-      </section>
-
-      <section
-        class="route-setup__section"
-        aria-labelledby="route-preferences-title"
-      >
-        <div class="route-setup__heading">
-          <span class="route-setup__number" aria-hidden="true">03</span>
-          <h2 id="route-preferences-title">
-            {{ $t("pages.createRoute.preferencesTitle") }}
-          </h2>
-          <span class="route-setup__optional">{{
-            $t("pages.createRoute.optional")
-          }}</span>
-        </div>
-        <PersonalContextForm
-          v-model="routeStore.personalContext"
-          :guide-mode="guidesStore.selectedGuide?.interaction_mode"
-          :show-interests="false"
-        />
-        <div v-if="isShowChips" class="route-setup__interests">
-          <p class="route-setup__label">
-            {{ $t("pages.createRoute.selectTopics") }}
-          </p>
-          <div class="route-setup__chips">
-            <PGChip
-              v-for="chip in chips"
-              :key="chip.name"
-              :isSelected="chip.is_selected"
-              @click="() => toggleChip(chip.name)"
-            >
-              {{
-                $t(
-                  `experience.topics.${chip.name.toLowerCase().replaceAll(" ", "_")}`,
-                )
-              }}
-            </PGChip>
-          </div>
-        </div>
       </section>
 
       <section
@@ -193,6 +148,38 @@
         {{ mainButtonText }}
       </PGButton>
     </div>
+    <fieldset
+      class="route-setup__fields"
+      :disabled="isCreating"
+      :inert="isCreating"
+      :aria-label="$t('pages.createRoute.preferencesTitle')"
+    >
+      <PersonalContextForm
+        v-model="routeStore.personalContext"
+        :guide-mode="guidesStore.selectedGuide?.interaction_mode"
+        :show-interests="false"
+      >
+        <div v-if="isShowChips" class="route-setup__interests">
+          <p class="route-setup__label">
+            {{ $t("pages.createRoute.selectTopics") }}
+          </p>
+          <div class="route-setup__chips">
+            <PGChip
+              v-for="chip in chips"
+              :key="chip.name"
+              :isSelected="chip.is_selected"
+              @click="() => toggleChip(chip.name)"
+            >
+              {{
+                $t(
+                  `experience.topics.${chip.name.toLowerCase().replaceAll(" ", "_")}`,
+                )
+              }}
+            </PGChip>
+          </div>
+        </div>
+      </PersonalContextForm>
+    </fieldset>
   </section>
 </template>
 

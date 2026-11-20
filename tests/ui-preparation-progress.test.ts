@@ -8,6 +8,7 @@ import { useUserStore } from "../app/stores/userStore";
 import type { PreparationProgress } from "../shared/types/preparationProgress";
 import { preparationSnapshot } from "./helpers/preparationProgress";
 import TourPreparationProgress from "../app/components/tour/TourPreparationProgress.vue";
+import TourGenerationStatus from "../app/components/tour/TourGenerationStatus.vue";
 import PGButton from "../app/components/ui/PGButton.vue";
 
 const api = vi.hoisted(() => ({ list: vi.fn() }));
@@ -30,10 +31,11 @@ const text = (root: TestNode): string =>
     .map((n) => n.text)
     .join(" ");
 
-it("uses backend percentage on compact cards and retains saved-material counters in research details", async () => {
+it("shows live progress and one activity line on list cards without research controls", async () => {
   Object.assign(globalThis, {
     getComputedStyle: () => ({ lineHeight: "24px" }),
     useNuxtApp: () => ({ $apiFetch: vi.fn() }),
+    useI18n: () => ({ t: (key: string) => key }),
   });
   useUserStore().user = { uid: "owner" } as User;
   const app = mount(
@@ -41,7 +43,7 @@ it("uses backend percentage on compact cards and retains saved-material counters
     {
       description: "",
       status: "STARTED",
-      name: "Walk",
+      name: "Tour",
       generatingText: "Preparing",
       tourId: "tour",
       imageUrl: "",
@@ -50,78 +52,47 @@ it("uses backend percentage on compact cards and retains saved-material counters
     },
     { NuxtLink: { template: "<a><slot /></a>" }, PGButton },
   );
-  await nextTick();
-  expect(findAll(app.root, (n) => n.type === "progress")[0]?.props.value).toBe(
-    37,
-  );
-  const active = findAll(
-    app.root,
-    (n) => "data-active-research-stops" in n.props,
-  )[0];
-  expect(active && text(active)).toContain("Clock House");
-  expect(active?.parent?.type).not.toBe("details");
-  const counters = findAll(
-    app.root,
-    (n) => "data-research-counters" in n.props,
-  )[0];
-  expect(counters?.parent?.type).toBe("section");
-  app.props.preparationProgress = {
-    ...snapshot(),
-    claims_count: 34,
-    word_count: 1280,
-    archive_bytes: 65432,
-    turns_completed: 8,
-  };
-  await nextTick();
-  expect(
-    findAll(
-      app.root,
-      (n) => n.props["data-research-counter"] === "claims_count",
-    )
-      .map(text)
-      .join(" "),
-  ).toBe("34");
-  expect(
-    findAll(app.root, (n) => n.props["data-research-counter"] === "word_count")
-      .map(text)
-      .join(" "),
-  ).toBe((1280).toLocaleString());
-  app.props.preparationProgress = { ...snapshot(), percent: undefined };
-  await nextTick();
-  expect(findAll(app.root, (n) => n.type === "progress")).toHaveLength(0);
-  expect(text(app.root)).not.toContain("60%");
-  app.props.preparationProgress = {
-    ...snapshot("FAILED"),
-    error: "Research deadline reached.",
-  };
-  await nextTick();
-  expect(
-    findAll(app.root, (n) => n.props.role === "alert")
-      .map(text)
-      .join(" "),
-  ).toContain("Research deadline reached.");
-  app.props.preparationProgress = {
-    ...snapshot("FAILED"),
-    error: "worker_research_credits_exhausted",
-  };
-  await nextTick();
-  expect(text(app.root)).toContain("preparationProgress.creditsExhausted");
-  expect(text(app.root)).not.toContain("worker_research_credits_exhausted");
-  app.props.preparationProgress = {
-    ...snapshot("FAILED"),
-    error: "worker_researchspendingunavailable",
-  };
-  await nextTick();
-  expect(text(app.root)).toContain("preparationProgress.budgetUnavailable");
-  expect(text(app.root)).not.toContain("worker_researchspendingunavailable");
-  app.props.preparationProgress = {
-    ...snapshot("FAILED"),
-    error: "worker_researchratelimited",
-  };
-  await nextTick();
-  expect(text(app.root)).toContain("preparationProgress.rateLimited");
-  expect(text(app.root)).not.toContain("worker_researchratelimited");
-  app.unmount();
+  try {
+    await nextTick();
+    expect(
+      findAll(app.root, (n) => n.type === "progress")[0]?.props.value,
+    ).toBe(37);
+    const activity = () =>
+      findAll(app.root, (n) => "data-generation-activity" in n.props);
+    expect(activity()).toHaveLength(1);
+    expect(text(activity()[0]!)).toContain(
+      "preparationProgress.phases.RESEARCH",
+    );
+    expect(findAll(app.root, (n) => n.type === "details")).toHaveLength(0);
+    expect(
+      findAll(app.root, (n) => "data-research-counters" in n.props),
+    ).toHaveLength(0);
+    app.props.preparationProgress = {
+      ...snapshot(),
+      step_description: "Checking the archive. A second sentence.",
+      percent: undefined,
+    };
+    await nextTick();
+    expect(text(activity()[0]!)).toBe("Checking the archive.");
+    expect(
+      findAll(app.root, (n) => n.type === "progress")[0]?.props.value,
+    ).toBeUndefined();
+    expect(text(app.root)).not.toContain("37%");
+    app.props.preparationProgress = {
+      ...snapshot("FAILED"),
+      error: "worker_research_credits_exhausted",
+    };
+    await nextTick();
+    expect(
+      findAll(app.root, (n) => n.props.role === "alert")
+        .map(text)
+        .join(" "),
+    ).toContain("tourGeneration.failed");
+    expect(text(app.root)).not.toContain("worker_research_credits_exhausted");
+    expect(text(app.root)).not.toContain("Reading a source");
+  } finally {
+    app.unmount();
+  }
 });
 
 it("distinguishes API timing kinds and exposes raw activity, freshness, and separate spend amounts", async () => {
@@ -283,7 +254,10 @@ it("keeps a missing research snapshot indeterminate", async () => {
     { NuxtLink: { template: "<a><slot /></a>" }, PGButton },
   );
   await nextTick();
-  expect(findAll(app.root, (n) => n.type === "progress")).toHaveLength(0);
+  expect(findAll(app.root, (n) => n.type === "progress")).toHaveLength(1);
+  expect(
+    findAll(app.root, (n) => n.type === "progress")[0]?.props.value,
+  ).toBeUndefined();
   app.unmount();
 });
 
@@ -363,4 +337,54 @@ it("rejects invalid backend percentages and uses stop activity without inventing
       .join(" "),
   ).toContain("Clock House");
   app.unmount();
+});
+
+it("shows a finished tour despite retained preparation and switches back for active regeneration", async () => {
+  const app = mount(TourGenerationStatus, {
+    status: "FINISHED",
+    progress: snapshot("READY"),
+  });
+  try {
+    expect(text(app.root)).toContain("tourGeneration.statuses.FINISHED");
+    expect(text(app.root)).not.toContain("tourGeneration.ready");
+    app.props.progress = snapshot("RUNNING");
+    await nextTick();
+    expect(text(app.root)).toContain("tourGeneration.statuses.RUNNING");
+  } finally {
+    app.unmount();
+  }
+});
+
+it("waits for publication and never invents a percentage for missing or invalid progress", async () => {
+  const app = mount(TourGenerationStatus, {
+    status: "GENERATING",
+    published: false,
+    progress: snapshot("READY"),
+  });
+  try {
+    expect(text(app.root)).toContain("tourGeneration.statuses.FINALIZING");
+    expect(
+      findAll(app.root, (n) => n.type === "progress")[0]?.props.value,
+    ).toBe(99);
+    app.props.status = "GENERATED";
+    app.props.published = true;
+    await nextTick();
+    expect(text(app.root)).toContain("tourGeneration.statuses.READY");
+    expect(
+      findAll(app.root, (n) => n.type === "progress")[0]?.props.value,
+    ).toBe(100);
+    app.props.status = "GENERATING";
+    for (const percent of [undefined, -1, 101, Number.NaN]) {
+      app.props.progress = preparationSnapshot({ percent });
+      await nextTick();
+      expect(
+        findAll(app.root, (n) => n.type === "progress")[0]?.props.value,
+      ).toBeUndefined();
+    }
+    app.props.progress = null;
+    await nextTick();
+    expect(text(app.root)).toContain("tourGeneration.waiting");
+  } finally {
+    app.unmount();
+  }
 });

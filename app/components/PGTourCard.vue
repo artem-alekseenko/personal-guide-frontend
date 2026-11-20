@@ -1,10 +1,6 @@
 <template>
-  <div
-    ref="cardRef"
-    :style="{ backgroundImage: `url(${imageUrl})` }"
-    class="tour-card"
-  >
-    <div class="tour-card__overlay"></div>
+  <div ref="cardRef" class="tour-card">
+    <TourCover :src="imageUrl" />
     <div class="tour-card__content">
       <h2 class="tour-card__title">{{ name }}</h2>
       <div class="tour-card__description-wrap">
@@ -40,71 +36,32 @@
         :stops="routeStops"
       />
       <NuxtLink
-        v-if="['GENERATED', 'STARTED'].includes(status)"
         :to="`/tours/${encodeURIComponent(tourId)}`"
         class="tour-card__link"
       >
-        {{ $t("navigation.goToTour") }}
+        {{
+          $t(
+            ["GENERATED", "STARTED", "FINISHED"].includes(status)
+              ? "navigation.goToTour"
+              : "nativeWalk.viewPreparation",
+          )
+        }}
       </NuxtLink>
-      <TourResearchControls
+      <TourGenerationStatus
         v-if="!researchPreview"
-        :tour-id="tourId"
-        :latest-generation-id="
-          latestGenerationId || preparationProgress?.generation_id
-        "
-        :preparation-progress="livePreparationProgress"
+        :progress="livePreparationProgress"
         :status="status"
         :preparation-error="preparationError"
-        @updated="emit('updated')"
-      />
-      <TourPreparationProgress
-        v-if="livePreparationProgress && !researchPreview"
-        :progress="livePreparationProgress"
-        :refreshing="preparationRefreshing"
-        :status-refreshing="preparationStatusRefreshing"
+        :generating-text="generatingText"
         :refresh-failed="preparationRefreshFailed"
-        :caption-uncertain="preparationCaptionUncertain"
-        @refresh="refreshPreparation"
-        @refresh-status="refreshPreparationStatus"
-        compact
       />
-      <div v-else-if="!researchPreview" class="mt-3">
-        <p
-          v-if="
-            !preparationError &&
-            (preparationRefreshing || status === 'GENERATING')
-          "
-          role="status"
-          class="border-default bg-elevated text-default flex items-center gap-2 rounded-lg border p-3 text-sm"
-        >
-          <span
-            aria-hidden="true"
-            class="border-primary/30 border-t-primary size-5 shrink-0 animate-spin rounded-full border-2 motion-reduce:animate-none"
-          />
-          {{ $t("preparationProgress.waitingForSnapshot") }}
-        </p>
-        <p
-          v-if="generatingText || preparationError"
-          class="tour-card__generating-text"
-          :role="preparationError ? 'alert' : 'status'"
-        >
-          {{ generatingText || preparationError }}
-        </p>
-        <p
-          v-if="preparationRefreshFailed"
-          class="bg-elevated text-warning mt-2 rounded p-2 text-sm"
-          role="status"
-        >
-          {{ $t("preparationProgress.refreshFailed") }}
-        </p>
-      </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import TourPreparationProgress from "./tour/TourPreparationProgress.vue";
-import TourResearchControls from "./tour/TourResearchControls.vue";
+import TourGenerationStatus from "./tour/TourGenerationStatus.vue";
+import TourCover from "./tour/TourCover.vue";
 import TourResearchPreviewWarning from "./tour/TourResearchPreviewWarning.vue";
 import type { IRoutePoint, ResearchPreview } from "~/types";
 import type { PreparationProgress } from "#shared/types/preparationProgress";
@@ -155,11 +112,6 @@ const cardVisible = shallowRef(false);
 const {
   progress: livePreparationProgress,
   refreshFailed: preparationRefreshFailed,
-  refreshing: preparationRefreshing,
-  statusRefreshing: preparationStatusRefreshing,
-  captionUncertain: preparationCaptionUncertain,
-  refresh: refreshPreparation,
-  refreshStatus: refreshPreparationStatus,
 } = useTourPreparationProgress(
   computed(() =>
     props.researchPreview
@@ -202,7 +154,7 @@ const measureDescription = async () => {
     element.classList.add("tour-card__description--clamped");
   }
 
-  const maxHeight = lineHeight * 5;
+  const maxHeight = lineHeight * 3;
   shouldShowToggle.value = fullHeight > maxHeight;
 };
 let resizeObserver: ResizeObserver | undefined;
@@ -237,108 +189,64 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .tour-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr;
-  align-items: center;
-  justify-content: flex-start;
-  justify-items: center;
-  column-gap: 4rem;
-  row-gap: 1rem;
-  padding: 1rem;
-  border: 0.0625rem solid oklch(0.938 0.127 124.321);
-  border-radius: 0.75rem;
-  background-size: cover;
-  background-position: center;
-  box-shadow:
-    0 1.25rem 1.5625rem -0.3125rem oklch(0 0 0 / 0.1),
-    0 0.5rem 0.625rem -0.375rem oklch(0 0 0 / 0.1);
-  transition:
-    border-color 0.2s,
-    background-color 0.2s;
-
-  @container (width >= 670px) {
-    padding: 2rem;
-  }
-
-  @container (width >= 926px) {
-    inline-size: 100%;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-row: span 3;
-  }
+  min-inline-size: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 1.25rem;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  overflow: hidden;
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--ui-text) 4%, transparent);
 }
-
-.tour-card__overlay {
-  position: absolute;
-  inset: 0;
-  border-radius: 0.75rem;
-  background: oklch(0 0 0 / 0.7);
-}
-
 .tour-card__content {
-  position: relative;
-  z-index: 10;
+  display: grid;
+  gap: 0.75rem;
+  min-inline-size: 0;
+  padding: 1.25rem;
+  overflow-wrap: anywhere;
 }
-
 .tour-card__title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: oklch(1 0 0);
+  color: var(--ui-text-highlighted);
+  font-size: 1.25rem;
+  font-weight: 650;
+  line-height: 1.35;
 }
-
-.tour-card__description-wrap {
-  position: relative;
-}
-
 .tour-card__description {
-  font-size: 1rem;
-  font-weight: 600;
-  color: oklch(0.968 0.007 247.896);
-  transition: all 0.3s;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--ui-text-muted);
 }
-
 .tour-card__description--clamped {
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .tour-card__toggle {
-  display: block;
-  margin-block-start: 0.5rem;
-  margin-inline-start: auto;
+  min-block-size: 2.75rem;
+  color: var(--ui-text);
   font-size: 0.875rem;
-  color: oklch(0.882 0.059 254.128);
   text-decoration: underline;
-  background: none;
-  border: none;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: color 0.2s;
+  text-underline-offset: 0.2em;
 }
-
-.tour-card__toggle:hover {
-  color: oklch(0.932 0.032 255.585);
-}
-
-.tour-card__toggle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 0.125rem oklch(0.809 0.105 251.813 / 0.5);
-}
-
 .tour-card__guide {
-  color: oklch(0.968 0.007 247.896);
+  color: var(--ui-text-muted);
+  font-size: 0.875rem;
 }
-
 .tour-card__generating-text {
-  color: oklch(0.925 0.084 155.995);
+  color: var(--ui-text);
 }
-
 .tour-card__link {
-  display: block;
-  text-align: end;
-  color: oklch(0.932 0.032 255.585);
-  text-decoration: underline;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-block-size: 3rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  background: var(--fill-green-700);
+  color: white;
+  font-weight: 600;
+}
+.tour-card__link:hover {
+  background: var(--fill-green-800);
 }
 </style>

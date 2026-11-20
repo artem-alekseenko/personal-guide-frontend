@@ -1,201 +1,283 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, shallowRef, watch } from "vue";
+import { computed, watch } from "vue";
 import type { ICreatedTour } from "~/types";
-import type { WalkKnowledge } from "#shared/types/nativeWalk";
+import { useNativeWalkPresentation } from "~/composables/tour/useNativeWalkPresentation";
 import { useNativeWalk } from "~/composables/tour/useNativeWalk";
 import { useNotification } from "~/composables/ui/useNotification";
+import { useToastNotifications } from "~/composables/ui/useToastNotifications";
+import { useNativeWalkPosition } from "~/composables/tour/useNativeWalkPosition";
+import TourLocationMode from "./TourLocationMode.vue";
 import NativeWalkMap from "./NativeWalkMap.vue";
 import NativeWalkControls from "./NativeWalkControls.vue";
 import NativeWalkPreparation from "./NativeWalkPreparation.vue";
-const emit = defineEmits<{ updated: [] }>();
-const props = defineProps<{ tour: ICreatedTour }>();
+import TourCover from "./TourCover.vue";
+const emit = defineEmits<{ updated: []; open: []; finished: [] }>();
+const props = defineProps<{ tour: ICreatedTour; walking: boolean }>();
 const { t } = useI18n();
-const walk = useNativeWalk(props.tour.id);
-const knowledge = shallowRef<WalkKnowledge | null>(null);
+const notifications = useNotification();
+const toast = useToastNotifications();
+const position = useNativeWalkPosition(
+  computed(() => props.tour.route.walking_plan?.intent.origin),
+);
+const manualPosition = position.isManualMode;
+const walk = useNativeWalk(props.tour.id, position.source);
+const { title, knowledge } = useNativeWalkPresentation(
+  computed(() => props.tour),
+);
 const plan = computed(() => props.tour.route.walking_plan!);
 const view = walk.view;
-const subjects = computed(() => knowledge.value?.subjects ?? []);
-const remaining = computed(() =>
-  Math.ceil((view.value?.remaining_seconds ?? 0) / 60),
-);
-const distance = computed(() =>
-  Math.round(view.value?.progress?.distance_meters ?? 0),
-);
+const published = computed(() => {
+  const current = view.value;
+  return (
+    !!current &&
+    !!props.tour.playback_generation_id &&
+    current.generation_id === props.tour.playback_generation_id &&
+    current.route_revision === plan.value.revision &&
+    current.language === plan.value.intent.language &&
+    (current.started ||
+      ["GENERATED", "STARTED", "FINISHED"].includes(props.tour.status))
+  );
+});
+const inWalk = computed(() => props.walking && published.value);
 const blocked = computed(
   () =>
-    !walk.ready.value || !!view.value?.finished || walk.generationChanged.value,
+    !walk.ready.value ||
+    walk.failed.value ||
+    walk.generationChanged.value ||
+    !!view.value?.finished,
 );
-const latestText = computed(
-  () => view.value?.active_delivery?.text || walk.lastText.value,
+const highlights = computed(() => {
+  const covered = new Set(
+    knowledge.value?.coverage
+      ?.filter((entry) => entry.status === "accepted" && entry.claim_ids.length)
+      .map((entry) => entry.subject_id),
+  );
+  const names = [
+    ...(props.tour.route.points ?? []).map((point) => point.name),
+    ...(knowledge.value?.subjects ?? [])
+      .filter(
+        (subject) =>
+          covered.has(subject.id) &&
+          !["city", "region", "country"].includes(subject.kind ?? ""),
+      )
+      .map((subject) => subject.name),
+  ];
+  return [...new Set(names.map((name) => name?.trim()).filter(Boolean))].slice(
+    0,
+    4,
+  );
+});
+watch(
+  () =>
+    published.value &&
+    !props.walking &&
+    !!view.value?.started &&
+    !view.value.finished,
+  (open) => {
+    if (open) emit("open");
+  },
+  { immediate: true },
 );
-const unverified = computed(() =>
-  view.value?.active_delivery
-    ? view.value.active_delivery.evidence_status === "unverified"
-    : walk.lastUnverified.value,
+watch(
+  view,
+  (value) => {
+    if (value) position.initialize(value);
+  },
+  { immediate: true, flush: "sync" },
+);
+watch(
+  () => inWalk.value && !!view.value?.finished,
+  (finished) => {
+    if (finished) emit("finished");
+  },
+  { immediate: true },
+);
+watch(
+  () =>
+    inWalk.value && walk.audioUnavailable.value
+      ? view.value?.active_delivery?.text
+      : undefined,
+  (passage) => {
+    if (passage)
+      notifications.showInfo({
+        title: t("nativeWalk.guidePassage"),
+        message: passage,
+        autoClose: false,
+      });
+  },
+);
+watch(
+  () =>
+    inWalk.value &&
+    (walk.generationChanged.value
+      ? "generation"
+      : walk.uncertain.value
+        ? "uncertain"
+        : walk.failed.value
+          ? "failed"
+          : null),
+  (issue) => {
+    if (issue === "generation") {
+      notifications.showInfo({
+        message: t("nativeWalk.generationChanged"),
+        primaryActionText: t("nativeWalk.reloadTour"),
+        onPrimaryAction: reloadTour,
+        autoClose: false,
+      });
+    } else if (issue === "uncertain") {
+      notifications.showWarning({
+        message: t("nativeWalk.uncertain"),
+        primaryActionText: t("buttons.tryAgain"),
+        onPrimaryAction: () => void safely(walk.retry),
+        secondaryActionText: t("nativeWalk.reload"),
+        onSecondaryAction: () => void safely(walk.reconcile),
+        showSecondaryAction: true,
+      });
+    } else if (issue === "failed") {
+      notifications.showError({
+        message: t("nativeWalk.actionFailed"),
+        primaryActionText: t("nativeWalk.reload"),
+        onPrimaryAction: () => void safely(walk.reconcile),
+      });
+    }
+  },
 );
 function reloadTour() {
-  reloadNuxtApp({ path: `/tours/${encodeURIComponent(props.tour.id)}` });
+  reloadNuxtApp();
 }
 async function safely(action: () => unknown) {
   try {
     await action();
   } catch (error) {
-    useNotification().showApiError(error, t("nativeWalk.actionFailed"));
+    if (!inWalk.value || !(walk.failed.value || walk.uncertain.value)) {
+      notifications.showApiError(error, t("nativeWalk.actionFailed"));
+    }
   }
 }
-const { $apiFetch } = useNuxtApp();
-let knowledgeEpoch = 0;
-watch(
-  () => view.value?.generation_id,
-  async (generationId) => {
-    const epoch = ++knowledgeEpoch;
-    knowledge.value = null;
-    if (!generationId) return;
-    try {
-      const result = await ($apiFetch as typeof $fetch)<WalkKnowledge>(
-        `/api/native-walk/${encodeURIComponent(props.tour.id)}/knowledge`,
-      );
-      if (
-        epoch === knowledgeEpoch &&
-        result.generation_id === generationId &&
-        result.route_revision === view.value?.route_revision &&
-        result.language === view.value?.language
-      )
-        knowledge.value = result;
-    } catch {
-      /* Optional subjects do not gate walking or source-backed playback. */
-    }
-  },
-  { immediate: true },
-);
-onBeforeUnmount(() => {
-  knowledgeEpoch++;
-});
+async function requestPassage(action: () => Promise<void>) {
+  await safely(action);
+  const status = walk.stepStatus.value;
+  if (status && status !== "locating")
+    toast.showInfo(t(`nativeWalk.stepStatus.${status}`));
+}
 </script>
 <template>
-  <section class="grid min-w-0 gap-4 p-4">
-    <h1 class="text-xl font-semibold">
-      {{ tour.name || $t("nativeWalk.walkTitle") }}
+  <section
+    class="grid w-full min-w-0 gap-4 p-4"
+    :data-walking-screen="inWalk ? '' : undefined"
+  >
+    <h1 class="pg-page-title">
+      {{ title }}
     </h1>
-    <NativeWalkPreparation :tour="tour" @updated="emit('updated')" />
-    <NativeWalkMap :plan="plan" />
-    <p v-if="!view" role="status">
-      {{
-        $t(
-          walk.preparing.value || tour.status === "GENERATING"
-            ? "nativeWalk.preparing"
-            : "common.loading",
-        )
-      }}
-    </p>
-    <div v-if="walk.generationChanged.value" role="alert" class="grid gap-3">
-      <p>{{ $t("nativeWalk.generationChanged") }}</p>
-      <PGButton @click="reloadTour">{{ $t("nativeWalk.reloadTour") }}</PGButton>
-    </div>
-    <p v-if="walk.failed.value" role="alert">
-      {{ $t("nativeWalk.actionFailed") }}
-    </p>
-    <div
-      v-if="walk.uncertain.value"
-      class="border-warning grid gap-2 rounded-lg border p-3"
-      role="alert"
-    >
-      <p>{{ $t("nativeWalk.uncertain") }}</p>
-      <PGButton :disabled="walk.busy.value" @click="safely(walk.retry)">{{
-        $t("buttons.tryAgain")
-      }}</PGButton>
-      <PGButton :disabled="walk.busy.value" @click="safely(walk.reconcile)">{{
-        $t("nativeWalk.reload")
-      }}</PGButton>
-    </div>
-    <PGButton
-      v-else-if="walk.failed.value"
-      :disabled="walk.busy.value"
-      @click="safely(walk.reconcile)"
-      >{{ $t("nativeWalk.reload") }}</PGButton
-    >
-    <template v-if="view">
-      <p role="status">
+    <template v-if="!inWalk">
+      <TourCover :src="tour.image" class="rounded-xl" eager />
+      <p class="leading-relaxed">
+        {{ tour.description?.trim() || $t("nativeWalk.overview") }}
+      </p>
+      <p class="text-muted text-sm">
         {{
-          $t("nativeWalk.progress", {
-            meters: distance,
-            total: Math.round(plan.distance_meters),
-            minutes: remaining,
+          $t("nativeWalk.estimate", {
+            minutes: Math.round(plan.duration_seconds / 60),
+            meters: Math.round(plan.distance_meters),
           })
         }}
       </p>
-      <p v-if="!view.progress?.reliable">
-        {{ $t("nativeWalk.locationUncertain") }}
+      <p v-if="tour.guide?.name" class="text-muted text-sm">
+        {{ $t("pages.createRoute.yourGuide") }} · {{ tour.guide.name }}
       </p>
-      <p v-if="view.progress?.reason === 'off_route'" role="status">
-        {{ $t("nativeWalk.offRoute") }}
-        <NuxtLink to="/create-walk">{{ $t("nativeWalk.newWalk") }}</NuxtLink>
+      <section v-if="highlights.length" class="grid gap-2">
+        <h2 class="font-semibold">{{ $t("nativeWalk.highlights") }}</h2>
+        <ul class="text-muted list-disc space-y-1 ps-5 text-sm">
+          <li v-for="place in highlights" :key="place">{{ place }}</li>
+        </ul>
+      </section>
+      <p
+        v-if="
+          !view &&
+          !walk.preparing.value &&
+          !walk.failed.value &&
+          tour.status !== 'GENERATING'
+        "
+        role="status"
+      >
+        {{ $t("common.loading") }}
       </p>
-      <p v-if="view.research_gaps.length" role="status">
-        {{ $t("nativeWalk.knowledgeGap") }}
+      <div v-if="walk.generationChanged.value" role="alert" class="grid gap-3">
+        <p>{{ $t("nativeWalk.generationChanged") }}</p>
+        <PGButton @click="reloadTour">{{
+          $t("nativeWalk.reloadTour")
+        }}</PGButton>
+      </div>
+      <p v-if="walk.failed.value" role="alert">
+        {{ $t("nativeWalk.actionFailed") }}
       </p>
-      <p v-if="!walk.canControl.value" role="status">
+      <div
+        v-if="walk.uncertain.value"
+        class="border-warning grid gap-2 rounded-lg border p-3"
+        role="alert"
+      >
+        <p>{{ $t("nativeWalk.uncertain") }}</p>
+        <PGButton :disabled="walk.busy.value" @click="safely(walk.retry)">{{
+          $t("buttons.tryAgain")
+        }}</PGButton>
+        <PGButton :disabled="walk.busy.value" @click="safely(walk.reconcile)">{{
+          $t("nativeWalk.reload")
+        }}</PGButton>
+      </div>
+      <PGButton
+        v-else-if="walk.failed.value"
+        :disabled="walk.busy.value"
+        @click="safely(walk.reconcile)"
+        >{{ $t("nativeWalk.reload") }}</PGButton
+      >
+      <p v-if="view && !walk.canControl.value" role="status">
         {{ $t("nativeWalk.otherController") }}
       </p>
-      <p v-if="walk.rendering.value" role="status">
-        {{ $t("nativeWalk.loadingAudio") }}
-      </p>
-      <p v-if="walk.audioUnavailable.value" role="status">
-        {{ $t("nativeWalk.audioUnavailable") }}
-      </p>
-      <article
-        v-if="latestText"
-        class="border-default rounded-xl border p-4"
-        aria-live="polite"
+      <NativeWalkPreparation
+        :tour="tour"
+        summary-only
+        @updated="emit('updated')"
+      />
+      <PGButton
+        v-if="published && !view?.finished"
+        :disabled="blocked"
+        size="lg"
+        @click="emit('open')"
       >
-        <p v-if="unverified" class="text-warning">
-          {{ $t("nativeWalk.unverified") }}
-        </p>
-        <p class="leading-relaxed whitespace-pre-wrap">{{ latestText }}</p>
-      </article>
-      <p v-if="view.finished" role="status">{{ $t("nativeWalk.finished") }}</p>
+        {{ $t("tourGeneration.statuses.READY") }}
+      </PGButton>
+    </template>
+    <template v-else-if="view">
+      <TourLocationMode
+        v-model="manualPosition"
+        :gps-available="position.gpsAvailable.value"
+        :simulation-hint="$t('nativeWalk.simulationHint')"
+        compact
+      />
+      <NativeWalkMap
+        :plan="plan"
+        :simulation="manualPosition"
+        :simulation-point="position.point.value"
+        @move="position.move"
+      />
+      <PGButton
+        v-if="!view.started && !view.finished"
+        :disabled="blocked"
+        size="lg"
+        @click="requestPassage(walk.start)"
+      >
+        {{ $t("nativeWalk.start") }}
+      </PGButton>
       <NativeWalkControls
-        v-else
+        v-if="!view.finished"
         :view="view"
         :blocked="blocked"
-        :playing="walk.playing.value"
-        :rendering="walk.rendering.value"
-        :locally-paused="walk.locallyPaused.value"
-        :subjects="subjects"
-        @start="safely(walk.start)"
-        @pause="safely(walk.pause)"
-        @resume="safely(walk.resume)"
-        @continue="safely(() => walk.explicit('CONTINUE'))"
-        @more="safely(() => walk.explicit('MORE'))"
+        @next="requestPassage(walk.nextStep)"
         @ask="
-          (question, subjectId) =>
-            safely(() =>
-              walk.explicit('ASK', {
-                question,
-                ...(subjectId ? { subject_id: subjectId } : {}),
-              }),
-            )
+          (question) => requestPassage(() => walk.explicit('ASK', { question }))
         "
         @finish="safely(walk.finish)"
-        @play="safely(walk.playActive)"
-        @interrupt="safely(walk.interrupt)"
-        @read="safely(walk.readCompleted)"
-        @mode="(automatic) => safely(() => walk.setMode(automatic))"
       />
     </template>
-    <details
-      v-if="plan.instructions.length"
-      class="border-default rounded-lg border p-3"
-    >
-      <summary>{{ $t("nativeWalk.directions") }}</summary>
-      <ol class="list-decimal space-y-2 p-4">
-        <li v-for="(instruction, index) in plan.instructions" :key="index">
-          {{ instruction }}
-        </li>
-      </ol>
-    </details>
-    <NuxtLink to="/tours" class="underline">{{
-      $t("navigation.backToTours")
-    }}</NuxtLink>
   </section>
 </template>

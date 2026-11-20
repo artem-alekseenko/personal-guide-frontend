@@ -13,6 +13,8 @@ import { useCreateTour } from "~/composables/api/tours/useCreateTour";
 import { useTourSuggestions } from "~/composables/api/useTourSuggestions";
 import { useUserStore } from "./userStore";
 
+const TOUR_PAGE_SIZE = 10;
+
 export const useRouteStore = defineStore("routeStore", () => {
   // State
   const _startPoint = ref<ICoordinate | null>(null);
@@ -43,6 +45,10 @@ export const useRouteStore = defineStore("routeStore", () => {
   ]);
   const _interval = ref<NodeJS.Timeout | null>(null);
   const isLoading = ref(false);
+  const isLoadingMore = ref(false);
+  const hasMoreTours = ref(false);
+  const loadMoreError = ref(false);
+  let loadedTourCount = 0;
   const isCreating = ref(false);
   let pollingEnabled = true;
   let suggestionVersion = 0;
@@ -297,38 +303,91 @@ export const useRouteStore = defineStore("routeStore", () => {
     }
   };
 
-  const fetchListTours = async (): Promise<void> => {
-    pollingEnabled = true;
-    if (isLoading.value) return;
+  async function readTourWindow(count: number, current: () => boolean) {
+    const tours: ICreatedTour[] = [];
+    while (current() && tours.length <= count) {
+      const limit = Math.min(100, count + 1 - tours.length);
+      const page = await useListTours({ skip: tours.length, limit });
+      tours.push(...page);
+      if (page.length < limit) break;
+    }
+    return tours;
+  }
+
+  async function readOlderTours(current: () => boolean) {
+    const offset = loadedTourCount;
+    const visibleTours = _allTours.value;
+    const page = await useListTours({
+      skip: offset - 1,
+      limit: TOUR_PAGE_SIZE + 2,
+    });
+    // Check the preceding row in case the list changed since the last read.
+    if (!current()) return [];
+    if (page[0]?.id !== visibleTours.at(-1)?.id)
+      return readTourWindow(offset + TOUR_PAGE_SIZE, current);
+    return [...visibleTours, ...page.slice(1)];
+  }
+
+  function scheduleListPoll() {
+    if (_interval.value) clearTimeout(_interval.value);
+    const pending = _allTours.value.some((tour) =>
+      tour.preparation_progress
+        ? ["PENDING", "RUNNING"].includes(tour.preparation_progress.status)
+        : tour.status === "GENERATING" && !tour.preparation_error,
+    );
+    _interval.value =
+      import.meta.client && pollingEnabled && (pending || error.value)
+        ? setTimeout(() => void fetchListTours(), 5000)
+        : null;
+  }
+
+  async function readTours(append: boolean) {
+    if (isLoading.value || isLoadingMore.value) return;
     const session = accountEpoch;
     const user = useUserStore();
     const uid = user.user?.uid;
-    isLoading.value = true;
+    const current = () => session === accountEpoch && user.user?.uid === uid;
+    const loading = append ? isLoadingMore : isLoading;
+    const count = append
+      ? loadedTourCount + TOUR_PAGE_SIZE
+      : Math.max(TOUR_PAGE_SIZE, loadedTourCount);
+    loading.value = true;
+    if (append) loadMoreError.value = false;
+    else error.value = null;
     try {
-      error.value = null;
-      const tours = await useListTours();
-      if (session !== accountEpoch || user.user?.uid !== uid) return;
-      _allTours.value = tours;
-      _actualTour.value = tours[0] ?? null;
+      const tours = await (append
+        ? readOlderTours(current)
+        : readTourWindow(count, current));
+      if (!current()) return;
+      loadedTourCount = Math.min(count, tours.length);
+      hasMoreTours.value = tours.length > count;
+      if (!hasMoreTours.value) loadMoreError.value = false;
+      _allTours.value = [
+        ...new Map(
+          tours.slice(0, count).map((tour) => [tour.id, tour]),
+        ).values(),
+      ];
+      _actualTour.value = _allTours.value[0] ?? null;
     } catch (e) {
-      if (session === accountEpoch && user.user?.uid === uid)
+      if (!current()) return;
+      if (append) loadMoreError.value = true;
+      else
         error.value = e instanceof Error ? e.message : "Failed to load tours";
     } finally {
-      if (session === accountEpoch && user.user?.uid === uid) {
-        isLoading.value = false;
-        if (_interval.value) clearTimeout(_interval.value);
-        const pending = _allTours.value.some((tour) =>
-          tour.preparation_progress
-            ? ["PENDING", "RUNNING"].includes(tour.preparation_progress.status)
-            : tour.status === "GENERATING" && !tour.preparation_error,
-        );
-        if (import.meta.client && pollingEnabled && (pending || error.value)) {
-          _interval.value = setTimeout(() => {
-            void fetchListTours();
-          }, 5000);
-        }
+      if (current()) {
+        loading.value = false;
+        scheduleListPoll();
       }
     }
+  }
+
+  const fetchListTours = () => {
+    pollingEnabled = true;
+    return readTours(false);
+  };
+
+  const loadMoreTours = () => {
+    if (hasMoreTours.value) return readTours(true);
   };
 
   const reset = () => {
@@ -347,6 +406,10 @@ export const useRouteStore = defineStore("routeStore", () => {
     selectedRouteIndex.value = 0;
     _tags.value = _tags.value.map((tag) => ({ ...tag, is_selected: false }));
     error.value = null;
+    loadedTourCount = 0;
+    hasMoreTours.value = false;
+    loadMoreError.value = false;
+    isLoadingMore.value = false;
     isLoading.value = false;
     isCreating.value = false;
   };
@@ -367,6 +430,9 @@ export const useRouteStore = defineStore("routeStore", () => {
     tags,
     error,
     isLoading,
+    isLoadingMore,
+    hasMoreTours,
+    loadMoreError,
     isCreating,
     reset,
     setStartPoint,
@@ -378,5 +444,6 @@ export const useRouteStore = defineStore("routeStore", () => {
     fetchRoutesSuggestions,
     fetchCreateRoute,
     fetchListTours,
+    loadMoreTours,
   };
 });

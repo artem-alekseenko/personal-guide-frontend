@@ -35,11 +35,13 @@ const { shouldShow, goBack } = useBackNavigation();
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.375rem;
+  padding: 0.5rem;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
   border-radius: 0.375rem;
   border: none;
   background: transparent;
-  color: var(--fill-green-500);
+  color: var(--fill-green-700);
   transition:
     background-color 0.15s ease,
     color 0.15s ease;

@@ -51,6 +51,7 @@ export type WalkAction =
   | "PAUSE"
   | "REST"
   | "RESUME"
+  | "REOPEN"
   | "FINISH"
   | "ACKNOWLEDGE"
   | "SET_MODE";
@@ -63,6 +64,7 @@ export interface WalkRequest {
   point?: WalkPoint;
   recorded_at?: string;
   accuracy_meters?: number;
+  position_mode?: "gps" | "simulation";
   subject_id?: string;
   question?: string;
   eligible_action_id?: string;
@@ -92,6 +94,7 @@ export interface WalkView {
   revision: number;
   control_revision: number;
   scheduling_mode: "automatic" | "manual";
+  position_mode?: "gps" | "simulation";
   paused: boolean;
   started: boolean;
   elapsed_active_seconds: number;
@@ -134,6 +137,7 @@ export interface WalkView {
   active_delivery: WalkDelivery | null;
   offered_delivery: WalkDelivery | null;
   research_gaps: { id: string; subject_id: string | null; reason: string }[];
+  continued_after_finish?: boolean;
   finished: boolean;
   completion_reason: string | null;
   silence_reason: string | null;
@@ -142,7 +146,8 @@ export interface WalkKnowledge {
   generation_id: string;
   route_revision: string;
   language: string;
-  subjects?: { id: string; name: string }[];
+  subjects?: { id: string; name: string; kind?: string }[];
+  coverage?: { subject_id: string; status: string; claim_ids: string[] }[];
   knowledge_status?: string;
 }
 export interface WalkAudioManifest {

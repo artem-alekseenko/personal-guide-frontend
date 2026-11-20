@@ -1,6 +1,7 @@
 @import "tailwindcss" theme(static);
 @import "@nuxt/ui";
 @import "./map.css";
+@import "./product.css";
 @plugin "@tailwindcss/typography";
 
 @theme {

@@ -316,8 +316,8 @@ it.each([
   { status: "STARTED", researchStatus: "RUNNING", stopping: true },
   { status: "FINISHED", researchStatus: "READY", stopping: false },
 ])(
-  "opens saved research from the real list/card button for $status/$researchStatus",
-  async ({ status, researchStatus, stopping }) => {
+  "keeps research actions off the tours list for $status/$researchStatus",
+  async ({ status, researchStatus }) => {
     const progress = researchStatus
       ? {
           generation_id: "generation-1",
@@ -371,27 +371,15 @@ it.each([
       t,
     );
     await flush();
-    const trigger = button(
-      app.root,
-      stopping ? en.researchPreview.stopAndTry : en.researchPreview.trySaved,
-    );
-    expect(trigger.props.disabled).toBe(false);
-    trigger.props.onClick();
-    await flush();
+    expect(text(app.root)).not.toContain(en.researchPreview.stopAndTry);
+    expect(text(app.root)).not.toContain(en.researchPreview.trySaved);
+    expect(findAll(app.root, (n) => n.type === "details")).toHaveLength(0);
+    expect(
+      findAll(app.root, (n) => "data-tour-generation" in n.props),
+    ).toHaveLength(1);
     expect(api).not.toHaveBeenCalled();
-    expect(text(app.root)).toContain(
-      stopping
-        ? en.researchPreview.confirmStop
-        : en.researchPreview.confirmSaved,
-    );
-    button(app.root, en.researchPreview.confirm).props.onClick();
-    await flush();
-    expect(api).toHaveBeenCalledTimes(1);
-    expect(navigate).toHaveBeenCalledWith("/tours/new%2Fdraft%3Fwalk");
+    expect(navigate).not.toHaveBeenCalled();
     expect(routes.allTours[0]).toEqual(source);
-    expect(api.mock.calls.map(([path]) => path)).toEqual([
-      "/api/research-preview/source%2Ftour",
-    ]);
     app.unmount();
   },
 );

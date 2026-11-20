@@ -48,15 +48,19 @@
             @update:preferences="handlePreferencesUpdate"
           />
 
-          <LlmTypeSelector
-            :preferences="preferences"
-            @update:preferences="handlePreferencesUpdate"
-          />
-
           <VoiceTypeSelector
             :preferences="preferences"
             @update:preferences="handlePreferencesUpdate"
           />
+          <details class="pg-disclosure">
+            <summary>{{ $t("pages.settings.advanced") }}</summary>
+            <div class="pt-3">
+              <LlmTypeSelector
+                :preferences="preferences"
+                @update:preferences="handlePreferencesUpdate"
+              />
+            </div>
+          </details>
         </div>
       </div>
 
@@ -226,8 +230,9 @@ const formatTime = (minutes: number): string => {
 }
 
 .user-settings {
-  padding: 1.5rem;
-  border-radius: 0.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 1.25rem;
   background-color: var(--fill-white);
   box-shadow:
     0 1px 3px 0 oklch(0 0 0 / 0.1),
@@ -293,6 +298,15 @@ const formatTime = (minutes: number): string => {
 
 .dark .user-settings__name {
   color: var(--fill-white);
+}
+
+.user-settings__profile-info {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.user-settings__avatar-placeholder,
+.user-settings__avatar-img {
+  flex-shrink: 0;
 }
 
 .user-settings__email {

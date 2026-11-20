@@ -8,12 +8,24 @@ vi.mock("ofetch", () => ({ $fetch: upstream }));
 Object.assign(globalThis, {
   useRuntimeConfig: () => ({ pgApiBaseUrl: "http://backend.test" }),
 });
-const request = (handler: typeof tours) =>
+const request = (handler: typeof tours, query = "") =>
   toWebHandler(createApp().use(handler))(
-    new Request("http://client.test/api/list", {
+    new Request(`http://client.test/api/list${query}`, {
       headers: { authorization: "Bearer fixture", "x-request-id": "list-read" },
     }),
   );
+it("reads just the requested tour window", async () => {
+  upstream.mockResolvedValue({ tours: [{ id: "older" }] });
+  const response = await request(tours, "?skip=10&limit=11");
+  expect(await response.json()).toEqual([{ id: "older" }]);
+  expect(upstream).toHaveBeenCalledTimes(1);
+  expect(upstream.mock.calls[0]?.[1].query).toEqual({ skip: 10, limit: 11 });
+});
+
+it("rejects invalid tour paging parameters before calling the backend", async () => {
+  expect((await request(tours, "?skip=-1&limit=101")).status).toBe(400);
+  expect(upstream).not.toHaveBeenCalled();
+});
 it.each([
   ["tours", tours],
   ["guides", guides],

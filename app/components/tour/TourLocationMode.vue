@@ -2,7 +2,11 @@
 import { useId } from "vue";
 
 const manual = defineModel<boolean>({ required: true });
-defineProps<{ gpsAvailable: boolean }>();
+defineProps<{
+  gpsAvailable: boolean;
+  simulationHint?: string;
+  compact?: boolean;
+}>();
 const name = useId();
 </script>
 
@@ -35,15 +39,15 @@ const name = useId();
         {{ $t("components.tourPage.geolocationSimulation") }}
       </label>
     </div>
-    <p class="text-muted text-xs" role="status">
+    <p class="text-muted text-xs" :class="{ 'sr-only': compact }" role="status">
       {{
-        $t(
-          manual
-            ? "components.tourPage.clickToSimulate"
-            : gpsAvailable
-              ? "components.tourPage.usingRealLocation"
-              : "components.map.gpsUnavailable",
-        )
+        manual
+          ? simulationHint || $t("components.tourPage.clickToSimulate")
+          : $t(
+              gpsAvailable
+                ? "components.tourPage.usingRealLocation"
+                : "components.map.gpsUnavailable",
+            )
       }}
     </p>
   </fieldset>

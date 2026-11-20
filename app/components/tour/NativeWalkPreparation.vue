@@ -3,10 +3,15 @@ import { computed, watch } from "vue";
 import type { ICreatedTour } from "~/types";
 import { useUserStore } from "~/stores/userStore";
 import { useTourPreparationProgress } from "~/composables/tour/useTourPreparationProgress";
+import TourGenerationStatus from "./TourGenerationStatus.vue";
 import TourPreparationProgress from "./TourPreparationProgress.vue";
 import TourResearchControls from "./TourResearchControls.vue";
 
-const props = defineProps<{ tour: ICreatedTour; compact?: boolean }>();
+const props = defineProps<{
+  tour: ICreatedTour;
+  compact?: boolean;
+  summaryOnly?: boolean;
+}>();
 const emit = defineEmits<{ updated: [] }>();
 const users = useUserStore();
 const {
@@ -21,12 +26,14 @@ const {
   computed(() => props.tour),
   computed(() => users.user?.uid ?? null),
   undefined,
-  { onRecovered: () => emit("updated") },
+  { onRecovered: () => emit("updated"), onPublished: () => emit("updated") },
 );
 const ready = computed(
   () =>
-    progress.value?.status === "READY" &&
-    props.tour.playback_generation_id === progress.value.generation_id,
+    props.tour.status !== "GENERATING" &&
+    !!props.tour.playback_generation_id &&
+    props.tour.playback_generation_id ===
+      (props.tour.latest_generation_id || progress.value?.generation_id),
 );
 let notified = "";
 watch(
@@ -54,38 +61,61 @@ watch(
 </script>
 <template>
   <section class="grid min-w-0 gap-3" data-native-preparation>
-    <p v-if="ready" role="status">{{ $t("nativeWalk.preparationReady") }}</p>
-    <TourPreparationProgress
-      v-if="progress"
-      :progress="progress"
-      :compact="compact"
-      :refreshing="refreshing"
-      :status-refreshing="statusRefreshing"
-      :refresh-failed="refreshFailed"
-      :caption-uncertain="captionUncertain"
-      @refresh="refresh"
-      @refresh-status="refreshStatus"
-    />
-    <template v-else>
-      <p v-if="tour.status === 'GENERATING'" role="status">
-        {{ $t("preparationProgress.waitingForSnapshot") }}
-      </p>
-      <p v-if="tour.preparation_error" role="alert">
-        {{ tour.preparation_error }}
-      </p>
-      <p v-if="refreshFailed" role="alert">
-        {{ $t("preparationProgress.refreshFailed") }}
-      </p>
-    </template>
-    <TourResearchControls
-      :tour-id="tour.id"
-      :status="tour.status"
-      :latest-generation-id="
-        tour.latest_generation_id || progress?.generation_id
+    <template
+      v-if="
+        !compact &&
+        (!summaryOnly ||
+          tour.preparation_error ||
+          progress?.status === 'FAILED' ||
+          progress?.status === 'CANCELLED' ||
+          refreshFailed)
       "
-      :preparation-progress="progress"
+    >
+      <details class="pg-disclosure min-w-0" data-preparation-details>
+        <summary class="min-h-11 cursor-pointer py-3 font-medium">
+          {{ $t("nativeWalk.preparationDetails") }}
+        </summary>
+        <TourPreparationProgress
+          v-if="progress"
+          :progress="progress"
+          :compact="compact"
+          :refreshing="refreshing"
+          :status-refreshing="statusRefreshing"
+          :refresh-failed="refreshFailed"
+          :caption-uncertain="captionUncertain"
+          @refresh="refresh"
+          @refresh-status="refreshStatus"
+        />
+        <template v-else>
+          <p v-if="tour.status === 'GENERATING'" role="status">
+            {{ $t("preparationProgress.waitingForSnapshot") }}
+          </p>
+          <p v-if="tour.preparation_error" role="alert">
+            {{ tour.preparation_error }}
+          </p>
+          <p v-if="refreshFailed" role="alert">
+            {{ $t("preparationProgress.refreshFailed") }}
+          </p>
+        </template>
+        <TourResearchControls
+          :tour-id="tour.id"
+          :status="tour.status"
+          :latest-generation-id="
+            tour.latest_generation_id || progress?.generation_id
+          "
+          :preparation-progress="progress"
+          :preparation-error="tour.preparation_error"
+          @updated="emit('updated')"
+        />
+      </details>
+    </template>
+    <TourGenerationStatus
+      :progress="progress"
+      :status="tour.status"
       :preparation-error="tour.preparation_error"
-      @updated="emit('updated')"
+      :generating-text="tour.generating_string"
+      :refresh-failed="refreshFailed"
+      :published="ready"
     />
   </section>
 </template>

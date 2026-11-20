@@ -60,6 +60,7 @@ beforeEach(() => {
     recordedAt: null,
     accuracy: null,
     error: null,
+    refresh: vi.fn(async () => {}),
   });
   fixtures.store = reactive({
     view: null,
@@ -152,4 +153,44 @@ it("keeps an ownership failure visible rather than calling it preparation", asyn
   } finally {
     app.unmount();
   }
+});
+
+it("becomes usable after a previous controller releases the browser lock", async () => {
+  const previousController = Promise.withResolvers<void>();
+  const request = vi.fn(
+    async (
+      _name: string,
+      options: LockOptions,
+      callback: LockGrantedCallback,
+    ) => {
+      if (options.ifAvailable) return callback(null);
+      await previousController.promise;
+      if (!options.signal?.aborted) return callback({ name: "lock" } as Lock);
+    },
+  );
+  vi.stubGlobal("navigator", { locks: { request } });
+  fixtures.store.load.mockImplementation(async () => {
+    fixtures.store.view = snapshot();
+  });
+  let walk!: ReturnType<typeof useNativeWalk>;
+  const app = mount(
+    defineComponent({
+      setup() {
+        walk = useNativeWalk("tour");
+        return () => h("div");
+      },
+    }),
+  );
+  try {
+    await flush();
+    expect(walk.view.value).not.toBeNull();
+    expect(walk.ready.value).toBe(false);
+    previousController.resolve();
+    await flush();
+    expect(walk.ready.value).toBe(true);
+    expect(fixtures.store.send).not.toHaveBeenCalled();
+  } finally {
+    app.unmount();
+  }
+  expect(request.mock.calls[0]?.[1].signal?.aborted).toBe(true);
 });

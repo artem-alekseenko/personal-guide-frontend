@@ -340,7 +340,7 @@ it("offers factual status refresh independently of an uncertain paid-caption rec
   expect(sessionStorage.getItem(storageKey)).toBe(receipt);
 });
 
-it("refreshes list metadata and restores card navigation when its failed generation recovers", async () => {
+it("keeps a preparation link and refreshes list metadata when its failed generation recovers", async () => {
   vi.stubGlobal("getComputedStyle", () => ({ lineHeight: "24px" }));
   vi.stubGlobal(
     "IntersectionObserver",
@@ -397,7 +397,7 @@ it("refreshes list metadata and restores card navigation when its failed generat
       view.root,
       (node) => node.type === "a" && node.props.href === "/tours/tour",
     ),
-  ).toHaveLength(0);
+  ).toHaveLength(1);
   latest = preparationSnapshot({
     status: "RUNNING",
     percent: 95,

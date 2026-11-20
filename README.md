@@ -114,7 +114,7 @@ responses, physical-device performance, authentication and audio remain unqualif
 
 Nuxt 4, Vue 3, Pinia, Nuxt UI, Tailwind CSS, VueUse, native Firebase Auth, Nuxt i18n, and Mapbox GL. TypeScript 7's native CLI runs beside the maintained TypeScript 6 API needed for Vue SFC tooling. The app renders in the browser (`ssr: false`); Nitro serves its authenticated `/api/*` proxy.
 
-Use NVM to install and select the pinned Node.js LTS release, `24.21.0`, with its latest compatible npm. `.nvmrc` and Docker use that release. The package engine range is `^24.21.0 || >=26.0.0`; Node 26 is allowed but is not the recommended development runtime. Use the pinned `pnpm@12.11.2` through Corepack and preserve `pnpm-lock.yaml` when installing dependencies.
+Use NVM to install and select the pinned Node.js LTS release, `24.21.0`, with its latest compatible npm. `.nvmrc` and Docker use that release. The package engine range is `^24.21.0 || >=26.0.0`; Node 26 is allowed but is not the recommended development runtime. Use the pinned `pnpm@12.21.0` through Corepack and preserve `pnpm-lock.yaml` when installing dependencies.
 
 ## Local setup
 
@@ -445,8 +445,8 @@ Check sign-in, maps, GPS, and provider-backed text in a configured browser. Pass
 
 ### Dependency and omp skill maintenance
 
-The latest-major frontend migration uses Vue 3.5.44, Pinia 4.1.0 with
-`@pinia/nuxt` 1.0.3, Firebase 13.0.0, Firebase Admin 14.5.0 and Mapbox GL 3.33.0.
+The latest-major frontend migration uses Vue 3.5.45, Pinia 4.1.0 with
+`@pinia/nuxt` 1.0.3, Firebase 13.4.0, Firebase Admin 14.5.1 and Mapbox GL 3.35.0.
 VueFire and its Nuxt module are removed: `app/plugins/00-firebase.client.ts`
 initializes native Firebase Auth and the optional Enterprise App Check provider.
 Login/profile consumers share its `$firebaseUser` ref, and route guards await
@@ -464,37 +464,32 @@ versions; updating only the editor core leaves incompatible extensions. Review
 these overrides when their parent packages adopt fixed releases, and keep the
 lockfile in sync.
 
-Nuxt DevTools 3.4.3 removes `simple-git` from the dependency graph, resolving its
+Nuxt DevTools 3.4.4 removes `simple-git` from the dependency graph, resolving its
 critical and two high advisories without forcing an incompatible Git major.
 The obsolete Git argument-parser override has been removed.
 
-The registry audit still reports two high upstream advisories; both affected
-behaviors have version-pinned local code patches:
+The 2026-11-17 dependency update replaces the local `node-forge@1.4.0` patch
+with upstream `node-forge@1.4.3`. Its
+[release notes](https://github.com/digitalbazaar/forge/blob/v1.4.3/CHANGELOG.md)
+include the RSA DigestAlgorithm validation fix and later security corrections.
+The existing public-key regression vectors still verify that malformed RSA
+signatures are rejected and valid signatures work.
 
-- [`node-forge` 1.4.0: nested DigestAlgorithm signature verification](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
-  [`patches/node-forge@1.4.0.patch`](patches/node-forge@1.4.0.patch) backports the
-  proposed [upstream fix](https://github.com/digitalbazaar/forge/pull/1152), checking
-  nested algorithm element counts instead of accepting unconsumed garbage.
-- [`braces` 3.0.3: stack exhaustion from deeply nested patterns](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
-  [`patches/braces@3.0.3.patch`](patches/braces@3.0.3.patch) limits parsed
-  brace/parenthesis nesting to 100 and guards all three recursive AST walkers,
-  including direct AST inputs. Excessive nesting raises a controlled SyntaxError.
+The remaining [`braces@3.0.3` patch](patches/braces@3.0.3.patch) bounds parsed
+nesting to 100 and guards all three recursive AST walkers. No newer braces
+release is published as of 2026-11-17; keep this patch until a verified upstream
+fix is available. Docker copies `patches/` before frozen installation.
 
-Neither has a published fixed version as of 2026-10-15. The patches are registered
-in `pnpm-workspace.yaml` and apply during frozen installs, including Docker.
-The Dockerfile copies `patches/` before installation; `.private` staging and smoke
-material are excluded from the build context. These are transitive development/
-build dependencies; that classification alone does not establish runtime safety.
+A scoped `minimatch@>=7.0.0 <11.0.1` override selects 11.0.9 to address
+[globparts amplification](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+Unaffected older majors retain their original API. Nuxt DevTools stays within
+Nuxt's declared 3.x range, and Google client UUID overrides retain their
+compatible 11.x API.
 
-`pnpm audit` remains nonzero because it matches the original package versions,
-not the local patched code. No advisory ignores, package renaming or misleading
-version changes are used. Replace the patches when verified upstream fixes ship.
-The eight focused regressions in `tests/ui-dependency-security.test.ts` pass;
-real Node RSA/glob consumer smoke also passed on the host and in an offline
-container with a frozen dependency installation. On the updated working tree,
-all 649 approved nonaudio tests in 65 files, Nuxt/native type checks, production
-build and the frontend Docker build stage passed. No image was deployed and no
-audio was exercised.
+The final registry audit reports **zero advisories** for this lockfile as of
+2026-11-17. No advisory ignores, package renaming, or version relabeling is used.
+The remaining brace hardening patch is independently verified by the approved
+nonaudio security regressions.
 
 TypeScript uses Microsoft's [documented side-by-side installation](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/):
 `@typescript/native` aliases TypeScript 7.0.2 and supplies `tsc`; `typescript`
@@ -504,24 +499,34 @@ SFC checking. `pnpm typecheck` first runs Nuxt/Vue checks and then checks the
 generated server/shared projects with native 7. Node types stay on the latest
 Node 24 line to match the pinned runtime.
 
+The pinned `vite-plugin-checker@0.14.5` compatibility patch resolves the full
+TypeScript 6 compiler behind its wrapper and caches only successful setup. This
+fixes the `supportedTSExtensions` crash on a fresh `corepack pnpm dev` while
+preserving live Vue type checking. A regression checks initialization with an
+empty cache and detects an intentional Vue script type error.
+
 [pnpm 12 configuration](https://pnpm.io/settings) lives in
 `pnpm-workspace.yaml`: existing hoisting, pre/post hooks, security overrides and
 approved dependency builds were migrated there, and Docker copies it before
 installation. The obsolete project `.npmrc` and `package.json.pnpm` were removed.
-Release-age exceptions name only the four explicitly requested logos/Vitest
-patch versions. No unrestricted build permission or advisory suppression was added.
+Release-age exceptions name only exact versions from this update: Firebase
+13.4.0 and its newly published SDK packages, Nuxt UI 4.12.2, and minimatch 11.0.9. No unrestricted build permission or advisory suppression was added.
 
-Current upgrade verification passed 635 approved nonaudio tests in 63 files,
-Nuxt/Vue and native TypeScript checks, production build and a frozen-lockfile
-installation. The production login screen and anonymous private-route redirect
-were browser-exercised without signing in. A separate metadata-only browser
+The 2026-11-17 update passed 757 approved nonaudio tests in 81 files, Nuxt/Vue
+and native TypeScript checks, production build, focused formatting and a
+frozen-lockfile installation. Frontend-only Chromium fixtures exercised tour
+cards at 320, 390 and 1120 pixels in English/Russian, including running, ready,
+finished, queued, failed and cancelled states. No backend requests, live sign-in,
+providers or audio were used. The registry audit reports zero advisories.
+
+Earlier migration checks exercised the production login screen and anonymous
+private-route redirect without signing in. A separate metadata-only browser
 surface used the actual Mapbox components to check stored-route rendering,
 whole-route fitting, simulated person dragging, GPS switching and landmark popups.
 The browser used software WebGL and synthetic GPS/route metadata. External
 Iconify was blocked in the login smoke, so its Google icon was not qualified.
 Production proxy smoke returned 401 before upstream access. Live sign-in,
 provider-backed text, physical GPS/Directions and audio were not exercised.
-The audit still reports the two high upstream advisories above.
 
 Earlier Docker verification completed a clean frozen install and Nuxt build
 with the workspace configuration. Docker was not rebuilt or deployed for the
@@ -614,6 +619,6 @@ Deploy the Nitro server as well as the browser assets. A static-only host cannot
 | No route variants appear                                       | Read the backend explanation and adjust start, duration, or preferences. Empty suggestions can indicate an infeasible or unverified route.       |
 | The map or GPS is unavailable                                  | Check the Mapbox token, browser location permission, and secure context. Manual simulation allows route exploration without a live fix.          |
 | The text panel is missing or unavailable                       | Check both feature flags and backend text-provider configuration.                                                                                |
-| Development reports `Vite Node IPC socket path not configured` | Install the pinned lockfile dependencies. This project uses Nuxt 4.6.1; avoid downgrading to the affected 4.4.4 release.                         |
+| Development reports `Vite Node IPC socket path not configured` | Install the pinned lockfile dependencies. This project uses Nuxt 4.6.4; avoid downgrading to the affected 4.4.4 release.                         |
 
 For integration changes, read [AGENTS.md](AGENTS.md), the [backend API reference](../personal-guide.ai/current_implementation/api_reference.md), and the [backend architecture](../personal-guide.ai/current_implementation/architecture.md). Check executable handlers and Python models when documentation and client types disagree.

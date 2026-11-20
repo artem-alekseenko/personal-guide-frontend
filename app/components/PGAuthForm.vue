@@ -1,6 +1,10 @@
 <template>
-  <div class="p-10 px-4">
+  <div class="w-full px-5 py-8">
     <div class="mx-auto flex max-w-md flex-col gap-6">
+      <header class="grid gap-3">
+        <h1 class="pg-page-title">{{ $t("auth.welcomeTitle") }}</h1>
+        <p class="pg-page-description">{{ $t("auth.welcomeDescription") }}</p>
+      </header>
       <!-- Social auth (primary) -->
       <PGAuthSocialButtons
         :providers="socialProviders"
@@ -33,6 +37,7 @@
             name="email"
             required
             type="email"
+            size="xl"
             variant="outline"
           />
         </div>
@@ -52,6 +57,7 @@
             name="password"
             required
             type="password"
+            size="xl"
             variant="outline"
           />
         </div>
@@ -72,6 +78,7 @@
             name="password-confirm"
             required
             type="password"
+            size="xl"
             variant="outline"
           />
         </div>

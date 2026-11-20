@@ -124,7 +124,7 @@ it("shows the tail of a long guide reply with the full text available in a discl
 
 it("keeps finished state separate from route position", async () => {
   const html = await render({ isFinished: true });
-  expect(html).toContain("Walk finished");
+  expect(html).toContain("Tour finished");
   expect(html).toContain("Stop 2 of 4");
   expect(html).not.toContain("Stop 4 of 4");
 });

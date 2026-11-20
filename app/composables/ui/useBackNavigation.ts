@@ -1,249 +1,172 @@
-import type { ComputedRef } from "vue";
-import { throttle } from "~/utils/throttleDebounce";
+import { computed, onMounted, ref, watch, type ComputedRef } from "vue";
 import { useAuth } from "~/composables/auth/useAuth";
 import { isInternalPath } from "~/utils/navigation";
 
-type NavigationHistoryEntry = string;
-
 export interface BackNavigation {
   shouldShow: ComputedRef<boolean>;
-  goBack: () => void;
+  goBack: () => Promise<void>;
 }
 
 const MAX_HISTORY_SIZE = 10;
-const HISTORY_SAVE_THROTTLE_MS = 300;
-
 const isHistoryRoute = (value: unknown): value is string => {
-  if (!isInternalPath(value)) {
-    return false;
-  }
-  const path = value.split(/[?#]/, 1)[0];
-  return (
-    path !== "/" && path !== "/settings" && !path?.startsWith("/settings/")
-  );
+  if (!isInternalPath(value)) return false;
+  const path = value.split(/[?#]/, 1)[0]?.replace(/\/$/, "");
+  return !!path && path !== "/settings" && !path.startsWith("/settings/");
 };
 
 export const useBackNavigation = (): BackNavigation => {
-  const route = useRoute();
   const router = useRouter();
+  const route = router.currentRoute;
   const { isAuthenticated, user } = useAuth();
+  const history = ref<string[]>([]);
+  const navigating = ref(false);
+  let skipOwnerTransition = false;
 
-  const navigationHistory = ref<NavigationHistoryEntry[]>([]);
-  const isNavigatingBack = ref<boolean>(false);
-
-  const isPWAStandalone = computed((): boolean => {
-    if (!import.meta.client) return false;
-    return (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      ("standalone" in window.navigator &&
-        window.navigator.standalone === true) || // iOS Safari
-      document.referrer.includes("android-app://") // Android TWA
-    );
-  });
-
-  // ----- Storage helpers -----
-
-  const saveNavigationHistoryToStorage = (): void => {
+  const save = () => {
     if (!import.meta.client || !user.value) return;
     try {
       localStorage.setItem(
         "navigationHistory",
-        JSON.stringify({ uid: user.value.uid, paths: navigationHistory.value }),
+        JSON.stringify({ uid: user.value.uid, paths: history.value }),
       );
     } catch {
-      // Storage is optional; retain the current session's in-memory history.
+      // Storage is optional.
     }
   };
-
-  const throttledSaveNavigationHistory = throttle(
-    saveNavigationHistoryToStorage,
-    HISTORY_SAVE_THROTTLE_MS,
-  );
-
-  const initNavigationHistory = (): void => {
+  const clear = () => {
+    history.value = [];
+    if (!import.meta.client) return;
+    for (const [storageName, key] of [
+      ["localStorage", "navigationHistory"],
+      ["sessionStorage", "settingsReturnRoute"],
+    ] as const) {
+      try {
+        globalThis[storageName].removeItem(key);
+      } catch {
+        /* Storage is optional. */
+      }
+    }
+  };
+  onMounted(() => {
     if (!import.meta.client) return;
     if (!isAuthenticated.value) {
-      clearNavigationHistory();
+      clear();
       return;
     }
-
     try {
-      const saved = localStorage.getItem("navigationHistory");
-      if (!saved) return;
-      const parsed: unknown = JSON.parse(saved);
+      const saved: unknown = JSON.parse(
+        localStorage.getItem("navigationHistory") ?? "null",
+      );
+      if (saved === null) return;
       if (
-        typeof parsed !== "object" ||
-        parsed === null ||
-        !("uid" in parsed) ||
-        parsed.uid !== user.value?.uid ||
-        !("paths" in parsed) ||
-        !Array.isArray(parsed.paths)
+        typeof saved !== "object" ||
+        !("uid" in saved) ||
+        saved.uid !== user.value?.uid ||
+        !("paths" in saved) ||
+        !Array.isArray(saved.paths)
       ) {
-        clearNavigationHistory();
+        clear();
         return;
       }
-      navigationHistory.value = parsed.paths
+      history.value = saved.paths
         .filter(isHistoryRoute)
         .slice(-MAX_HISTORY_SIZE);
     } catch {
-      navigationHistory.value = [];
+      history.value = [];
     }
-  };
-
-  // ----- History mutation -----
-
-  const clearNavigationHistory = (): void => {
-    throttledSaveNavigationHistory.cancel();
-    navigationHistory.value = [];
-    if (import.meta.client) {
-      try {
-        localStorage.removeItem("navigationHistory");
-      } catch {
-        // A blocked storage area must not prevent account isolation.
-      }
-      try {
-        sessionStorage.removeItem("settingsReturnRoute");
-      } catch {
-        // Session storage can be independently unavailable.
-      }
-    }
-  };
-
-  const addToNavigationHistory = (routePath: NavigationHistoryEntry): void => {
-    if (!isAuthenticated.value) return;
-    if (!isHistoryRoute(routePath)) return;
-
-    const last = navigationHistory.value[navigationHistory.value.length - 1];
-    if (last === routePath) return;
-
-    navigationHistory.value.push(routePath);
-
-    if (navigationHistory.value.length > MAX_HISTORY_SIZE) {
-      navigationHistory.value =
-        navigationHistory.value.slice(-MAX_HISTORY_SIZE);
-    }
-
-    throttledSaveNavigationHistory();
-  };
-
-  const popFromNavigationHistory = (): NavigationHistoryEntry | undefined => {
-    const previous = navigationHistory.value.pop();
-    saveNavigationHistoryToStorage();
-    return previous;
-  };
-
-  // ----- Computed state -----
-
-  const canNavigateBack = computed((): boolean => {
-    if (route.name === "settings") return true;
-
-    if (route.name === "index" || route.name === "tours") {
-      const last = navigationHistory.value[navigationHistory.value.length - 1];
-      return !!last && !last.includes(route.path);
-    }
-
-    if (navigationHistory.value.length > 0) return true;
-    if (import.meta.client && window.history.length > 1) return true;
-    if (import.meta.client && document.referrer) return true;
-
-    return isPWAStandalone.value && route.name !== "index";
   });
 
-  const shouldShow = computed((): boolean => {
-    if (route.name === "index") return false;
-    if (!isAuthenticated.value) return false;
-    return canNavigateBack.value;
-  });
-
-  // ----- Navigation action -----
-
-  const goBack = (): void => {
-    if (!import.meta.client || !canNavigateBack.value) return;
-
-    isNavigatingBack.value = true;
-
-    if (route.name === "settings") {
-      let returnRoute = "/tours";
-      try {
-        const saved = sessionStorage.getItem("settingsReturnRoute");
-        sessionStorage.removeItem("settingsReturnRoute");
-        const parsed: unknown = saved ? JSON.parse(saved) : null;
-        if (
-          typeof parsed === "object" &&
-          parsed !== null &&
-          "uid" in parsed &&
-          parsed.uid === user.value?.uid &&
-          "path" in parsed &&
-          isHistoryRoute(parsed.path)
-        ) {
-          returnRoute = parsed.path;
-        }
-      } catch {
-        // Fall back to the tour list when storage is blocked or malformed.
-      }
-
-      if (navigationHistory.value.length > 0) {
-        popFromNavigationHistory();
-      }
-
-      if (window.history.length > 1) {
-        router.back();
-      } else {
-        router.replace(returnRoute);
-      }
-      return;
-    }
-
-    if (navigationHistory.value.length > 0) {
-      const previousRoute = popFromNavigationHistory();
-
-      if (previousRoute && !previousRoute.includes(route.path)) {
-        router.push(previousRoute);
-        return;
-      }
-    }
-
-    if (window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/tours");
-    }
-  };
-
-  // ----- Watchers & lifecycle -----
+  const shouldShow = computed(
+    () =>
+      isAuthenticated.value &&
+      route.value.path !== "/" &&
+      route.value.path.replace(/\/$/, "") !== "/tours",
+  );
 
   watch(
     () => user.value?.uid ?? null,
     (uid, previousUid) => {
       if (uid !== previousUid) {
-        clearNavigationHistory();
-        // Do not add the previous owner's page during the redirect.
-        if (previousUid !== null) isNavigatingBack.value = true;
+        clear();
+        skipOwnerTransition = previousUid !== null;
       }
     },
     { flush: "sync" },
   );
 
   watch(
-    () => route.fullPath,
-    (newPath, oldPath) => {
-      if (!isNavigatingBack.value && oldPath && newPath !== oldPath) {
-        addToNavigationHistory(oldPath);
+    () => route.value.fullPath,
+    (to, from) => {
+      if (skipOwnerTransition) {
+        skipOwnerTransition = false;
+        return;
       }
-      isNavigatingBack.value = false;
+      if (navigating.value || !isAuthenticated.value || to === from) return;
+      const previousIndex = history.value.lastIndexOf(to);
+      if (previousIndex >= 0) {
+        history.value = history.value.slice(0, previousIndex);
+      } else if (isHistoryRoute(from) && history.value.at(-1) !== from) {
+        history.value = [...history.value, from].slice(-MAX_HISTORY_SIZE);
+      }
+      save();
     },
+    { flush: "sync" },
   );
 
-  onMounted(() => {
-    initNavigationHistory();
-  });
-
-  onUnmounted(() => {
-    throttledSaveNavigationHistory.cancel();
-  });
-
-  return {
-    shouldShow,
-    goBack,
+  const goBack = async () => {
+    if (!import.meta.client || !shouldShow.value || navigating.value) return;
+    let target = route.value.meta?.backToTours
+      ? "/tours"
+      : (history.value.findLast((path) => path !== route.value.fullPath) ??
+        "/tours");
+    if (route.value.name === "settings") {
+      try {
+        const saved: unknown = JSON.parse(
+          sessionStorage.getItem("settingsReturnRoute") ?? "null",
+        );
+        sessionStorage.removeItem("settingsReturnRoute");
+        if (
+          saved &&
+          typeof saved === "object" &&
+          "uid" in saved &&
+          saved.uid === user.value?.uid &&
+          "path" in saved &&
+          isHistoryRoute(saved.path)
+        )
+          target = saved.path;
+      } catch {
+        /* Use in-memory history when storage is unavailable. */
+      }
+    }
+    const uid = user.value?.uid;
+    const index = history.value.lastIndexOf(target);
+    const remaining =
+      index >= 0 ? history.value.slice(0, index) : history.value;
+    navigating.value = true;
+    try {
+      // Only use browser history when Vue Router identifies the expected entry.
+      if (window.history.state?.back === target) {
+        await new Promise<void>((resolve) => {
+          const remove = router.afterEach((to, _from, failure) => {
+            remove();
+            if (!failure && to.fullPath === target && user.value?.uid === uid) {
+              history.value = remaining;
+              save();
+            }
+            resolve();
+          });
+          router.back();
+        });
+        return;
+      }
+      const failure = await router.replace(target);
+      if (!failure && user.value?.uid === uid) {
+        history.value = remaining;
+        save();
+      }
+    } finally {
+      navigating.value = false;
+    }
   };
+  return { shouldShow, goBack };
 };

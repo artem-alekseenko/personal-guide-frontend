@@ -77,8 +77,8 @@ const classes = computed(() => [
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
+  border-radius: 0.875rem;
+  font-weight: 600;
   line-height: 1.25;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -106,9 +106,10 @@ const classes = computed(() => [
 /* ─── Sizes ─── */
 
 .pg-button--sm {
+  min-block-size: 2.75rem;
   padding-block: 0.375rem;
   padding-inline: 0.625rem;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   border-radius: 0.375rem;
 }
 
@@ -117,7 +118,7 @@ const classes = computed(() => [
   min-inline-size: 2.75rem;
   padding-block: 0.5rem;
   padding-inline: 1rem;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
 }
 
 .pg-button--lg {
@@ -327,5 +328,13 @@ const classes = computed(() => [
 
 .dark .pg-button:focus-visible {
   outline-color: var(--fill-green-300);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-button {
+    transition: none;
+  }
+  .pg-button__spinner {
+    animation: none;
+  }
 }
 </style>

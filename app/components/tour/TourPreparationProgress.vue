@@ -213,7 +213,7 @@ const formatSpend = (micros: number) =>
       </div>
     </div>
     <div
-      v-if="progress.step_name || progress.step_description"
+      v-if="!richProgress && (progress.step_name || progress.step_description)"
       data-preparation-step
       class="text-default mt-2 break-words"
       role="status"
@@ -235,7 +235,7 @@ const formatSpend = (micros: number) =>
       </p>
     </div>
     <p
-      v-if="isLoading"
+      v-if="!richProgress && isLoading"
       data-preparation-loading
       class="text-muted mt-1 text-xs"
     >
@@ -248,15 +248,6 @@ const formatSpend = (micros: number) =>
       class="text-warning mt-2 break-words"
     >
       {{ $t(`preparationProgress.${partialCompletion}`) }}
-    </p>
-    <p
-      v-if="richProgress && progress.status_text && !compact"
-      class="text-default mt-2 break-words"
-    >
-      <span class="text-muted"
-        >{{ $t("preparationProgress.serverStatus") }}:</span
-      >
-      {{ progress.status_text }}
     </p>
     <div class="text-default mt-3">
       <p
@@ -282,54 +273,7 @@ const formatSpend = (micros: number) =>
         class="preparation-progress mt-2 block h-2 w-full"
       />
       <p v-if="percent !== null" class="text-muted mt-1 text-xs">
-        {{
-          $t(
-            compact
-              ? "preparationProgress.progressEstimate"
-              : "preparationProgress.progressEstimateNotice",
-          )
-        }}
-      </p>
-    </div>
-    <div
-      v-if="richProgress"
-      data-live-research-summary
-      class="border-default mt-3 border-t pt-3"
-    >
-      <p class="text-muted text-xs">
-        {{ $t("preparationProgress.livePhase") }}
-      </p>
-      <p class="text-default break-words">
-        {{
-          phases.includes(progress.phase)
-            ? $t(`preparationProgress.phases.${progress.phase}`)
-            : progress.phase || $t("preparationProgress.phaseUnknown")
-        }}
-      </p>
-      <dl
-        class="text-default mt-2 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums"
-      >
-        <div v-for="field in liveCounterFields" :key="field">
-          <dt class="text-muted">
-            {{ $t(`preparationProgress.metrics.${field}`) }}
-          </dt>
-          <dd :data-live-research-counter="field">
-            {{ formatCount(progress[field]) }}
-          </dd>
-        </div>
-        <template v-if="progress.research_spend">
-          <div v-for="field in liveSpendFields" :key="field">
-            <dt class="text-muted">
-              {{ $t(`preparationProgress.spend.${field}`) }}
-            </dt>
-            <dd :data-live-research-spend="field">
-              {{ formatSpend(progress.research_spend[field]) }}
-            </dd>
-          </div>
-        </template>
-      </dl>
-      <p v-if="isPending" class="text-muted mt-2 text-xs">
-        {{ $t("preparationProgress.liveCadence") }}
+        {{ $t("preparationProgress.progressEstimate") }}
       </p>
     </div>
     <template v-if="richProgress">
@@ -371,22 +315,6 @@ const formatSpend = (micros: number) =>
       </dl>
       <p
         v-if="
-          !compact &&
-          (remainingKind === 'estimate' || remainingKind === 'deadline')
-        "
-        class="text-muted mt-1 text-xs"
-      >
-        {{ $t(`preparationProgress.remainingNotices.${remainingKind}`) }}
-      </p>
-      <p
-        v-if="!isPending"
-        data-research-completion-notice
-        class="text-muted mt-2 text-xs"
-      >
-        {{ $t("preparationProgress.completionNotice") }}
-      </p>
-      <p
-        v-if="
           progress.status === 'READY' &&
           isNonnegative(progress.skipped_stops) &&
           progress.skipped_stops > 0
@@ -396,68 +324,6 @@ const formatSpend = (micros: number) =>
       >
         {{ $t("preparationProgress.skippedNotice") }}
       </p>
-      <div v-if="isPending || progress.activity_text" class="text-default mt-3">
-        <p class="text-muted text-xs">
-          {{ $t("preparationProgress.activity") }}
-        </p>
-        <p
-          v-if="progress.activity_text"
-          class="break-words"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          data-research-activity
-        >
-          {{ progress.activity_text }}
-        </p>
-        <p
-          v-if="progress.activity_text"
-          class="text-muted mt-1 text-xs"
-          :data-activity-source="activitySource"
-        >
-          {{ $t(`preparationProgress.activitySources.${activitySource}`) }}
-          <span
-            v-if="activitySource === 'fallback'"
-            :data-caption-fallback="
-              progress.activity_fallback_reason ?? 'unavailable'
-            "
-          >
-            {{ $t(`preparationProgress.captionFallbacks.${captionFallback}`) }}
-          </span>
-        </p>
-        <p v-else-if="!activeStops.length" class="break-words" role="status">
-          {{
-            phases.includes(progress.phase)
-              ? $t(`preparationProgress.phases.${progress.phase}`)
-              : $t("preparationProgress.waitingForActivity")
-          }}
-        </p>
-        <ul
-          v-if="activeStops.length && (!compact || !progress.activity_text)"
-          class="mt-1 grid gap-1"
-          data-active-research-stops
-        >
-          <li
-            v-for="stop in activeStops"
-            :key="stop.stop_id"
-            class="break-words"
-          >
-            <span class="font-medium">{{ stop.name }}</span>
-            ·
-            {{
-              stopPhases.includes(stop.phase)
-                ? $t(`preparationProgress.stopPhases.${stop.phase}`)
-                : stop.phase
-            }}
-          </li>
-        </ul>
-        <p v-if="activityUpdatedAt" class="text-muted mt-1 text-xs">
-          {{ $t("preparationProgress.activityUpdatedAt") }}
-          <time :datetime="progress.activity_updated_at ?? undefined">{{
-            activityUpdatedAt
-          }}</time>
-        </p>
-      </div>
     </template>
     <p v-if="progress.error" class="text-error mt-2 break-words" role="alert">
       {{
@@ -472,58 +338,6 @@ const formatSpend = (micros: number) =>
               ? $t("preparationProgress.rateLimited")
               : progress.error
       }}
-    </p>
-    <dl
-      v-if="richProgress"
-      class="text-default mt-3 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums"
-      data-research-counters
-    >
-      <div>
-        <dt class="text-muted">
-          {{ $t("preparationProgress.completedStops") }}
-        </dt>
-        <dd data-completed-stops>
-          {{ formatCount(progress.completed_stops) }} /
-          {{ formatCount(progress.total_stops) }}
-        </dd>
-      </div>
-      <div
-        v-if="
-          !compact ||
-          (isNonnegative(progress.skipped_stops) && progress.skipped_stops > 0)
-        "
-      >
-        <dt class="text-muted">{{ $t("preparationProgress.skippedStops") }}</dt>
-        <dd data-skipped-stops>{{ formatCount(progress.skipped_stops) }}</dd>
-      </div>
-      <div v-if="compact && isPending">
-        <dt class="text-muted">
-          {{ $t("preparationProgress.activeResearchers") }}
-        </dt>
-        <dd>{{ formatCount(progress.active_researchers) }}</dd>
-      </div>
-      <div
-        v-for="field in compact ? compactFields : visibleFields"
-        :key="field"
-      >
-        <dt class="text-muted">
-          {{ $t(`preparationProgress.metrics.${field}`) }}
-        </dt>
-        <dd :data-research-counter="field">
-          {{ formatCount(progress[field]) }}
-        </dd>
-      </div>
-    </dl>
-    <p
-      v-if="
-        richProgress &&
-        updatedAt &&
-        (!compact || updatedAt !== activityUpdatedAt)
-      "
-      class="text-muted mt-3 text-xs"
-    >
-      {{ $t("preparationProgress.updatedAt") }}
-      <time :datetime="progress.updated_at ?? undefined">{{ updatedAt }}</time>
     </p>
     <p
       v-if="refreshing"
@@ -589,8 +403,207 @@ const formatSpend = (micros: number) =>
       >
         {{ $t("preparationProgress.details") }}
       </summary>
-      <template v-if="compact">
-        <p v-if="progress.status_text" class="mt-2 break-words">
+      <div
+        v-if="progress.step_name || progress.step_description"
+        data-preparation-step
+        class="text-default mt-2 break-words"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <p v-if="progress.step_name" class="font-medium">
+          {{ progress.step_name }}
+        </p>
+        <p v-if="progress.step_description" class="text-muted mt-1">
+          {{ progress.step_description }}
+        </p>
+        <p
+          v-if="isPending && validPercent(progress.step_percent)"
+          class="text-muted mt-1 text-xs"
+        >
+          {{ $t("preparationProgress.stepProgress") }}:
+          {{ Math.floor(progress.step_percent) }}%
+        </p>
+      </div>
+      <p
+        v-if="isLoading"
+        data-preparation-loading
+        class="text-muted mt-1 text-xs"
+      >
+        {{ $t("preparationProgress.loadingStep") }}
+      </p>
+      <p
+        v-if="richProgress && progress.status_text && !compact"
+        class="text-default mt-2 break-words"
+      >
+        <span class="text-muted"
+          >{{ $t("preparationProgress.serverStatus") }}:</span
+        >
+        {{ progress.status_text }}
+      </p>
+      <div
+        v-if="richProgress"
+        data-live-research-summary
+        class="border-default mt-3 border-t pt-3"
+      >
+        <p class="text-muted text-xs">
+          {{ $t("preparationProgress.livePhase") }}
+        </p>
+        <p class="text-default break-words">
+          {{
+            phases.includes(progress.phase)
+              ? $t(`preparationProgress.phases.${progress.phase}`)
+              : progress.phase || $t("preparationProgress.phaseUnknown")
+          }}
+        </p>
+        <dl
+          class="text-default mt-2 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums"
+        >
+          <div v-for="field in liveCounterFields" :key="field">
+            <dt class="text-muted">
+              {{ $t(`preparationProgress.metrics.${field}`) }}
+            </dt>
+            <dd :data-live-research-counter="field">
+              {{ formatCount(progress[field]) }}
+            </dd>
+          </div>
+          <template v-if="progress.research_spend">
+            <div v-for="field in liveSpendFields" :key="field">
+              <dt class="text-muted">
+                {{ $t(`preparationProgress.spend.${field}`) }}
+              </dt>
+              <dd :data-live-research-spend="field">
+                {{ formatSpend(progress.research_spend[field]) }}
+              </dd>
+            </div>
+          </template>
+        </dl>
+        <p v-if="isPending" class="text-muted mt-2 text-xs">
+          {{ $t("preparationProgress.liveCadence") }}
+        </p>
+      </div>
+      <div v-if="isPending || progress.activity_text" class="text-default mt-3">
+        <p class="text-muted text-xs">
+          {{ $t("preparationProgress.activity") }}
+        </p>
+        <p
+          v-if="progress.activity_text"
+          class="break-words"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          data-research-activity
+        >
+          {{ progress.activity_text }}
+        </p>
+        <p
+          v-if="progress.activity_text"
+          class="text-muted mt-1 text-xs"
+          :data-activity-source="activitySource"
+        >
+          {{ $t(`preparationProgress.activitySources.${activitySource}`) }}
+          <span
+            v-if="activitySource === 'fallback'"
+            :data-caption-fallback="
+              progress.activity_fallback_reason ?? 'unavailable'
+            "
+          >
+            {{ $t(`preparationProgress.captionFallbacks.${captionFallback}`) }}
+          </span>
+        </p>
+        <p v-else-if="!activeStops.length" class="break-words" role="status">
+          {{
+            phases.includes(progress.phase)
+              ? $t(`preparationProgress.phases.${progress.phase}`)
+              : $t("preparationProgress.waitingForActivity")
+          }}
+        </p>
+        <ul
+          v-if="activeStops.length && (!compact || !progress.activity_text)"
+          class="mt-1 grid gap-1"
+          data-active-research-stops
+        >
+          <li
+            v-for="stop in activeStops"
+            :key="stop.stop_id"
+            class="break-words"
+          >
+            <span class="font-medium">{{ stop.name }}</span>
+            ·
+            {{
+              stopPhases.includes(stop.phase)
+                ? $t(`preparationProgress.stopPhases.${stop.phase}`)
+                : stop.phase
+            }}
+          </li>
+        </ul>
+        <p v-if="activityUpdatedAt" class="text-muted mt-1 text-xs">
+          {{ $t("preparationProgress.activityUpdatedAt") }}
+          <time :datetime="progress.activity_updated_at ?? undefined">{{
+            activityUpdatedAt
+          }}</time>
+        </p>
+      </div>
+      <dl
+        v-if="richProgress"
+        class="text-default mt-3 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums"
+        data-research-counters
+      >
+        <div>
+          <dt class="text-muted">
+            {{ $t("preparationProgress.completedStops") }}
+          </dt>
+          <dd data-completed-stops>
+            {{ formatCount(progress.completed_stops) }} /
+            {{ formatCount(progress.total_stops) }}
+          </dd>
+        </div>
+        <div
+          v-if="
+            !compact ||
+            (isNonnegative(progress.skipped_stops) &&
+              progress.skipped_stops > 0)
+          "
+        >
+          <dt class="text-muted">
+            {{ $t("preparationProgress.skippedStops") }}
+          </dt>
+          <dd data-skipped-stops>{{ formatCount(progress.skipped_stops) }}</dd>
+        </div>
+        <div v-if="compact && isPending">
+          <dt class="text-muted">
+            {{ $t("preparationProgress.activeResearchers") }}
+          </dt>
+          <dd>{{ formatCount(progress.active_researchers) }}</dd>
+        </div>
+        <div
+          v-for="field in compact ? compactFields : visibleFields"
+          :key="field"
+        >
+          <dt class="text-muted">
+            {{ $t(`preparationProgress.metrics.${field}`) }}
+          </dt>
+          <dd :data-research-counter="field">
+            {{ formatCount(progress[field]) }}
+          </dd>
+        </div>
+      </dl>
+      <p
+        v-if="
+          richProgress &&
+          updatedAt &&
+          (!compact || updatedAt !== activityUpdatedAt)
+        "
+        class="text-muted mt-3 text-xs"
+      >
+        {{ $t("preparationProgress.updatedAt") }}
+        <time :datetime="progress.updated_at ?? undefined">{{
+          updatedAt
+        }}</time>
+      </p>
+
+      <template v-if="richProgress">
+        <p v-if="compact && progress.status_text" class="mt-2 break-words">
           <span class="text-muted"
             >{{ $t("preparationProgress.serverStatus") }}:</span
           >
@@ -606,6 +619,13 @@ const formatSpend = (micros: number) =>
           {{ $t(`preparationProgress.remainingNotices.${remainingKind}`) }}
         </p>
       </template>
+      <p
+        v-if="!isPending"
+        data-research-completion-notice
+        class="text-muted mt-2 text-xs"
+      >
+        {{ $t("preparationProgress.completionNotice") }}
+      </p>
       <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums">
         <div v-if="!compact || !isPending">
           <dt class="text-muted">

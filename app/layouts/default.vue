@@ -4,25 +4,8 @@
     <main class="default-layout__main">
       <slot />
     </main>
-    <PGButton v-if="isAuthenticated" variant="ghost" @click="logout">
-      {{ $t("common.logout") }}
-    </PGButton>
   </div>
 </template>
-
-<script lang="ts" setup>
-import { getAuth, signOut } from "firebase/auth";
-import { useAuth } from "~/composables/auth/useAuth";
-
-const auth = getAuth();
-const { isAuthenticated } = useAuth();
-const router = useRouter();
-
-const logout = async () => {
-  await signOut(auth).catch((e) => console.error("Error when exiting", e));
-  router.push({ name: "index" });
-};
-</script>
 
 <style scoped>
 .default-layout {
@@ -46,5 +29,8 @@ const logout = async () => {
   flex: 1 1 0;
   flex-direction: column;
   align-items: center;
+}
+.default-layout:has([data-walking-screen]) > :deep(.app-header) {
+  display: none;
 }
 </style>

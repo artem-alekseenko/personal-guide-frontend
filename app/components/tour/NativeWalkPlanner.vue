@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouteStore } from "~/stores/routeStore";
 import { useNativeWalkPlannerStore } from "~/stores/nativeWalkPlannerStore";
 import { useGuidesStore } from "~/stores/guidesStore";
@@ -7,7 +7,13 @@ import { useNotification } from "~/composables/ui/useNotification";
 import NativeWalkMap from "./NativeWalkMap.vue";
 import PersonalContextForm from "./PersonalContextForm.vue";
 import RouteDurationControl from "~/components/route/RouteDurationControl.vue";
+import WalkSetupHeader from "~/components/route/WalkSetupHeader.vue";
 import RouteGuideSummary from "~/components/route/RouteGuideSummary.vue";
+
+const googleWalkingWarning =
+  "Google walking routes are beta and may omit pedestrian paths or sidewalks.";
+
+const creating = ref(false);
 const routes = useRouteStore();
 const planner = useNativeWalkPlannerStore();
 const guides = useGuidesStore();
@@ -43,28 +49,35 @@ async function prepare() {
   }
 }
 async function create() {
+  if (planner.busy || creating.value) return;
+  creating.value = true;
   try {
     const tour = await planner.create();
     if (tour) await navigateTo(`/tours/${encodeURIComponent(tour.id)}`);
   } catch (error) {
     useNotification().showApiError(error, t("nativeWalk.createFailed"));
+  } finally {
+    creating.value = false;
   }
 }
 </script>
 <template>
-  <section class="grid min-w-0 gap-5 p-4">
-    <h1 class="text-xl font-semibold">{{ $t("nativeWalk.planTitle") }}</h1>
+  <section class="grid w-full min-w-0 gap-5 p-4">
+    <WalkSetupHeader
+      :step="2"
+      :title="$t('nativeWalk.planTitle')"
+      :description="$t('nativeWalk.routeDescription')"
+    />
     <RouteGuideSummary
       v-if="guides.selectedGuide"
       :guide="guides.selectedGuide"
     />
-    <p>{{ $t("nativeWalk.routeDescription") }}</p>
     <fieldset
       class="grid min-w-0 gap-5"
       :disabled="planner.busy"
       :inert="planner.busy"
     >
-      <p role="status">
+      <p class="text-muted text-sm" role="status">
         {{ $t(origin ? "nativeWalk.startSelected" : "nativeWalk.chooseStart") }}
       </p>
       <NativeWalkMap
@@ -80,20 +93,29 @@ async function create() {
         "
       />
       <RouteDurationControl v-model="duration" :min="5" :max="60" />
-      <PersonalContextForm
-        v-model="routes.personalContext"
-        :guide-mode="guides.selectedGuide?.interaction_mode"
-      />
-      <PGButton :disabled="!origin || planner.busy" @click="prepare">{{
-        $t("nativeWalk.planButton")
-      }}</PGButton>
+      <PGButton
+        v-if="!planner.plan"
+        :disabled="!origin || planner.busy || planner.creationUncertain"
+        :loading="planner.busy"
+        @click="prepare"
+        >{{
+          $t(
+            planner.busy
+              ? "pages.createRoute.planningRoute"
+              : "nativeWalk.planButton",
+          )
+        }}</PGButton
+      >
     </fieldset>
     <section
       v-if="planner.plan"
-      class="border-default grid gap-3 rounded-xl border p-4"
+      class="pg-surface grid gap-3"
       aria-live="polite"
     >
-      <p>
+      <h2 class="text-lg font-semibold">
+        {{ $t("pages.createRoute.previewTitle") }}
+      </h2>
+      <p class="text-muted text-sm">
         {{
           $t("nativeWalk.estimate", {
             minutes: estimatedMinutes,
@@ -103,18 +125,35 @@ async function create() {
       </p>
       <p v-if="shorter" role="status">{{ $t("nativeWalk.shorterRoute") }}</p>
       <p v-for="warning in planner.plan.warnings" :key="warning">
-        {{ warning }}
+        {{
+          warning === googleWalkingWarning
+            ? $t("nativeWalk.googleWalkingNotice")
+            : warning
+        }}
       </p>
       <p>{{ $t("nativeWalk.researchLater") }}</p>
       <PGButton
+        :loading="creating"
         :disabled="planner.busy || planner.creationUncertain"
         @click="create"
-        >{{ $t("nativeWalk.createButton") }}</PGButton
+        >{{
+          $t(
+            creating
+              ? "pages.createRoute.creatingTour"
+              : "nativeWalk.createButton",
+          )
+        }}</PGButton
       >
     </section>
     <p v-if="planner.creationUncertain" role="alert">
       {{ $t("nativeWalk.creationUncertain") }}
       <NuxtLink to="/tours">{{ $t("navigation.backToTours") }}</NuxtLink>
     </p>
+    <fieldset class="min-w-0" :disabled="planner.busy" :inert="planner.busy">
+      <PersonalContextForm
+        v-model="routes.personalContext"
+        :guide-mode="guides.selectedGuide?.interaction_mode"
+      />
+    </fieldset>
   </section>
 </template>

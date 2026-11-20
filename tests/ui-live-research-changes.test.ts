@@ -139,7 +139,7 @@ it("stops factual polling offscreen, while hidden, and after a terminal snapshot
 });
 
 it.each([false, true])(
-  "shows actual turns and distinct money values outside disclosures, compact=%s",
+  "keeps actual turns and distinct money values in collapsed details, compact=%s",
   async (compact) => {
     const snapshot = preparationSnapshot({
       research_spend: {
@@ -162,8 +162,8 @@ it.each([false, true])(
         (node) => "data-live-research-summary" in node.props,
       )[0]!;
     expect(summary()).toBeDefined();
-    for (let node: TestNode | undefined = summary(); node; node = node.parent)
-      expect(node.type).not.toBe("details");
+    expect(summary().parent?.type).toBe("details");
+    expect(summary().parent?.props.open).toBeUndefined();
     const counter = (field: string) =>
       text(
         findAll(

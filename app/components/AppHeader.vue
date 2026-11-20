@@ -4,9 +4,9 @@
       <div class="app-header__start">
         <AppBackButton />
 
-        <h1 class="app-header__title">
+        <p class="app-header__title">
           {{ pageTitle }}
-        </h1>
+        </p>
       </div>
 
       <div v-if="isAuthenticated" class="app-header__end">
@@ -44,8 +44,8 @@
 </template>
 
 <script lang="ts" setup>
-import {useAuth} from "~/composables/auth/useAuth";
-import {usePageTitle} from "~/composables/ui/usePageTitle";
+import { useAuth } from "~/composables/auth/useAuth";
+import { usePageTitle } from "~/composables/ui/usePageTitle";
 import AppBackButton from "~/components/AppBackButton.vue";
 
 const route = useRoute();
@@ -84,11 +84,14 @@ const goToSettings = (): void => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-inline-size: 0;
 }
 
 .app-header__title {
   font-size: 1.25rem;
-  font-weight: 800;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
   color: var(--fill-gray-900);
 }
 
@@ -101,6 +104,8 @@ const goToSettings = (): void => {
   align-items: center;
   justify-content: center;
   padding: 0.5rem;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
   border-radius: 0.5rem;
   border: none;
   background: transparent;

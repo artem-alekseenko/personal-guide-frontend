@@ -25,6 +25,7 @@
       </svg>
     </summary>
     <div class="personal-context__fields">
+      <slot />
       <label class="personal-context__check"
         ><input v-model="value.enabled" type="checkbox" />
         {{ $t("experience.personalize") }}</label

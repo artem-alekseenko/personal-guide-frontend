@@ -15,7 +15,9 @@ export const useNativeWalkStore = defineStore("nativeWalk", () => {
   let epoch = 0;
   let activeRequests = 0;
   let controller: NativeWalkController | null = null;
-  let scope = "";
+  // The screen reads this before onMounted attaches the controller.
+  // Attachment must invalidate that initial empty view.
+  const scope = shallowRef("");
   let mountingOwner: symbol | null = null;
   const users = useUserStore();
   const uncertain = computed(() => pending.value !== null && !busy.value);
@@ -27,7 +29,7 @@ export const useNativeWalkStore = defineStore("nativeWalk", () => {
     if (!uid) throw new Error("Sign in before opening a walk");
     mountingOwner = token;
     const version = ++epoch;
-    scope = `${uid}:${tourId}`;
+    scope.value = `${uid}:${tourId}`;
     view.value = null;
     pending.value = null;
     const { $apiFetch } = useNuxtApp();
@@ -62,7 +64,7 @@ export const useNativeWalkStore = defineStore("nativeWalk", () => {
       epoch++;
       mountingOwner = null;
       controller = null;
-      scope = "";
+      scope.value = "";
       view.value = null;
       pending.value = null;
       busy.value = false;
@@ -92,7 +94,7 @@ export const useNativeWalkStore = defineStore("nativeWalk", () => {
     busy,
     uncertain,
     attach,
-    isScope: (tourId: string) => scope === `${users.user?.uid}:${tourId}`,
+    isScope: (tourId: string) => scope.value === `${users.user?.uid}:${tourId}`,
     load: (reconcile = false) => perform((active) => active.load(reconcile)),
     send: (action: WalkAction, fields?: Partial<WalkRequest>) =>
       perform((active) => active.send(action, fields)),

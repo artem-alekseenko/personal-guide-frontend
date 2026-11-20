@@ -12,7 +12,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
     try {
       sessionStorage.setItem(
         "settingsReturnRoute",
-        JSON.stringify({ uid, path: from.path }),
+        JSON.stringify({ uid, path: from.fullPath }),
       );
     } catch {
       // Settings remain navigable when browser storage is unavailable.

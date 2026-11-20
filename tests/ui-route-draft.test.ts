@@ -1,12 +1,15 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import * as Vue from "vue";
 import { useRouteStore } from "../app/stores/routeStore";
+import { useNativeWalkPlannerStore } from "../app/stores/nativeWalkPlannerStore";
 import { mount, findAll } from "./helpers/render";
 import CreateRoute from "../app/pages/create-route/index.vue";
+import NativeWalkPlanner from "../app/components/tour/NativeWalkPlanner.vue";
 import en from "../i18n/locales/en.json";
 import ru from "../i18n/locales/ru.json";
 import { useCreateTour } from "../app/composables/api/tours/useCreateTour";
 import type { ICreatedTour } from "../app/types";
+import type { WalkingRoutePlan } from "../shared/types/nativeWalk";
 vi.mock("../app/composables/api/tours/useCreateTour", () => ({
   useCreateTour: vi.fn(),
 }));
@@ -22,6 +25,9 @@ vi.mock("../app/components/PGMap.vue", () => ({
   default: { template: '<div class="map-stub" />' },
 }));
 vi.mock("../app/components/tour/PersonalContextForm.vue", () => ({
+  default: { template: "<details><slot /></details>" },
+}));
+vi.mock("../app/components/tour/NativeWalkMap.vue", () => ({
   default: { template: "<div />" },
 }));
 const empty = { template: "<div />" };
@@ -47,9 +53,9 @@ beforeEach(() => {
     useI18n: () => ({ t, te: () => true }),
   });
 });
-const render = () =>
+const render = (component = CreateRoute) =>
   mount(
-    CreateRoute,
+    component,
     {},
     {
       ClientOnly: { template: "<div><slot /></div>" },
@@ -60,9 +66,54 @@ const render = () =>
       PGChip: { template: "<button><slot /></button>" },
       USlider: empty,
       UIcon: empty,
+      NuxtLink: empty,
     },
     t,
   );
+it.each([
+  ["Create Route", CreateRoute],
+  ["Create Walk", NativeWalkPlanner],
+] as const)(
+  "shows optional tour details after the primary action on %s",
+  (_, component) => {
+    const app = render(component);
+    try {
+      const actionLabel =
+        component === CreateRoute ? "INITIAL" : en.nativeWalk.planButton;
+      const sections = findAll(
+        app.root,
+        (node) =>
+          node.type === "details" ||
+          (node.type === "button" &&
+            findAll(node, (child) => child.text === actionLabel).length > 0),
+      );
+      expect(sections.map((node) => node.type)).toEqual(["button", "details"]);
+    } finally {
+      app.unmount();
+    }
+  },
+);
+it("shows the localized Google walking notice and preserves other route warnings", () => {
+  language = "ru";
+  const original =
+    "Google walking routes are beta and may omit pedestrian paths or sidewalks.";
+  useNativeWalkPlannerStore().plan = {
+    duration_seconds: 600,
+    distance_meters: 800,
+    warnings: [original, "Changes in elevation are unknown."],
+  } as WalkingRoutePlan;
+  const app = render(NativeWalkPlanner);
+  try {
+    const text = findAll(app.root, () => true)
+      .map((node) => node.text)
+      .join(" ");
+    expect(text).toContain(ru.nativeWalk.googleWalkingNotice);
+    expect(text).not.toContain(original);
+    expect(text).toContain("Changes in elevation are unknown.");
+  } finally {
+    app.unmount();
+  }
+});
 function draft(minutes: string) {
   const route = useRouteStore();
   route.setStartPoint({ lat: "47", lng: "19" });
@@ -226,7 +277,9 @@ it("keeps the pending creation locked when the route page is remounted", async (
   const deferred = Promise.withResolvers<ICreatedTour>();
   vi.mocked(useCreateTour).mockImplementationOnce(() => deferred.promise);
   const first = render();
-  const submit = findAll(first.root, (node) => node.type === "button").at(-1)!;
+  const submit = findAll(first.root, (node) =>
+    node.classList.contains("route-setup__main-button"),
+  )[0]!;
   const pending = submit.props.onClick();
   first.unmount();
   const second = render();
@@ -244,9 +297,9 @@ it("keeps the pending creation locked when the route page is remounted", async (
     )[0];
     slider.props.onInput({ target: { value: "45" } });
     expect(route.duration).toBe("30");
-    const resubmit = findAll(second.root, (node) => node.type === "button").at(
-      -1,
-    )!;
+    const resubmit = findAll(second.root, (node) =>
+      node.classList.contains("route-setup__main-button"),
+    )[0]!;
     expect(resubmit.props.disabled).toBe(true);
     await resubmit.props.onClick();
     expect(useCreateTour).toHaveBeenCalledTimes(1);

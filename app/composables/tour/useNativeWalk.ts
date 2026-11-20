@@ -10,10 +10,17 @@ import type {
   WalkAudioManifest,
 } from "#shared/types/nativeWalk";
 
+import type { NativeWalkPositionSource } from "./useNativeWalkPosition";
+
 /** Owns the only v3 speech scheduler; legacy playback is never mounted beside it. */
-export function useNativeWalk(tourId: string) {
+export function useNativeWalk(
+  tourId: string,
+  position?: NativeWalkPositionSource,
+) {
   const store = useNativeWalkStore();
-  const gps = useGeolocationStore();
+  const gps: NativeWalkPositionSource = position ?? useGeolocationStore();
+  const locationKey = () =>
+    `${gps.mode ?? "gps"}:${gps.recordedAt}:${gps.coordinates?.join(",")}`;
   const users = useUserStore();
   const owner = users.user?.uid;
   const { $apiFetch } = useNuxtApp();
@@ -21,6 +28,45 @@ export function useNativeWalk(tourId: string) {
   const canControl = shallowRef(false);
   const failed = shallowRef(false);
   const preparing = shallowRef(false);
+  const stepStatus = shallowRef<
+    | "locating"
+    | "location_required"
+    | "location_inaccurate"
+    | "location_stale"
+    | "location_unconfirmed"
+    | "off_route"
+    | "no_story"
+    | "no_local_research"
+    | "no_answer"
+    | null
+  >(null);
+  function usableLocation() {
+    const progress = view.value?.progress;
+    const age = progress ? Date.now() - Date.parse(progress.recorded_at) : NaN;
+    return (
+      !!gps.coordinates &&
+      (view.value?.position_mode ?? "gps") === (gps.mode ?? "gps") &&
+      !!progress?.reliable &&
+      !progress.ambiguous &&
+      !gps.error &&
+      age >= 0 &&
+      age <= 60000
+    );
+  }
+  function explainLocation() {
+    if (!gps.coordinates || gps.error) return "location_required" as const;
+    const reason = view.value?.progress?.reason;
+    if (reason === "off_route") return "off_route" as const;
+    if (reason === "inaccurate_observation")
+      return "location_inaccurate" as const;
+    if (!view.value?.progress) return "location_required" as const;
+    if (
+      reason === "stale_observation" ||
+      Date.now() - Date.parse(view.value.progress.recorded_at) > 60000
+    )
+      return "location_stale" as const;
+    return "location_unconfirmed" as const;
+  }
   const audioUnavailable = shallowRef(false);
   const rendering = shallowRef(false);
   const playing = shallowRef(false);
@@ -29,10 +75,19 @@ export function useNativeWalk(tourId: string) {
   const lastText = shallowRef("");
   const lastUnverified = shallowRef(false);
   const generationChanged = shallowRef(false);
+  const advancing = shallowRef(false);
+  let flow: Promise<unknown> = Promise.resolve();
+  let queued = 0;
+  const foregroundPending = shallowRef(0);
+  let observationQueued = false;
+  let readingTimer: ReturnType<typeof setTimeout> | undefined;
   let alive = true;
   let playbackEpoch = 0;
+  let mediaControl: { deliveryId: string; from: number; to: number } | null =
+    null;
   let detach: (() => void) | undefined;
   let releaseLock: (() => void) | undefined;
+  const lockRequest = new AbortController();
   let timer: ReturnType<typeof setInterval> | undefined;
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
@@ -40,17 +95,93 @@ export function useNativeWalk(tourId: string) {
   let chunkIndex = 0;
   let acknowledgedStart = false;
   let lastGpsTimestamp = "";
+  let lastGpsAttempt = "";
   const current = () =>
     alive && users.user?.uid === owner && store.isScope(tourId);
   const view = computed(() => (current() ? store.view : null));
-  const busy = computed(() => store.busy);
+  const busy = computed(() => store.busy || advancing.value);
   const uncertain = computed(() => store.uncertain);
   const ready = computed(
-    () => canControl.value && !!view.value && !busy.value && !uncertain.value,
+    () =>
+      canControl.value &&
+      !!view.value &&
+      foregroundPending.value === 0 &&
+      !uncertain.value,
   );
 
+  function serialize(work: () => Promise<void>, background = false) {
+    if (!background) foregroundPending.value++;
+    queued++;
+    advancing.value = true;
+    const task = flow.then(async () => {
+      if (current() && canControl.value && !store.uncertain) await work();
+    });
+    flow = task.catch(() => {});
+    return task.finally(() => {
+      queued--;
+      if (!background) foregroundPending.value--;
+      advancing.value = queued > 0;
+    });
+  }
+  function clearReading() {
+    clearTimeout(readingTimer);
+    readingTimer = undefined;
+  }
+  function scheduleReading(delivery: WalkDelivery) {
+    clearReading();
+    if (
+      !current() ||
+      locallyPaused.value ||
+      view.value?.paused ||
+      view.value?.finished ||
+      !canControl.value ||
+      view.value?.active_delivery?.id !== delivery.id ||
+      (typeof document !== "undefined" && document.visibilityState === "hidden")
+    )
+      return;
+    // Full text remains visible. A conservative reading interval replaces media
+    // completion only when audio is unavailable; hidden time is never consumed.
+    const words = delivery.text.trim().split(/\s+/u).filter(Boolean).length;
+    const delay = Math.max(8000, Math.ceil((words / 180) * 60_000));
+    readingTimer = setTimeout(() => {
+      readingTimer = undefined;
+      void completeDelivery(delivery.id).catch(() => {
+        failed.value = true;
+      });
+    }, delay);
+  }
+  async function completeDelivery(
+    deliveryId: string,
+    continueAutomatically = true,
+  ) {
+    await serialize(async () => {
+      if (
+        view.value?.active_delivery?.id !== deliveryId ||
+        locallyPaused.value ||
+        view.value.paused
+      )
+        return;
+      clearAudio(true);
+      if (gps.mode === "simulation") await gps.refresh();
+      await observeNow(false);
+      const response = await acknowledge("completed", deliveryId);
+      if (response && continueAutomatically) await maybeActivate(response);
+    }, true);
+  }
+  const visibilityChanged = () => {
+    if (document.visibilityState === "hidden") clearReading();
+    else if (
+      audioUnavailable.value &&
+      view.value?.active_delivery &&
+      !playing.value &&
+      !rendering.value
+    )
+      scheduleReading(view.value.active_delivery);
+  };
   function pauseLocal() {
+    clearReading();
     playbackEpoch++;
+    mediaControl = null;
     locallyPaused.value = true;
     rendering.value = false;
     audio?.pause();
@@ -82,14 +213,17 @@ export function useNativeWalk(tourId: string) {
     !view.value?.paused &&
     !view.value?.finished &&
     view.value?.active_delivery?.id === delivery.id &&
-    view.value.control_revision === control;
+    view.value.control_revision ===
+      (mediaControl?.deliveryId === delivery.id && mediaControl.from === control
+        ? mediaControl.to
+        : control);
 
   async function acknowledge(
     state: "started" | "completed" | "interrupted",
     deliveryId: string,
   ) {
     if (!current() || !canControl.value) return;
-    await store.send("ACKNOWLEDGE", {
+    return await store.send("ACKNOWLEDGE", {
       delivery_id: deliveryId,
       delivery_state: state,
     });
@@ -114,6 +248,7 @@ export function useNativeWalk(tourId: string) {
         audio?.pause();
         return;
       }
+      clearReading();
       playing.value = true;
       if (!acknowledgedStart) {
         acknowledgedStart = true;
@@ -129,15 +264,14 @@ export function useNativeWalk(tourId: string) {
       chunkIndex++;
       if (chunkIndex < blobs.length) void playChunk(delivery, control, epoch);
       else
-        void acknowledge("completed", delivery.id)
-          .then(() => clearAudio(true))
-          .catch(() => {
-            failed.value = true;
-          });
+        void completeDelivery(delivery.id).catch(() => {
+          failed.value = true;
+        });
     };
     audio.onerror = () => {
       playing.value = false;
       audioUnavailable.value = true;
+      scheduleReading(delivery);
     };
     try {
       await audio.play();
@@ -168,6 +302,10 @@ export function useNativeWalk(tourId: string) {
         },
       );
       if (!activeMatches(delivery, control) || epoch !== playbackEpoch) return;
+      if (!manifest?.complete) {
+        audioUnavailable.value = true;
+        return;
+      }
       const textHash = Array.from(
         new Uint8Array(
           await crypto.subtle.digest(
@@ -179,7 +317,6 @@ export function useNativeWalk(tourId: string) {
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("");
       if (
-        !manifest?.complete ||
         manifest.canonical_text_hash !== textHash ||
         manifest.chunks.some(
           (chunk, index) =>
@@ -209,7 +346,10 @@ export function useNativeWalk(tourId: string) {
     } catch {
       if (current() && epoch === playbackEpoch) audioUnavailable.value = true;
     } finally {
-      if (current() && epoch === playbackEpoch) rendering.value = false;
+      if (current() && epoch === playbackEpoch) {
+        rendering.value = false;
+        if (audioUnavailable.value && !playing.value) scheduleReading(delivery);
+      }
     }
   }
   async function run(action: WalkAction, fields: Partial<WalkRequest> = {}) {
@@ -219,10 +359,12 @@ export function useNativeWalk(tourId: string) {
       const response = await store.send(action, fields);
       if (!current()) return null;
       if (response.offered_delivery) {
+        stepStatus.value = null;
         lastText.value = response.offered_delivery.text;
         lastUnverified.value =
           response.offered_delivery.evidence_status === "unverified";
-        await playDelivery(response.offered_delivery);
+        // Media rendering must not hold the stepping queue or block Finish.
+        void playDelivery(response.offered_delivery);
       }
       return response;
     } catch (error) {
@@ -234,12 +376,15 @@ export function useNativeWalk(tourId: string) {
     const eligible = response.eligible_action;
     if (
       !eligible ||
-      !ready.value ||
+      !current() ||
+      !canControl.value ||
+      store.uncertain ||
       locallyPaused.value ||
       response.paused ||
       response.finished ||
       response.active_delivery ||
-      response.scheduling_mode !== "automatic"
+      response.scheduling_mode !== "automatic" ||
+      locationKey() !== lastGpsTimestamp
     )
       return;
     await run("ACTIVATE", {
@@ -247,32 +392,116 @@ export function useNativeWalk(tourId: string) {
       eligible_action_id: eligible.id,
     });
   }
-  async function observe() {
+  async function observeNow(activate = true) {
     if (
-      !ready.value ||
+      !current() ||
+      !canControl.value ||
+      store.uncertain ||
       !view.value?.started ||
       view.value.finished ||
       !gps.coordinates ||
       !gps.recordedAt ||
       gps.accuracy === null ||
       gps.error ||
-      gps.recordedAt === lastGpsTimestamp
+      locationKey() === lastGpsTimestamp
     )
       return;
     const recordedAt = gps.recordedAt;
+    const key = locationKey();
+    lastGpsAttempt = key;
     const response = await run("LOCATION_UPDATE", {
       point: { lat: gps.coordinates[1], lng: gps.coordinates[0] },
       recorded_at: recordedAt,
       accuracy_meters: gps.accuracy,
+      position_mode: gps.mode ?? "gps",
     });
     if (!response) return;
-    lastGpsTimestamp = recordedAt;
-    await maybeActivate(response);
+    lastGpsTimestamp = key;
+    if (response.progress?.reliable) stepStatus.value = null;
+    if (activate) await maybeActivate(response);
+  }
+  async function observe() {
+    if (
+      observationQueued ||
+      !current() ||
+      !view.value?.started ||
+      !gps.recordedAt ||
+      !gps.coordinates ||
+      gps.accuracy === null ||
+      !!gps.error ||
+      locationKey() === lastGpsAttempt
+    )
+      return;
+    observationQueued = true;
+    try {
+      await serialize(() => observeNow(), true);
+    } finally {
+      observationQueued = false;
+    }
+  }
+  async function nextPassage() {
+    stepStatus.value = null;
+    locallyPaused.value = false;
+    if (view.value?.paused) await run("RESUME");
+    const active = view.value?.active_delivery;
+    clearAudio(true);
+    if (gps.mode === "simulation") await gps.refresh();
+    await observeNow(false);
+    if (!view.value?.finished && !usableLocation()) {
+      stepStatus.value = "locating";
+      await gps.refresh();
+      if (!current() || !canControl.value) return;
+      await observeNow(false);
+    }
+    if (active && view.value?.active_delivery?.id === active.id)
+      await acknowledge("completed", active.id);
+    if (view.value?.finished) {
+      stepStatus.value = null;
+      return;
+    }
+    // A fresh precise position is required; never substitute the route origin.
+    if (!usableLocation()) {
+      stepStatus.value = explainLocation();
+      return;
+    }
+    const response = await run("CONTINUE");
+    if (
+      response &&
+      !response.offered_delivery &&
+      !response.active_delivery &&
+      !response.finished
+    )
+      stepStatus.value =
+        response.silence_reason === "no_local_evidence"
+          ? "no_local_research"
+          : "no_story";
   }
   async function start() {
-    locallyPaused.value = false;
-    await run("START");
-    await observe();
+    await serialize(async () => {
+      locallyPaused.value = false;
+      await run("START");
+      await nextPassage();
+    });
+  }
+  async function reopen() {
+    await serialize(async () => {
+      if (!view.value?.finished) return;
+      clearAudio();
+      const response = await run("REOPEN");
+      if (!response || response.finished) return;
+      // The saved position is retained; request fresh context before speaking.
+      lastGpsTimestamp = "";
+      lastGpsAttempt = "";
+      await nextPassage();
+    });
+  }
+  async function nextStep() {
+    const displayed = view.value?.active_delivery?.id;
+    await serialize(async () => {
+      // A simultaneous automatic completion may already have advanced the screen.
+      if (view.value?.active_delivery?.id !== displayed) return;
+      await nextPassage();
+    });
   }
   async function pause() {
     pauseLocal();
@@ -304,8 +533,23 @@ export function useNativeWalk(tourId: string) {
     action: "CONTINUE" | "MORE" | "ASK",
     fields: Partial<WalkRequest> = {},
   ) {
-    locallyPaused.value = false;
-    await run(action, fields);
+    await serialize(async () => {
+      stepStatus.value = null;
+      locallyPaused.value = false;
+      if (action === "ASK") {
+        if (gps.mode === "simulation") await gps.refresh();
+        await observeNow(false);
+      }
+      const response = await run(action, fields);
+      if (
+        action === "ASK" &&
+        response &&
+        !response.offered_delivery &&
+        !response.active_delivery &&
+        !response.finished
+      )
+        stepStatus.value = "no_answer";
+    });
   }
   async function interrupt() {
     const delivery = view.value?.active_delivery;
@@ -314,12 +558,13 @@ export function useNativeWalk(tourId: string) {
   }
   async function finish() {
     clearAudio();
-    await run("FINISH");
+    await serialize(async () => {
+      await run("FINISH");
+    });
   }
   async function readCompleted() {
     const delivery = view.value?.active_delivery;
-    clearAudio(true);
-    if (delivery) await acknowledge("completed", delivery.id);
+    if (delivery) await completeDelivery(delivery.id);
   }
   async function playActive() {
     if (!ready.value || !view.value?.active_delivery || view.value.paused)
@@ -329,20 +574,35 @@ export function useNativeWalk(tourId: string) {
   }
   async function retry() {
     if (!current() || !canControl.value) return;
-    const response = await store.retry();
-    failed.value = false;
-    // A locally requested pause survives recovery of an uncertain activation.
-    if (locallyPaused.value) {
-      await run("PAUSE");
-      return;
-    }
-    if (response.offered_delivery) {
-      lastText.value = response.offered_delivery.text;
-      lastUnverified.value =
-        response.offered_delivery.evidence_status === "unverified";
-      await playDelivery(response.offered_delivery);
+    foregroundPending.value++;
+    try {
+      const pendingAction = store.pending?.action;
+      const response = await store.retry();
+      failed.value = false;
+      if (pendingAction === "REOPEN" && !view.value?.finished) {
+        await serialize(async () => {
+          lastGpsTimestamp = "";
+          lastGpsAttempt = "";
+          await nextPassage();
+        });
+        return;
+      }
+      // A locally requested pause survives recovery of an uncertain activation.
+      if (locallyPaused.value) {
+        await run("PAUSE");
+        return;
+      }
+      if (response.offered_delivery) {
+        lastText.value = response.offered_delivery.text;
+        lastUnverified.value =
+          response.offered_delivery.evidence_status === "unverified";
+        await playDelivery(response.offered_delivery);
+      } else await maybeActivate(response);
+    } finally {
+      foregroundPending.value--;
     }
   }
+
   function recordReadFailure(error: unknown) {
     const failure = error as {
       statusCode?: number;
@@ -391,6 +651,8 @@ export function useNativeWalk(tourId: string) {
       await run("PAUSE");
   }
   onMounted(async () => {
+    if (typeof document !== "undefined")
+      document.addEventListener("visibilitychange", visibilityChanged);
     try {
       detach = store.attach(tourId);
       // Control ownership and refresh exist even if research is not published
@@ -399,7 +661,7 @@ export function useNativeWalk(tourId: string) {
         void navigator.locks
           .request(
             `pg-native-walk:${owner}:${tourId}`,
-            { ifAvailable: true },
+            { signal: lockRequest.signal },
             async (lock) => {
               if (!lock || !current()) return;
               canControl.value = true;
@@ -414,7 +676,7 @@ export function useNativeWalk(tourId: string) {
           });
       }
       timer = setInterval(() => {
-        if (current() && !store.busy && !store.pending) void refresh();
+        if (current() && !busy.value && !store.pending) void refresh();
       }, 10000);
       if (await refresh()) {
         lastText.value = view.value?.active_delivery?.text ?? "";
@@ -425,12 +687,18 @@ export function useNativeWalk(tourId: string) {
       failed.value = true;
     }
   });
+  watch(locationKey, () => {
+    void observe().catch(() => {
+      failed.value = true;
+    });
+  });
   watch(
-    () => gps.recordedAt,
+    () => [store.busy, advancing.value, locationKey()] as const,
     () => {
-      void observe().catch(() => {
-        failed.value = true;
-      });
+      if (!store.busy && !advancing.value && locationKey() !== lastGpsTimestamp)
+        void observe().catch(() => {
+          failed.value = true;
+        });
     },
   );
   watch(
@@ -438,6 +706,7 @@ export function useNativeWalk(tourId: string) {
     () => {
       if (users.user?.uid !== owner) {
         clearAudio();
+        lockRequest.abort();
         releaseLock?.();
         detach?.();
       }
@@ -451,8 +720,11 @@ export function useNativeWalk(tourId: string) {
   );
   onBeforeUnmount(() => {
     alive = false;
+    if (typeof document !== "undefined")
+      document.removeEventListener("visibilitychange", visibilityChanged);
     clearAudio();
     if (timer) clearInterval(timer);
+    lockRequest.abort();
     releaseLock?.();
     detach?.();
   });
@@ -464,6 +736,7 @@ export function useNativeWalk(tourId: string) {
     canControl,
     failed,
     preparing,
+    stepStatus,
     playing,
     rendering,
     audioUnavailable,
@@ -472,6 +745,8 @@ export function useNativeWalk(tourId: string) {
     generationChanged,
     locallyPaused,
     start,
+    reopen,
+    nextStep,
     pause,
     resume,
     explicit,
@@ -482,6 +757,29 @@ export function useNativeWalk(tourId: string) {
     retry,
     reconcile,
     setMode: (automatic: boolean) =>
-      run("SET_MODE", { scheduling_mode: automatic ? "automatic" : "manual" }),
+      serialize(async () => {
+        const before = view.value;
+        const response = await run("SET_MODE", {
+          scheduling_mode: automatic ? "automatic" : "manual",
+        });
+        // A confirmed scheduling-only change keeps the current narration valid.
+        // Pause, finish, owner changes and other revisions still invalidate it.
+        if (
+          response &&
+          before?.active_delivery &&
+          response.active_delivery?.id === before.active_delivery.id
+        ) {
+          mediaControl = {
+            deliveryId: before.active_delivery.id,
+            from:
+              mediaControl?.deliveryId === before.active_delivery.id &&
+              mediaControl.to === before.control_revision
+                ? mediaControl.from
+                : before.control_revision,
+            to: response.control_revision,
+          };
+        }
+        if (response && automatic) await maybeActivate(response);
+      }),
   };
 }

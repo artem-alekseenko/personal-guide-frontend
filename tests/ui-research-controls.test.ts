@@ -426,7 +426,7 @@ it("guards an already-open preview confirmation when another lifecycle operation
   app.unmount();
 });
 
-it("refreshes the list only after a confirmed mutation, not inspection or failed mutation", async () => {
+it("keeps the tours list free of research settings and generation mutations", async () => {
   const routes = reactive({
     allTours: [
       {
@@ -453,18 +453,12 @@ it("refreshes the list only after a confirmed mutation, not inspection or failed
   const app = mount(Tours, {}, { ...components, PGTourCard }, t);
   await nextTick();
   routes.fetchListTours.mockClear();
-  await open(app.root);
-  await button(app.root, en.researchControls.refresh).props.onClick();
+  expect(findAll(app.root, (n) => n.type === "details")).toHaveLength(0);
+  expect(
+    findAll(app.root, (n) => "data-tour-generation" in n.props),
+  ).toHaveLength(1);
+  expect(fixture.lifecycle.run).not.toHaveBeenCalled();
   expect(routes.fetchListTours).not.toHaveBeenCalled();
-  fixture.lifecycle.run.mockResolvedValueOnce(false);
-  button(app.root, en.researchControls.actions.cancel).props.onClick();
-  await nextTick();
-  await confirmationButton(app.root).props.onClick();
-  expect(routes.fetchListTours).not.toHaveBeenCalled();
-  button(app.root, en.researchControls.actions.cancel).props.onClick();
-  await nextTick();
-  await confirmationButton(app.root).props.onClick();
-  expect(routes.fetchListTours).toHaveBeenCalledTimes(1);
   app.unmount();
 });
 
